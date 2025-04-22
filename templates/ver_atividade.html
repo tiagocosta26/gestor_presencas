@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8-sig">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ ficheiro }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    h1 {
+      color: #007bff;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: fixed;
+    }
+    table th, table td {
+      padding: 8px;
+      text-align: left;
+      border: 1px solid #dee2e6;
+    }
+    table th {
+      background-color: #007bff;
+      color: white;
+    }
+    table td {
+      background-color: #ffffff;
+    }
+  </style>
+</head>
+<body class="container mt-4">
+    <h1 class="text-center">{{ ficheiro.split('_')[0] }}</h1>
+
+    <!-- Tabela para a Tribo Peter Benenson -->
+    <h3>Tribo Peter Benenson</h3>
+    <table class="table table-striped mt-4">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Presente</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for nome, presente in dados['benenson'] %}
+          <tr>
+            <td>{{ nome }}</td>
+            <td>{{ presente }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Tabela para a Tribo Henri Dunant -->
+    <h3>Tribo Henri Dunant</h3>
+    <table class="table table-striped mt-4">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Presente</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for nome, presente in dados['dunant'] %}
+          <tr>
+            <td>{{ nome }}</td>
+            <td>{{ presente }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Tabela para a Tribo Rainha Dona Leonor -->
+    <h3>Tribo Rainha Dona Leonor</h3>
+    <table class="table table-striped mt-4">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Presente</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for nome, presente in dados['leonor'] %}
+          <tr>
+            <td>{{ nome }}</td>
+            <td>{{ presente }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <a href="{{ url_for('atividades') }}" class="btn btn-secondary mt-3">← Voltar</a>
+</body>
+</html>
