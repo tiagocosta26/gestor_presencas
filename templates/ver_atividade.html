@@ -34,6 +34,9 @@
 <body class="container mt-4">
     <h1 class="text-center">{{ ficheiro.split('_')[0] }}</h1>
 
+    <!-- Exibir a data da atividade logo abaixo do nome -->
+    <p class="text-center text-muted">{{ data_display }}</p>
+
     <!-- Tabela para a Tribo Peter Benenson -->
     <h3>Tribo Peter Benenson</h3>
     <table class="table table-striped mt-4">
@@ -91,6 +94,13 @@
       </tbody>
     </table>
 
-    <a href="{{ url_for('atividades') }}" class="btn btn-secondary mt-3">← Voltar</a>
+    <!-- Linha com os dois botões alinhados: Voltar à esquerda, Eliminar à direita -->
+  <div class="d-flex justify-content-between mt-4 mb-4">
+    <a href="{{ url_for('atividades') }}" class="btn btn-secondary">← Voltar</a>
+
+    <form method="post" action="{{ url_for('eliminar_atividade', nome_ficheiro=ficheiro) }}">
+      <button type="submit" class="btn btn-danger">🗑️ Eliminar Atividade</button>
+    </form>
+</div>
 </body>
 </html>

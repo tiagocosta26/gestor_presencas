@@ -1,0 +1,11 @@
+url: tiagocosta26.pythonanywhere.com
+
+local code building: 
+
+ - terminal: python  app.py
+ - web: http://127.0.0.1:5000/
+
+update:
+
+ - access pythonanywhere
+ - update files

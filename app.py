@@ -74,10 +74,39 @@ def atividades():
     
     return render_template("atividades.html", atividades_agrupadas=atividades_agrupadas, meses_ordenados=meses_ordenados)
 
+@app.route('/eliminar_atividade/<nome_ficheiro>', methods=['POST'])
+def eliminar_atividade(nome_ficheiro):
+    try:
+        caminho_ficheiro = os.path.join('registos', nome_ficheiro)
+        if os.path.exists(caminho_ficheiro):
+            os.remove(caminho_ficheiro)
+    except:
+        pass  # Ignora erros silenciosamente
+
+    return redirect(url_for('atividades'))
+
 @app.route("/atividade/<ficheiro>")
 def ver_atividade(ficheiro):
     caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
     dados = {"benenson": [], "dunant": [], "leonor": []}
+    
+    # Extrair as datas diretamente do nome do ficheiro
+    partes_ficheiro = ficheiro.split('_')
+    data_inicio_dia = partes_ficheiro[1][8:10]
+    data_inicio_mes = partes_ficheiro[1][5:7]
+    data_inicio_ano = partes_ficheiro[1][:4]    
+    data_fim_dia = partes_ficheiro[3][8:10]
+    data_fim_mes = partes_ficheiro[3][5:7]
+    data_fim_ano = partes_ficheiro[3][:4]
+    data_inicio = f"{data_inicio_dia}/{data_inicio_mes}/{data_inicio_ano}"
+    data_fim = f"{data_fim_dia}/{data_fim_mes}/{data_fim_ano}"
+
+    # Verificar se as datas de início e fim são iguais
+    if data_inicio_dia == data_fim_dia and data_inicio_mes == data_fim_mes and data_inicio_ano == data_fim_ano:
+        # Se as datas forem iguais, exibir apenas a data de início
+        data_display = data_inicio  # Mostrar apenas a data de início
+    else:
+        data_display = f"{data_inicio} - {data_fim}"  # Exibir intervalo completo
 
     if os.path.exists(caminho):
         with open(caminho, newline="", encoding="utf-8-sig") as f:
@@ -89,16 +118,16 @@ def ver_atividade(ficheiro):
                     atividade, data_inicio, data_fim, nome, presente = linha
                     if nome in ["Tiago Costa", "Filipa Moreno", "Inês Caetano", "Maria Farropas", "Ana Sofia Matos", "Rodrigo Morais"]:
                         tribo = "benenson"
-                    elif nome in ["Diana Moreno", "Leonor Cera", "Filipe Mendes", "Gonçalo Silvestre", "Maria Canto", "Leandro Alberto", "Diogo Caetano" ]:
+                    elif nome in ["Diana Moreno", "Leonor Cera", "Filipe Mendes", "Gonçalo Silvestre", "Maria Canto", "Leandro Alberto", "Diogo Caetano"]:
                         tribo = "dunant"
                     elif nome in ["António Faustino", "Rafael Ferreira", "Lara Serra", "Marta Mendes", "Mariana Quitério", "Joana Caetano"]:
                         tribo = "leonor"
                     else:
-                        continue  # Se o nome não for de nenhuma tribo, ignoramos a linha
-                    
+                        continue
+                 
                     dados[tribo].append((nome, presente))
 
-    return render_template("ver_atividade.html", ficheiro=ficheiro, cabecalho=cabecalho, dados=dados)
+    return render_template("ver_atividade.html", ficheiro=ficheiro, cabecalho=cabecalho, dados=dados, data_display=data_display)
 
 
 
