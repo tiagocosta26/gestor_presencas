@@ -32,13 +32,11 @@
   </style>
 </head>
 <body class="container mt-4">
-    <h1 class="text-center">{{ ficheiro.split('_')[0] }}</h1>
+  <h1 class="text-center">{{ ficheiro.split('_')[0] }}</h1>
+  <p class="text-center text-muted">{{ data_display }}</p>
 
-    <!-- Exibir a data da atividade logo abaixo do nome -->
-    <p class="text-center text-muted">{{ data_display }}</p>
-
-    <!-- Tabela para a Tribo Peter Benenson -->
-    <h3>Tribo Peter Benenson</h3>
+  {% for tribo_nome, presencas in dados.items() %}
+    <h3>{{ tribo_nome }}</h3>
     <table class="table table-striped mt-4">
       <thead>
         <tr>
@@ -47,7 +45,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for nome, presente in dados['benenson'] %}
+        {% for nome, presente in presencas %}
           <tr>
             <td>{{ nome }}</td>
             <td>{{ presente }}</td>
@@ -55,52 +53,13 @@
         {% endfor %}
       </tbody>
     </table>
+  {% endfor %}
 
-    <!-- Tabela para a Tribo Henri Dunant -->
-    <h3>Tribo Henri Dunant</h3>
-    <table class="table table-striped mt-4">
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Presente</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for nome, presente in dados['dunant'] %}
-          <tr>
-            <td>{{ nome }}</td>
-            <td>{{ presente }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <!-- Tabela para a Tribo Rainha Dona Leonor -->
-    <h3>Tribo Rainha Dona Leonor</h3>
-    <table class="table table-striped mt-4">
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Presente</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for nome, presente in dados['leonor'] %}
-          <tr>
-            <td>{{ nome }}</td>
-            <td>{{ presente }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <!-- Linha com os dois botões alinhados: Voltar à esquerda, Eliminar à direita -->
   <div class="d-flex justify-content-between mt-4 mb-4">
     <a href="{{ url_for('atividades') }}" class="btn btn-secondary">← Voltar</a>
-
     <form method="post" action="{{ url_for('eliminar_atividade', nome_ficheiro=ficheiro) }}">
-      <button type="submit" class="btn btn-danger">🗑️ Eliminar Atividade</button>
+      <button type="submit" class="btn btn-danger">Eliminar Atividade</button>
     </form>
-</div>
+  </div>
 </body>
 </html>

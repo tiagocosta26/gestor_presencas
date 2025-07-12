@@ -25,7 +25,7 @@
   <h1 class="text-center">Atividades Registadas</h1>
 
   {% for mes_ano in meses_ordenados %}
-    <h3>{{ mes_ano }}</h3>
+    <h3 class="mt-5">{{ mes_ano }}</h3>
     <ul class="list-group mt-4">
       {% for ficheiro in atividades_agrupadas[mes_ano] %}
         <li class="list-group-item">
@@ -34,7 +34,8 @@
       {% endfor %}
     </ul>
   {% endfor %}
-  
-  <a href="{{ url_for('index') }}" class="btn btn-secondary mt-4">← Voltar</a>
+  <div class="d-flex justify-content-start mt-4 mb-4">
+  <a href="{{ url_for('index') }}" class="btn btn-secondary">← Voltar</a>
+</div>
 </body>
 </html>

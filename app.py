@@ -73,7 +73,11 @@ def atividades():
         mes_ano = data_inicio[:7]
         atividades_agrupadas[mes_ano].append(ficheiro)
 
-    meses_ordenados = sorted(atividades_agrupadas.keys())
+    # Ordenar meses e atividades dentro de cada mês pela data mais recente
+    meses_ordenados = sorted(atividades_agrupadas.keys(), reverse=True)
+    for mes in meses_ordenados:
+        atividades_agrupadas[mes].sort(reverse=True)
+
     return render_template("atividades.html", atividades_agrupadas=atividades_agrupadas, meses_ordenados=meses_ordenados)
 
 @app.route('/eliminar_atividade/<nome_ficheiro>', methods=['POST'])
