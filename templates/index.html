@@ -38,7 +38,7 @@
       <select class="form-select" id="selectorTribo">
         <option value="">-- Escolher tribo --</option>
         {% for tribo_nome in tribos.keys() %}
-        <option value="{{ tribo_nome }}">{{ tribo_nome|capitalize }}</option>
+        <option value="{{ tribo_nome }}">{{ tribo_nome }}</option>
         {% endfor %}
       </select>
       <button type="button" class="btn btn-outline-primary mt-2" onclick="adicionarTribo()">Adicionar Tribo</button>
@@ -65,7 +65,7 @@
 
     <div class="d-flex gap-2 mt-2">
       <a href="{{ url_for('atividades') }}" class="btn btn-outline-secondary flex-fill">Ver Atividades Registadas</a>
-      <a href="{{ url_for('gestao') }}" class="btn btn-outline-secondary flex-fill">Gestão de Tribos</a>
+      <a href="{{ url_for('gestao_tribos') }}" class="btn btn-outline-secondary flex-fill">Gestão de Tribos</a>
     </div>
   </form>
 

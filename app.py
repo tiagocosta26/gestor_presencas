@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 import csv, os, re, json
 from collections import defaultdict
 from datetime import datetime
@@ -17,6 +17,7 @@ def carregar_tribos():
     if os.path.exists(FICHEIRO_TRIBOS):
         with open(FICHEIRO_TRIBOS, encoding="utf-8") as f:
             return json.load(f)
+    return {}
 
 # Função para guardar tribos no ficheiro JSON
 def guardar_tribos(tribos):
@@ -73,7 +74,6 @@ def atividades():
         mes_ano = data_inicio[:7]
         atividades_agrupadas[mes_ano].append(ficheiro)
 
-    # Ordenar meses e atividades dentro de cada mês pela data mais recente
     meses_ordenados = sorted(atividades_agrupadas.keys(), reverse=True)
     for mes in meses_ordenados:
         atividades_agrupadas[mes].sort(reverse=True)
@@ -90,39 +90,55 @@ def eliminar_atividade(nome_ficheiro):
         pass
     return redirect(url_for('atividades'))
 
-@app.route("/gestao", methods=["GET", "POST"])
-def gestao():
-    tribos = carregar_tribos() or {}
+@app.route("/gestao_tribos", methods=["GET", "POST"])
+def gestao_tribos():
+    tribos = carregar_tribos()
 
     if request.method == "POST":
         acao = request.form.get("acao")
-        tribo = request.form.get("tribo")
-        nome = request.form.get("nome")
 
-        if acao == "criar_tribo" and tribo:
-            if tribo not in tribos:
-                tribos[tribo] = []
-        elif acao == "eliminar_tribo" and tribo in tribos:
-            del tribos[tribo]
-        elif acao == "adicionar_pessoa" and tribo in tribos and nome:
-            if nome not in tribos[tribo]:
-                tribos[tribo].append(nome)
-        elif acao == "remover_pessoa" and tribo in tribos and nome:
-            if nome in tribos[tribo]:
-                tribos[tribo].remove(nome)
-        elif acao == "atualizar_ordem" and tribo in tribos:
-            nova_ordem = request.form.get("nova_ordem", "")
-            if nova_ordem:
-                nova_lista = nova_ordem.split(",")
-                membros_atuais = set(tribos[tribo])
-                nova_lista_filtrada = [m for m in nova_lista if m in membros_atuais]
-                tribos[tribo] = nova_lista_filtrada
+        if acao == "criar_tribo":
+            nome_tribo = request.form.get("nome_tribo").strip()
+            if nome_tribo and nome_tribo not in tribos:
+                tribos[nome_tribo] = []
+                guardar_tribos(tribos)
 
+        elif acao == "remover_tribo":
+            nome_tribo = request.form.get("nome_tribo")
+            if nome_tribo in tribos:
+                del tribos[nome_tribo]
+                guardar_tribos(tribos)
+
+        elif acao == "adicionar_pessoa":
+            tribo = request.form.get("tribo")
+            nome_pessoa = request.form.get("nome_pessoa").strip()
+            if tribo in tribos and nome_pessoa:
+                tribos[tribo].append(nome_pessoa)
+                guardar_tribos(tribos)
+
+        elif acao == "remover_pessoa":
+            tribo = request.form.get("tribo")
+            nome_pessoa = request.form.get("nome_pessoa")
+            if tribo in tribos and nome_pessoa in tribos[tribo]:
+                tribos[tribo].remove(nome_pessoa)
+                guardar_tribos(tribos)
+
+        return redirect(url_for("gestao_tribos"))
+
+    return render_template("gestao_tribos.html", tribos=tribos)
+
+@app.route("/reordenar_pessoas", methods=["POST"])
+def reordenar_pessoas():
+    data = request.get_json()
+    tribo = data.get("tribo")
+    nova_ordem = data.get("nova_ordem")
+
+    tribos = carregar_tribos()
+    if tribo in tribos and isinstance(nova_ordem, list):
+        tribos[tribo] = nova_ordem
         guardar_tribos(tribos)
-        return redirect(url_for("gestao"))
-        
-    return render_template("gestao.html", tribos=tribos)
-
+        return jsonify({"status": "ok"})
+    return jsonify({"status": "erro"}), 400
 
 @app.route("/atividade/<ficheiro>")
 def ver_atividade(ficheiro):
@@ -146,7 +162,6 @@ def ver_atividade(ficheiro):
         with open(caminho, newline="", encoding="utf-8-sig") as f:
             reader = csv.reader(f)
             cabecalho = next(reader)
-
             for linha in reader:
                 if len(linha) == 5:
                     _, _, _, nome, presente = linha
