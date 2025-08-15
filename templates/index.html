@@ -48,7 +48,7 @@
       <h3>Presenças:</h3>
       {% for tribo_nome, membros in tribos.items() %}
       <div id="{{ tribo_nome }}" class="grupo" style="display:none">
-        <h5 class="mt-3">{{ tribo_nome|capitalize }}</h5>
+        <h5 class="mt-3">{{ tribo_nome }}</h5>
         {% for membro in membros %}
         <div class="form-check">
           <input class="form-check-input" type="checkbox" name="presenca_{{ membro }}" value="Sim" id="presenca_{{ membro|replace(' ', '_') }}">
