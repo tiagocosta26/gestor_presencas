@@ -48,7 +48,7 @@ def limpar_nome(nome):
 @app.route("/", methods=["GET", "POST"])
 def index():
     tribos = carregar_tribos()
-
+    
     if request.method == "POST":
         atividade = request.form["atividade"]
         atividade_limpa = limpar_nome(atividade)
@@ -56,23 +56,22 @@ def index():
         data_fim = request.form["data_fim"]
         tribos_selecionadas = request.form["tribos_selecionadas"].split(",")
 
-        elementos = []
-        for tribo in tribos_selecionadas:
-            elementos.extend([p['nome'] for p in tribos.get(tribo, [])])
-
-        presencas = {
-            nome: "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
-            for nome in elementos
-        }
-
-        nome_ficheiro = f"{atividade_limpa}_{data_inicio}_a_{data_fim}"
-        caminho = os.path.join(DIRETORIO_PRESENCAS, f"{nome_ficheiro}.csv")
+        caminho = os.path.join(DIRETORIO_PRESENCAS, f"{atividade_limpa}_{data_inicio}_a_{data_fim}.csv")
 
         with open(caminho, "w", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
-            writer.writerow(["Atividade", "Data Início", "Data Fim", "Elemento", "Presente"])
-            for nome, presente in presencas.items():
-                writer.writerow([atividade, data_inicio, data_fim, nome, presente])
+            # Novo cabeçalho com a coluna 'Tribo' e 'Cargos'
+            writer.writerow(["Atividade", "Data Início", "Data Fim", "Tribo", "Elemento", "Cargos", "Presente"])
+            
+            # Itera sobre as tribos selecionadas para guardar a tribo de cada pessoa
+            for tribo_nome in tribos_selecionadas:
+                membros = tribos.get(tribo_nome, [])
+                for membro in membros:
+                    nome = membro['nome']
+                    cargos_list = membro.get('cargo', [])
+                    cargos_str = ', '.join(cargos_list)  # Converte a lista de cargos em string
+                    presente = "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
+                    writer.writerow([atividade, data_inicio, data_fim, tribo_nome, nome, cargos_str, presente])
 
         return redirect(url_for("atividades"))
 
@@ -111,7 +110,6 @@ def gestao_tribos():
     tribos = carregar_tribos()
     cargos_disponiveis = carregar_cargos()
     
-    # Cria um mapa para saber a ordem dos cargos
     cargo_ordem = {cargo: i for i, cargo in enumerate(cargos_disponiveis)}
 
     if request.method == "POST":
@@ -126,7 +124,6 @@ def gestao_tribos():
             if not is_ajax:
                 return redirect(url_for("gestao_tribos"))
             return jsonify({"status": "ok"})
-
 
         elif acao == "remover_tribo":
             nome_tribo = request.form.get("nome_tribo")
@@ -176,7 +173,6 @@ def gestao_tribos():
                 guardar_tribos(tribos)
                 if not is_ajax:
                     return redirect(url_for("gestao_tribos", tribo_id=tribo))
-                # Retorna a pessoa atualizada e o mapa de cores para a página
                 return jsonify({"status": "ok", "pessoa": pessoa, "cargos_disponiveis": cargos_disponiveis})
 
     return render_template("gestao_tribos.html", tribos=tribos, cargos_disponiveis=cargos_disponiveis)
@@ -204,35 +200,44 @@ def reordenar_pessoas():
 
 @app.route("/atividade/<ficheiro>")
 def ver_atividade(ficheiro):
-    tribos = carregar_tribos()
+    cargos_disponiveis = carregar_cargos()
     caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
-    dados = {tribo: [] for tribo in tribos}
-
-    partes_ficheiro = ficheiro.split('_')
-    data_inicio_dia = partes_ficheiro[1][8:10]
-    data_inicio_mes = partes_ficheiro[1][5:7]
-    data_inicio_ano = partes_ficheiro[1][:4]
-    data_fim_dia = partes_ficheiro[3][8:10]
-    data_fim_mes = partes_ficheiro[3][5:7]
-    data_fim_ano = partes_ficheiro[3][:4]
-    data_inicio = f"{data_inicio_dia}/{data_inicio_mes}/{data_inicio_ano}"
-    data_fim = f"{data_fim_dia}/{data_fim_mes}/{data_fim_ano}"
-
-    data_display = data_inicio if data_inicio == data_fim else f"{data_inicio} - {data_fim}"
-
+    # A estrutura de dados para o template agora é criada a partir do CSV
+    dados = defaultdict(list)
+    
+    # Adiciona tribo e cargos ao cabeçalho.
+    cabecalho_info = {}
+    
     if os.path.exists(caminho):
         with open(caminho, newline="", encoding="utf-8-sig") as f:
             reader = csv.reader(f)
-            cabecalho = next(reader)
+            cabecalho_csv = next(reader)
+            # Extrai info da primeira linha (atividade, data)
+            if cabecalho_csv:
+                atividade_nome = next((row[0] for row in csv.reader(f, skipinitialspace=True) if len(row) > 0), 'N/A')
+                # Reinicia o leitor para a primeira linha de dados
+                f.seek(0)
+                next(reader) 
+                
             for linha in reader:
-                if len(linha) == 5:
-                    _, _, _, nome, presente = linha
-                    for tribo, membros in tribos.items():
-                        if nome in [p['nome'] for p in membros]:
-                            dados[tribo].append((nome, presente))
-                            break
+                if len(linha) == 7: # Verifica se a linha tem o novo formato
+                    atividade_nome, data_inicio_str, data_fim_str, tribo_nome, nome, cargos_str, presente = linha
+                    cargos_list = [c.strip() for c in cargos_str.split(',')] if cargos_str else []
+                    dados[tribo_nome].append({'nome': nome, 'presente': presente, 'cargos': cargos_list})
 
-    return render_template("ver_atividade.html", ficheiro=ficheiro, cabecalho=cabecalho, dados=dados, data_display=data_display)
+    # Extrai as datas para mostrar no template
+    partes_ficheiro = ficheiro.split('_')
+    data_inicio_format = partes_ficheiro[1]
+    data_fim_format = partes_ficheiro[3].replace('.csv', '')
+    data_display = data_inicio_format if data_inicio_format == data_fim_format else f"{data_inicio_format} - {data_fim_format}"
+
+    return render_template(
+        "ver_atividade.html",
+        ficheiro=ficheiro,
+        dados=dados,
+        data_display=data_display,
+        cargos_disponiveis=cargos_disponiveis
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
