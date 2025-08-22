@@ -28,9 +28,33 @@
     .dropdown-item i {
         margin-right: .5rem;
     }
-    /* Estilo para os badges com cores dinâmicas */
     .badge-cargo {
-        color: white; /* Garante que o texto seja branco para visibilidade */
+        color: white;
+    }
+    .flex-item-group {
+        display: flex;
+        flex-wrap: wrap; /* Permite que os itens quebrem para a próxima linha */
+        align-items: center;
+        gap: 0.5rem; /* Espaçamento entre os itens */
+    }
+    .botoes-mobile {
+        margin-top: 0.5rem;
+    }
+    /* Estilo para ajustar a ordem e o espaçamento em ecrãs pequenos */
+    @media (max-width: 575.98px) {
+      .list-group-item .botoes-mobile {
+        margin-top: 1rem;
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .list-group-item {
+        flex-direction: column;
+        align-items: flex-start !important;
+      }
+      .list-group-item > .flex-item-group {
+        margin-bottom: 0;
+      }
     }
   </style>
 </head>
@@ -51,16 +75,16 @@
             <ul id="lista-{{ tribo }}" class="list-group sortable" data-tribo="{{ tribo }}">
                 {% for pessoa in membros %}
                 <li class="list-group-item d-flex justify-content-between align-items-center sortable-handle" data-nome-pessoa="{{ pessoa.nome }}">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-grip-vertical me-2"></i>
-                        <span class="nome-pessoa me-2">{{ pessoa.nome }}</span>
+                    <div class="flex-item-group">
+                        <i class="bi bi-grip-vertical"></i>
+                        <span class="nome-pessoa">{{ pessoa.nome }}</span>
                         {% if pessoa.cargo %}
                             {% for cargo in pessoa.cargo %}
-                                <span class="badge badge-cargo ms-1" style="background-color: {{ cargos_disponiveis.get(cargo, '#6c757d') }};">{{ cargo }}</span>
+                                <span class="badge badge-cargo" style="background-color: {{ cargos_disponiveis.get(cargo, '#6c757d') }};">{{ cargo }}</span>
                             {% endfor %}
                         {% endif %}
                     </div>
-                    <div>
+                    <div class="botoes-mobile">
                         <div class="dropdown" style="display:inline;">
                           <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             Cargo
@@ -134,7 +158,7 @@
             document.querySelectorAll(".sortable").forEach(function(lista) {
                 new Sortable(lista, {
                     animation: 150,
-                    handle: '.sortable-handle',
+                    handle: '.bi-grip-vertical',
                     onEnd: function(evt) {
                         let tribo = lista.getAttribute("data-tribo");
                         let novaOrdem = Array.from(lista.children).map(li => li.querySelector('span.nome-pessoa').innerText);
@@ -174,15 +198,15 @@
                         if (data.status === 'ok') {
                             if (acao === 'adicionar_cargo') {
                                 const pessoaLi = containerPessoas.querySelector(`[data-nome-pessoa="${nomePessoa}"]`);
-                                const cargosDiv = pessoaLi.querySelector('.d-flex.align-items-center');
+                                const cargosDiv = pessoaLi.querySelector('.flex-item-group');
                                 
                                 cargosDiv.querySelectorAll('.badge').forEach(badge => badge.remove());
                                 
                                 const cargos = data.pessoa.cargo;
                                 cargos.forEach(cargo => {
                                     const badge = document.createElement('span');
-                                    const cor = cargosDisponiveis[cargo] || '#6c757d'; // Usa a cor do mapa
-                                    badge.className = `badge badge-cargo ms-1`;
+                                    const cor = cargosDisponiveis[cargo] || '#6c757d';
+                                    badge.className = `badge badge-cargo`;
                                     badge.style.backgroundColor = cor;
                                     badge.textContent = cargo;
                                     cargosDiv.appendChild(badge);
@@ -197,12 +221,13 @@
                                 const li = document.createElement('li');
                                 li.className = 'list-group-item d-flex justify-content-between align-items-center sortable-handle';
                                 li.setAttribute('data-nome-pessoa', novaPessoa.nome);
+                                
                                 li.innerHTML = `
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-grip-vertical me-2"></i>
-                                        <span class="nome-pessoa me-2">${novaPessoa.nome}</span>
+                                    <div class="flex-item-group">
+                                        <i class="bi bi-grip-vertical"></i>
+                                        <span class="nome-pessoa">${novaPessoa.nome}</span>
                                     </div>
-                                    <div>
+                                    <div class="botoes-mobile">
                                         <div class="dropdown" style="display:inline;">
                                           <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                             Cargo
