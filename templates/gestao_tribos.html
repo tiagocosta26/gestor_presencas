@@ -21,13 +21,24 @@
       border-radius: 10px;
       box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
     }
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+    }
+    .dropdown-item i {
+        margin-right: .5rem;
+    }
+    /* Estilo para os badges com cores dinâmicas */
+    .badge-cargo {
+        color: white; /* Garante que o texto seja branco para visibilidade */
+    }
   </style>
 </head>
 <body class="container mt-4">
     <h1 class="text-center">Gestão de Tribos</h1>
 
     {% for tribo, membros in tribos.items() %}
-    <div class="card my-4">
+    <div class="card my-4" id="tribo-{{ tribo }}">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3>{{ tribo }}</h3>
             <form method="post" action="{{ url_for('gestao_tribos') }}">
@@ -37,22 +48,54 @@
             </form>
         </div>
         <div class="card-body">
-            <ul id="lista-{{ loop.index }}" class="list-group sortable" data-tribo="{{ tribo }}">
+            <ul id="lista-{{ tribo }}" class="list-group sortable" data-tribo="{{ tribo }}">
                 {% for pessoa in membros %}
-                <li class="list-group-item d-flex justify-content-between align-items-center sortable-handle">
-                    <i class="bi bi-grip-vertical me-2"></i>
-                    <span>{{ pessoa }}</span>
-                    <form method="post" action="{{ url_for('gestao_tribos') }}" style="display:inline;">
-                        <input type="hidden" name="acao" value="remover_pessoa">
-                        <input type="hidden" name="tribo" value="{{ tribo }}">
-                        <input type="hidden" name="nome_pessoa" value="{{ pessoa }}">
-                        <button class="btn btn-sm btn-danger" type="submit">Remover</button>
-                    </form>
+                <li class="list-group-item d-flex justify-content-between align-items-center sortable-handle" data-nome-pessoa="{{ pessoa.nome }}">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-grip-vertical me-2"></i>
+                        <span class="nome-pessoa me-2">{{ pessoa.nome }}</span>
+                        {% if pessoa.cargo %}
+                            {% for cargo in pessoa.cargo %}
+                                <span class="badge badge-cargo ms-1" style="background-color: {{ cargos_disponiveis.get(cargo, '#6c757d') }};">{{ cargo }}</span>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="dropdown" style="display:inline;">
+                          <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Cargo
+                          </button>
+                          <ul class="dropdown-menu">
+                            {% for cargo in cargos_disponiveis %}
+                              <li>
+                                <form method="post" action="{{ url_for('gestao_tribos') }}" class="js-ajax-form" style="display:inline;">
+                                  <input type="hidden" name="acao" value="adicionar_cargo">
+                                  <input type="hidden" name="tribo" value="{{ tribo }}">
+                                  <input type="hidden" name="nome_pessoa" value="{{ pessoa.nome }}">
+                                  <input type="hidden" name="cargo" value="{{ cargo }}">
+                                  <button class="dropdown-item" type="submit">
+                                    {% if cargo in pessoa.cargo %}
+                                      <i class="bi bi-check-lg text-success"></i>
+                                    {% endif %}
+                                    {{ cargo }}
+                                  </button>
+                                </form>
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                        <form method="post" action="{{ url_for('gestao_tribos') }}" class="js-ajax-form" style="display:inline;">
+                            <input type="hidden" name="acao" value="remover_pessoa">
+                            <input type="hidden" name="tribo" value="{{ tribo }}">
+                            <input type="hidden" name="nome_pessoa" value="{{ pessoa.nome }}">
+                            <button class="btn btn-sm btn-danger" type="submit">Remover</button>
+                        </form>
+                    </div>
                 </li>
                 {% endfor %}
             </ul>
 
-            <form method="post" action="{{ url_for('gestao_tribos') }}" class="mt-3">
+            <form method="post" action="{{ url_for('gestao_tribos') }}" class="js-ajax-form mt-3">
                 <input type="hidden" name="acao" value="adicionar_pessoa">
                 <input type="hidden" name="tribo" value="{{ tribo }}">
                 <div class="input-group">
@@ -83,20 +126,18 @@
         <a href="{{ url_for('index') }}" class="btn btn-secondary">← Voltar</a>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Itera sobre todas as listas com a classe "sortable"
+            const cargosDisponiveis = {{ cargos_disponiveis | tojson }};
+
             document.querySelectorAll(".sortable").forEach(function(lista) {
                 new Sortable(lista, {
                     animation: 150,
-                    handle: '.sortable-handle', // Define que apenas o item inteiro pode ser arrastado
-                    // Função executada quando o arrastar e soltar termina
+                    handle: '.sortable-handle',
                     onEnd: function(evt) {
                         let tribo = lista.getAttribute("data-tribo");
-                        // Mapeia os elementos <li> para obter o texto de cada um (nome da pessoa)
-                        let novaOrdem = Array.from(lista.children).map(li => li.querySelector('span').innerText);
-
-                        // Envia a nova ordem para o servidor via fetch
+                        let novaOrdem = Array.from(lista.children).map(li => li.querySelector('span.nome-pessoa').innerText);
                         fetch("/reordenar_pessoas", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -110,6 +151,106 @@
                             alert("Erro ao comunicar com o servidor!");
                         });
                     }
+                });
+            });
+
+            document.querySelectorAll('.js-ajax-form').forEach(form => {
+                form.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    const formData = new FormData(this);
+                    const acao = formData.get('acao');
+                    const tribo = formData.get('tribo');
+                    const nomePessoa = formData.get('nome_pessoa');
+                    const url = this.action;
+                    const containerPessoas = document.getElementById('lista-' + tribo);
+                    
+                    fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'ok') {
+                            if (acao === 'adicionar_cargo') {
+                                const pessoaLi = containerPessoas.querySelector(`[data-nome-pessoa="${nomePessoa}"]`);
+                                const cargosDiv = pessoaLi.querySelector('.d-flex.align-items-center');
+                                
+                                cargosDiv.querySelectorAll('.badge').forEach(badge => badge.remove());
+                                
+                                const cargos = data.pessoa.cargo;
+                                cargos.forEach(cargo => {
+                                    const badge = document.createElement('span');
+                                    const cor = cargosDisponiveis[cargo] || '#6c757d'; // Usa a cor do mapa
+                                    badge.className = `badge badge-cargo ms-1`;
+                                    badge.style.backgroundColor = cor;
+                                    badge.textContent = cargo;
+                                    cargosDiv.appendChild(badge);
+                                });
+                            } else if (acao === 'remover_pessoa') {
+                                const pessoaLi = containerPessoas.querySelector(`[data-nome-pessoa="${nomePessoa}"]`);
+                                if (pessoaLi) {
+                                    pessoaLi.remove();
+                                }
+                            } else if (acao === 'adicionar_pessoa') {
+                                const novaPessoa = data.pessoa;
+                                const li = document.createElement('li');
+                                li.className = 'list-group-item d-flex justify-content-between align-items-center sortable-handle';
+                                li.setAttribute('data-nome-pessoa', novaPessoa.nome);
+                                li.innerHTML = `
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-grip-vertical me-2"></i>
+                                        <span class="nome-pessoa me-2">${novaPessoa.nome}</span>
+                                    </div>
+                                    <div>
+                                        <div class="dropdown" style="display:inline;">
+                                          <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Cargo
+                                          </button>
+                                          <ul class="dropdown-menu">
+                                            {% for cargo in cargos_disponiveis %}
+                                              <li>
+                                                <form method="post" action="{{ url_for('gestao_tribos') }}" class="js-ajax-form" style="display:inline;">
+                                                  <input type="hidden" name="acao" value="adicionar_cargo">
+                                                  <input type="hidden" name="tribo" value="${tribo}">
+                                                  <input type="hidden" name="nome_pessoa" value="${novaPessoa.nome}">
+                                                  <input type="hidden" name="cargo" value="{{ cargo }}">
+                                                  <button class="dropdown-item" type="submit">{{ cargo }}</button>
+                                                </form>
+                                              </li>
+                                            {% endfor %}
+                                          </ul>
+                                        </div>
+                                        <form method="post" action="{{ url_for('gestao_tribos') }}" class="js-ajax-form" style="display:inline;">
+                                            <input type="hidden" name="acao" value="remover_pessoa">
+                                            <input type="hidden" name="tribo" value="${tribo}">
+                                            <input type="hidden" name="nome_pessoa" value="${novaPessoa.nome}">
+                                            <button class="btn btn-sm btn-danger" type="submit">Remover</button>
+                                        </form>
+                                    </div>
+                                `;
+                                containerPessoas.appendChild(li);
+                                this.reset();
+                            }
+                            const dropdownButton = this.closest('.dropdown').querySelector('.dropdown-toggle');
+                            const dropdownMenu = dropdownButton.nextElementSibling;
+                            const cargoAtualizado = formData.get('cargo');
+                            const formElement = dropdownMenu.querySelector(`input[name="cargo"][value="${cargoAtualizado}"]`).closest('form');
+                            const buttonElement = formElement.querySelector('button');
+                            if (data.pessoa.cargo.includes(cargoAtualizado)) {
+                                if (!buttonElement.querySelector('.bi-check-lg')) {
+                                    const icon = document.createElement('i');
+                                    icon.className = 'bi bi-check-lg text-success';
+                                    buttonElement.prepend(icon);
+                                }
+                            } else {
+                                const icon = buttonElement.querySelector('.bi-check-lg');
+                                if (icon) {
+                                    icon.remove();
+                                }
+                            }
+                        }
+                    })
                 });
             });
         });

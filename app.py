@@ -11,6 +11,7 @@ os.makedirs(DIRETORIO_PRESENCAS, exist_ok=True)
 
 # Ficheiro JSON para guardar as tribos
 FICHEIRO_TRIBOS = "tribos.json"
+FICHEIRO_CARGOS = "cargos.json"
 
 # Função para carregar tribos do ficheiro JSON
 def carregar_tribos():
@@ -23,6 +24,21 @@ def carregar_tribos():
 def guardar_tribos(tribos):
     with open(FICHEIRO_TRIBOS, "w", encoding="utf-8") as f:
         json.dump(tribos, f, indent=4, ensure_ascii=False)
+
+# Função para carregar cargos do ficheiro JSON
+def carregar_cargos():
+    if os.path.exists(FICHEIRO_CARGOS):
+        with open(FICHEIRO_CARGOS, encoding="utf-8") as f:
+            return json.load(f)
+    # Se o ficheiro não existir, cria-o com cargos e cores padrão
+    cargos_padrao = {
+        "Guia": "#007bff",
+        "Sub-Guia": "#28a745",
+        "Secretário": "#dc3545"
+    }
+    with open(FICHEIRO_CARGOS, "w", encoding="utf-8") as f:
+        json.dump(cargos_padrao, f, indent=4, ensure_ascii=False)
+    return cargos_padrao
 
 # Função para limpar nomes (para criar nomes de ficheiros seguros)
 def limpar_nome(nome):
@@ -42,7 +58,7 @@ def index():
 
         elementos = []
         for tribo in tribos_selecionadas:
-            elementos.extend(tribos.get(tribo, []))
+            elementos.extend([p['nome'] for p in tribos.get(tribo, [])])
 
         presencas = {
             nome: "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
@@ -93,49 +109,95 @@ def eliminar_atividade(nome_ficheiro):
 @app.route("/gestao_tribos", methods=["GET", "POST"])
 def gestao_tribos():
     tribos = carregar_tribos()
+    cargos_disponiveis = carregar_cargos()
+    
+    # Cria um mapa para saber a ordem dos cargos
+    cargo_ordem = {cargo: i for i, cargo in enumerate(cargos_disponiveis)}
 
     if request.method == "POST":
         acao = request.form.get("acao")
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
         if acao == "criar_tribo":
             nome_tribo = request.form.get("nome_tribo").strip()
             if nome_tribo and nome_tribo not in tribos:
                 tribos[nome_tribo] = []
                 guardar_tribos(tribos)
+            if not is_ajax:
+                return redirect(url_for("gestao_tribos"))
+            return jsonify({"status": "ok"})
+
 
         elif acao == "remover_tribo":
             nome_tribo = request.form.get("nome_tribo")
             if nome_tribo in tribos:
                 del tribos[nome_tribo]
                 guardar_tribos(tribos)
+            if not is_ajax:
+                return redirect(url_for("gestao_tribos"))
+            return jsonify({"status": "ok"})
 
         elif acao == "adicionar_pessoa":
             tribo = request.form.get("tribo")
             nome_pessoa = request.form.get("nome_pessoa").strip()
             if tribo in tribos and nome_pessoa:
-                tribos[tribo].append(nome_pessoa)
+                nova_pessoa = {"nome": nome_pessoa, "cargo": []}
+                tribos[tribo].append(nova_pessoa)
                 guardar_tribos(tribos)
+                if not is_ajax:
+                    return redirect(url_for("gestao_tribos", tribo_id=tribo))
+                return jsonify({"status": "ok", "pessoa": nova_pessoa})
 
         elif acao == "remover_pessoa":
             tribo = request.form.get("tribo")
             nome_pessoa = request.form.get("nome_pessoa")
-            if tribo in tribos and nome_pessoa in tribos[tribo]:
-                tribos[tribo].remove(nome_pessoa)
+            if tribo in tribos:
+                tribos[tribo] = [p for p in tribos[tribo] if p["nome"] != nome_pessoa]
                 guardar_tribos(tribos)
+            if not is_ajax:
+                return redirect(url_for("gestao_tribos", tribo_id=tribo))
+            return jsonify({"status": "ok", "nome_pessoa": nome_pessoa})
+        
+        elif acao == "adicionar_cargo":
+            tribo = request.form.get("tribo")
+            nome_pessoa = request.form.get("nome_pessoa")
+            cargo = request.form.get("cargo")
+            
+            if tribo in tribos and nome_pessoa and cargo:
+                for pessoa in tribos[tribo]:
+                    if pessoa["nome"] == nome_pessoa:
+                        if cargo in pessoa["cargo"]:
+                            pessoa["cargo"].remove(cargo)
+                        else:
+                            pessoa["cargo"].append(cargo)
+                        
+                        pessoa["cargo"].sort(key=lambda c: cargo_ordem.get(c, float('inf')))
+                        break
+                guardar_tribos(tribos)
+                if not is_ajax:
+                    return redirect(url_for("gestao_tribos", tribo_id=tribo))
+                # Retorna a pessoa atualizada e o mapa de cores para a página
+                return jsonify({"status": "ok", "pessoa": pessoa, "cargos_disponiveis": cargos_disponiveis})
 
-        return redirect(url_for("gestao_tribos"))
-
-    return render_template("gestao_tribos.html", tribos=tribos)
+    return render_template("gestao_tribos.html", tribos=tribos, cargos_disponiveis=cargos_disponiveis)
 
 @app.route("/reordenar_pessoas", methods=["POST"])
 def reordenar_pessoas():
     data = request.get_json()
     tribo = data.get("tribo")
-    nova_ordem = data.get("nova_ordem")
+    nova_ordem_nomes = data.get("nova_ordem")
 
     tribos = carregar_tribos()
-    if tribo in tribos and isinstance(nova_ordem, list):
-        tribos[tribo] = nova_ordem
+    if tribo in tribos and isinstance(nova_ordem_nomes, list):
+        pessoas_originais = tribos[tribo]
+        pessoas_mapa = {p["nome"]: p for p in pessoas_originais}
+        
+        nova_lista_pessoas = []
+        for nome in nova_ordem_nomes:
+            if nome in pessoas_mapa:
+                nova_lista_pessoas.append(pessoas_mapa[nome])
+        
+        tribos[tribo] = nova_lista_pessoas
         guardar_tribos(tribos)
         return jsonify({"status": "ok"})
     return jsonify({"status": "erro"}), 400
@@ -166,7 +228,7 @@ def ver_atividade(ficheiro):
                 if len(linha) == 5:
                     _, _, _, nome, presente = linha
                     for tribo, membros in tribos.items():
-                        if nome in membros:
+                        if nome in [p['nome'] for p in membros]:
                             dados[tribo].append((nome, presente))
                             break
 

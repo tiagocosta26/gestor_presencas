@@ -51,8 +51,8 @@
         <h5 class="mt-3">{{ tribo_nome }}</h5>
         {% for membro in membros %}
         <div class="form-check">
-          <input class="form-check-input" type="checkbox" name="presenca_{{ membro }}" value="Sim" id="presenca_{{ membro|replace(' ', '_') }}">
-          <label class="form-check-label" for="presenca_{{ membro|replace(' ', '_') }}">{{ membro }}</label>
+          <input class="form-check-input" type="checkbox" name="presenca_{{ membro.nome }}" value="Sim" id="presenca_{{ membro.nome|replace(' ', '_') }}">
+          <label class="form-check-label" for="presenca_{{ membro.nome|replace(' ', '_') }}">{{ membro.nome }}</label>
         </div>
         {% endfor %}
       </div>

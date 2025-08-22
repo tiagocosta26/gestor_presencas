@@ -1,27 +1,130 @@
 {
     "Peter Benenson": [
-        "Tiago Costa",
-        "Filipa Moreno",
-        "Ana Sofia Matos",
-        "Rodrigo Morais",
-        "Maria Farropas",
-        "Inês Caetano"
+        {
+            "nome": "Tiago Costa",
+            "cargo": [
+                "Guia"
+            ]
+        },
+        {
+            "nome": "Filipa Moreno",
+            "cargo": [
+                "Sub-Guia",
+                "Tesoureiro"
+            ]
+        },
+        {
+            "nome": "Ana Sofia Matos",
+            "cargo": [
+                "Secretário",
+                "Relações Públicas"
+            ]
+        },
+        {
+            "nome": "Rodrigo Morais",
+            "cargo": [
+                "Socorrista"
+            ]
+        },
+        {
+            "nome": "Maria Farropas",
+            "cargo": [
+                "Guarda-Material"
+            ]
+        },
+        {
+            "nome": "Inês Caetano",
+            "cargo": [
+                "Animador",
+                "Cozinheiro"
+            ]
+        }
     ],
     "Henri Dunant": [
-        "Leonor Cera",
-        "Diana Moreno",
-        "Filipe Mendes",
-        "Gonçalo Silvestre",
-        "Maria Canto",
-        "Leandro Alberto",
-        "Diogo Caetano"
+        {
+            "nome": "Leonor Cera",
+            "cargo": [
+                "Guia",
+                "Tesoureiro"
+            ]
+        },
+        {
+            "nome": "Diana Moreno",
+            "cargo": [
+                "Sub-Guia"
+            ]
+        },
+        {
+            "nome": "Filipe Mendes",
+            "cargo": [
+                "Cozinheiro"
+            ]
+        },
+        {
+            "nome": "Gonçalo Silvestre",
+            "cargo": [
+                "Secretário"
+            ]
+        },
+        {
+            "nome": "Maria Canto",
+            "cargo": [
+                "Animador",
+                "Relações Públicas"
+            ]
+        },
+        {
+            "nome": "Leandro Alberto",
+            "cargo": [
+                "Socorrista"
+            ]
+        },
+        {
+            "nome": "Diogo Caetano",
+            "cargo": [
+                "Guarda-Material"
+            ]
+        }
     ],
     "Rainha D. Leonor": [
-        "António Faustino",
-        "Rafael Ferreira",
-        "Lara Serra",
-        "Marta Mendes",
-        "Mariana Quitério",
-        "Joana Caetano"
+        {
+            "nome": "António Faustino",
+            "cargo": [
+                "Guia"
+            ]
+        },
+        {
+            "nome": "Rafael Ferreira",
+            "cargo": [
+                "Sub-Guia",
+                "Tesoureiro"
+            ]
+        },
+        {
+            "nome": "Lara Serra",
+            "cargo": [
+                "Secretário",
+                "Animador"
+            ]
+        },
+        {
+            "nome": "Marta Mendes",
+            "cargo": [
+                "Cozinheiro"
+            ]
+        },
+        {
+            "nome": "Mariana Quitério",
+            "cargo": [
+                "Relações Públicas"
+            ]
+        },
+        {
+            "nome": "Joana Caetano",
+            "cargo": [
+                "Socorrista",
+                "Guarda-Material"
+            ]
+        }
     ]
 }
