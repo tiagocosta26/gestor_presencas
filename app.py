@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, s
 import csv, os, re, json
 from collections import defaultdict
 from werkzeug.utils import secure_filename
+from datetime import datetime # Importação necessária
 
 app = Flask(__name__)
 
@@ -301,10 +302,8 @@ def tesouraria():
         
         guardar_folha_caixa(entidade, folha_caixa)
         
-        # Redirecionar para evitar o aviso de ressubmissão do formulário
         return redirect(url_for('tesouraria', entidade_ativa=entidade))
 
-    # A partir daqui, a rota é tratada com GET
     folhas_caixa = {
         "Clan": sorted(carregar_folha_caixa("Clan"), key=lambda x: x['data']),
     }
@@ -322,6 +321,82 @@ def tesouraria():
 def uploaded_file(filename):
     """Rota para servir ficheiros guardados no diretório de uploads."""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route("/assiduidade", methods=["GET", "POST"])
+def assiduidade():
+    """Calcula e exibe a assiduidade por pessoa e tribo para um ano escutista."""
+    ano_selecionado = request.form.get("ano_escotista")
+    if not ano_selecionado:
+        # Padrão: ano escutista atual (Outubro do ano anterior a Setembro do ano atual)
+        hoje = datetime.now()
+        ano_selecionado = hoje.year
+        if hoje.month < 10:
+            ano_selecionado -= 1
+        ano_selecionado = str(ano_selecionado)
+
+    # Definir o intervalo do ano escutista
+    ano_inicio = int(ano_selecionado)
+    ano_fim = ano_inicio + 1
+    data_inicio = datetime(ano_inicio, 10, 1)
+    data_fim = datetime(ano_fim, 9, 30)
+
+    # Processar os ficheiros de atividades
+    assiduidade_por_tribo = defaultdict(lambda: defaultdict(lambda: {'presente': 0, 'total': 0}))
+    atividades_do_ano = 0
+
+    ficheiros = [f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")]
+    for ficheiro in ficheiros:
+        try:
+            data_str = ficheiro.split('_')[1]
+            data_atividade = datetime.strptime(data_str, "%Y-%m-%d")
+
+            if data_inicio <= data_atividade <= data_fim:
+                atividades_do_ano += 1
+                caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
+                with open(caminho, newline="", encoding="utf-8-sig") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        tribo = row['Tribo']
+                        elemento = row['Elemento']
+                        presente = row['Presente']
+                        
+                        assiduidade_por_tribo[tribo][elemento]['total'] += 1
+                        if presente == "Sim":
+                            assiduidade_por_tribo[tribo][elemento]['presente'] += 1
+        except Exception as e:
+            print(f"Erro ao processar o ficheiro {ficheiro}: {e}")
+
+    # Calcular as percentagens
+    for tribo in assiduidade_por_tribo:
+        for elemento in assiduidade_por_tribo[tribo]:
+            dados = assiduidade_por_tribo[tribo][elemento]
+            if dados['total'] > 0:
+                dados['percentagem'] = (dados['presente'] / dados['total']) * 100
+            else:
+                dados['percentagem'] = 0
+
+    # Obter anos escutistas para o seletor
+    anos_disponiveis = set()
+    for ficheiro in os.listdir(DIRETORIO_PRESENCAS):
+        if len(ficheiro.split('_')) > 1:
+            try:
+                data_str = ficheiro.split('_')[1]
+                data_atividade = datetime.strptime(data_str, "%Y-%m-%d")
+                ano_escotista = data_atividade.year
+                if data_atividade.month >= 10:
+                    anos_disponiveis.add(str(ano_escotista))
+                else:
+                    anos_disponiveis.add(str(ano_escotista - 1))
+            except Exception:
+                pass
+    
+    anos_disponiveis = sorted(list(anos_disponiveis), reverse=True)
+
+    return render_template("assiduidade.html", 
+                           assiduidade_por_tribo=assiduidade_por_tribo,
+                           atividades_do_ano=atividades_do_ano,
+                           anos_disponiveis=anos_disponiveis,
+                           ano_selecionado=ano_selecionado)
 
 if __name__ == "__main__":
     app.run(debug=True)
