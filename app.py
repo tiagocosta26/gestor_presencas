@@ -1,36 +1,43 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
 import csv, os, re, json
 from collections import defaultdict
-from datetime import datetime
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
-# Diretório para guardar os ficheiros
+# Diretórios para guardar os ficheiros
 DIRETORIO_PRESENCAS = "registos"
+DIRETORIO_TESOURARIA = "tesouraria"
+DIRETORIO_UPLOADS = "uploads" 
 os.makedirs(DIRETORIO_PRESENCAS, exist_ok=True)
+os.makedirs(DIRETORIO_TESOURARIA, exist_ok=True)
+os.makedirs(DIRETORIO_UPLOADS, exist_ok=True)
 
-# Ficheiro JSON para guardar as tribos
+# Ficheiros JSON para guardar os dados
 FICHEIRO_TRIBOS = "tribos.json"
 FICHEIRO_CARGOS = "cargos.json"
 
-# Função para carregar tribos do ficheiro JSON
+# Adicionar a pasta de uploads à configuração da aplicação
+app.config['UPLOAD_FOLDER'] = DIRETORIO_UPLOADS
+
+# --- FUNÇÕES AUXILIARES ---
 def carregar_tribos():
+    """Carrega as tribos do ficheiro JSON."""
     if os.path.exists(FICHEIRO_TRIBOS):
         with open(FICHEIRO_TRIBOS, encoding="utf-8") as f:
             return json.load(f)
     return {}
 
-# Função para guardar tribos no ficheiro JSON
 def guardar_tribos(tribos):
+    """Guarda as tribos no ficheiro JSON."""
     with open(FICHEIRO_TRIBOS, "w", encoding="utf-8") as f:
         json.dump(tribos, f, indent=4, ensure_ascii=False)
 
-# Função para carregar cargos do ficheiro JSON
 def carregar_cargos():
+    """Carrega os cargos do ficheiro JSON ou cria um com cargos padrão."""
     if os.path.exists(FICHEIRO_CARGOS):
         with open(FICHEIRO_CARGOS, encoding="utf-8") as f:
             return json.load(f)
-    # Se o ficheiro não existir, cria-o com cargos e cores padrão
     cargos_padrao = {
         "Guia": "#007bff",
         "Sub-Guia": "#28a745",
@@ -40,13 +47,30 @@ def carregar_cargos():
         json.dump(cargos_padrao, f, indent=4, ensure_ascii=False)
     return cargos_padrao
 
-# Função para limpar nomes (para criar nomes de ficheiros seguros)
 def limpar_nome(nome):
+    """Limpa uma string para ser usada como nome de ficheiro seguro."""
     nome_limpo = re.sub(r'[^A-Za-z0-9áéíóúãõàèùçÁÉÍÓÚÀÈÙÇ_\-@ ]', '_', nome)
     return nome_limpo
 
+def carregar_folha_caixa(entidade):
+    """Carrega a folha de caixa de uma entidade (Clan ou tribo)."""
+    caminho = os.path.join(DIRETORIO_TESOURARIA, f"{limpar_nome(entidade)}.json")
+    if os.path.exists(caminho):
+        with open(caminho, encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+def guardar_folha_caixa(entidade, folha_caixa):
+    """Guarda a folha de caixa de uma entidade."""
+    caminho = os.path.join(DIRETORIO_TESOURARIA, f"{limpar_nome(entidade)}.json")
+    os.makedirs(DIRETORIO_TESOURARIA, exist_ok=True)
+    with open(caminho, "w", encoding="utf-8") as f:
+        json.dump(folha_caixa, f, indent=4, ensure_ascii=False)
+
+# --- ROTAS PRINCIPAIS ---
 @app.route("/", methods=["GET", "POST"])
 def index():
+    """Rota principal para registar uma nova atividade."""
     tribos = carregar_tribos()
     
     if request.method == "POST":
@@ -60,16 +84,14 @@ def index():
 
         with open(caminho, "w", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
-            # Novo cabeçalho com a coluna 'Tribo' e 'Cargos'
             writer.writerow(["Atividade", "Data Início", "Data Fim", "Tribo", "Elemento", "Cargos", "Presente"])
             
-            # Itera sobre as tribos selecionadas para guardar a tribo de cada pessoa
             for tribo_nome in tribos_selecionadas:
                 membros = tribos.get(tribo_nome, [])
                 for membro in membros:
                     nome = membro['nome']
                     cargos_list = membro.get('cargo', [])
-                    cargos_str = ', '.join(cargos_list)  # Converte a lista de cargos em string
+                    cargos_str = ', '.join(cargos_list)
                     presente = "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
                     writer.writerow([atividade, data_inicio, data_fim, tribo_nome, nome, cargos_str, presente])
 
@@ -81,6 +103,7 @@ def index():
 
 @app.route("/atividades")
 def atividades():
+    """Exibe a lista de atividades registadas."""
     ficheiros = [f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")]
     atividades_agrupadas = defaultdict(list)
 
@@ -97,16 +120,18 @@ def atividades():
 
 @app.route('/eliminar_atividade/<nome_ficheiro>', methods=['POST'])
 def eliminar_atividade(nome_ficheiro):
+    """Elimina um ficheiro de atividade."""
     try:
         caminho_ficheiro = os.path.join(DIRETORIO_PRESENCAS, nome_ficheiro)
         if os.path.exists(caminho_ficheiro):
             os.remove(caminho_ficheiro)
-    except:
+    except Exception:
         pass
     return redirect(url_for('atividades'))
 
 @app.route("/gestao_tribos", methods=["GET", "POST"])
 def gestao_tribos():
+    """Página para gerir tribos e membros."""
     tribos = carregar_tribos()
     cargos_disponiveis = carregar_cargos()
     
@@ -152,7 +177,7 @@ def gestao_tribos():
                 tribos[tribo] = [p for p in tribos[tribo] if p["nome"] != nome_pessoa]
                 guardar_tribos(tribos)
             if not is_ajax:
-                return redirect(url_for("gestao_tribos", tribo_id=tribo))
+                return redirect(url_for("gestao_tribos"))
             return jsonify({"status": "ok", "nome_pessoa": nome_pessoa})
         
         elif acao == "adicionar_cargo":
@@ -172,13 +197,14 @@ def gestao_tribos():
                         break
                 guardar_tribos(tribos)
                 if not is_ajax:
-                    return redirect(url_for("gestao_tribos", tribo_id=tribo))
+                    return redirect(url_for("gestao_tribos"))
                 return jsonify({"status": "ok", "pessoa": pessoa, "cargos_disponiveis": cargos_disponiveis})
 
     return render_template("gestao_tribos.html", tribos=tribos, cargos_disponiveis=cargos_disponiveis)
 
 @app.route("/reordenar_pessoas", methods=["POST"])
 def reordenar_pessoas():
+    """Rota para reordenar membros de uma tribo."""
     data = request.get_json()
     tribo = data.get("tribo")
     nova_ordem_nomes = data.get("nova_ordem")
@@ -200,32 +226,22 @@ def reordenar_pessoas():
 
 @app.route("/atividade/<ficheiro>")
 def ver_atividade(ficheiro):
+    """Exibe os detalhes de uma atividade registada."""
     cargos_disponiveis = carregar_cargos()
     caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
-    # A estrutura de dados para o template agora é criada a partir do CSV
     dados = defaultdict(list)
-    
-    # Adiciona tribo e cargos ao cabeçalho.
-    cabecalho_info = {}
     
     if os.path.exists(caminho):
         with open(caminho, newline="", encoding="utf-8-sig") as f:
             reader = csv.reader(f)
-            cabecalho_csv = next(reader)
-            # Extrai info da primeira linha (atividade, data)
-            if cabecalho_csv:
-                atividade_nome = next((row[0] for row in csv.reader(f, skipinitialspace=True) if len(row) > 0), 'N/A')
-                # Reinicia o leitor para a primeira linha de dados
-                f.seek(0)
-                next(reader) 
-                
+            next(reader) 
+            
             for linha in reader:
-                if len(linha) == 7: # Verifica se a linha tem o novo formato
+                if len(linha) == 7:
                     atividade_nome, data_inicio_str, data_fim_str, tribo_nome, nome, cargos_str, presente = linha
                     cargos_list = [c.strip() for c in cargos_str.split(',')] if cargos_str else []
                     dados[tribo_nome].append({'nome': nome, 'presente': presente, 'cargos': cargos_list})
 
-    # Extrai as datas para mostrar no template
     partes_ficheiro = ficheiro.split('_')
     data_inicio_format = partes_ficheiro[1]
     data_fim_format = partes_ficheiro[3].replace('.csv', '')
@@ -238,6 +254,74 @@ def ver_atividade(ficheiro):
         data_display=data_display,
         cargos_disponiveis=cargos_disponiveis
     )
+
+@app.route("/tesouraria", methods=["GET", "POST"])
+def tesouraria():
+    """Página de gestão da tesouraria do clã e das tribos."""
+    tribos_disponiveis = list(carregar_tribos().keys())
+    
+    entidade_ativa = "Clan"
+    if request.method == "POST":
+        acao = request.form.get('acao')
+        entidade = request.form.get('entidade')
+        
+        folha_caixa = carregar_folha_caixa(entidade)
+        
+        if acao == 'adicionar':
+            nova_transacao = {
+                'data': request.form.get('data'),
+                'descricao': request.form.get('descricao'),
+                'tipo': request.form.get('tipo'),
+                'valor': float(request.form.get('valor')),
+                'comprovativo': None
+            }
+            
+            if 'comprovativo' in request.files:
+                file = request.files['comprovativo']
+                if file.filename != '':
+                    filename = secure_filename(file.filename)
+                    caminho_ficheiro = os.path.join(DIRETORIO_UPLOADS, filename)
+                    file.save(caminho_ficheiro)
+                    nova_transacao['comprovativo'] = filename
+            
+            folha_caixa.append(nova_transacao)
+        
+        elif acao == 'remover':
+            index = int(request.form.get('index'))
+            if 0 <= index < len(folha_caixa):
+                transacao_a_remover = folha_caixa[index]
+                if 'comprovativo' in transacao_a_remover and transacao_a_remover['comprovativo']:
+                    caminho_ficheiro = os.path.join(DIRETORIO_UPLOADS, transacao_a_remover['comprovativo'])
+                    try:
+                        os.remove(caminho_ficheiro)
+                    except OSError as e:
+                        print(f"Erro ao tentar remover o ficheiro: {e}")
+                
+                folha_caixa.pop(index)
+        
+        guardar_folha_caixa(entidade, folha_caixa)
+        
+        # Redirecionar para evitar o aviso de ressubmissão do formulário
+        return redirect(url_for('tesouraria', entidade_ativa=entidade))
+
+    # A partir daqui, a rota é tratada com GET
+    folhas_caixa = {
+        "Clan": sorted(carregar_folha_caixa("Clan"), key=lambda x: x['data']),
+    }
+    for tribo in tribos_disponiveis:
+        folhas_caixa[tribo] = sorted(carregar_folha_caixa(tribo), key=lambda x: x['data'])
+    
+    entidade_ativa = request.args.get('entidade_ativa') or "Clan"
+    
+    return render_template("tesouraria.html", 
+                           tribos=tribos_disponiveis, 
+                           folhas_caixa=folhas_caixa,
+                           entidade_ativa=entidade_ativa)
+
+@app.route("/uploads/<filename>")
+def uploaded_file(filename):
+    """Rota para servir ficheiros guardados no diretório de uploads."""
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,0 +1,97 @@
+{% set entidade = 'Clan' %}
+{% if tribo is defined %}
+    {% set entidade = tribo %}
+{% endif %}
+
+<h4 class="mt-4">Adicionar Transação</h4>
+<form action="{{ url_for('tesouraria') }}" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="acao" value="adicionar">
+    <input type="hidden" name="entidade" value="{{ entidade }}">
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label for="data-{{ entidade|replace(' ', '_') }}" class="form-label">Data</label>
+            <input type="date" class="form-control" name="data" id="data-{{ entidade|replace(' ', '_') }}" required>
+        </div>
+        <div class="col-md-5">
+            <label for="descricao-{{ entidade|replace(' ', '_') }}" class="form-label">Descrição</label>
+            <input type="text" class="form-control" name="descricao" id="descricao-{{ entidade|replace(' ', '_') }}" required>
+        </div>
+        <div class="col-md-2">
+            <label for="valor-{{ entidade|replace(' ', '_') }}" class="form-label">Valor</label>
+            <input type="number" class="form-control" name="valor" id="valor-{{ entidade|replace(' ', '_') }}" step="0.01" required>
+        </div>
+        <div class="col-md-2">
+            <label for="tipo-{{ entidade|replace(' ', '_') }}" class="form-label">Tipo</label>
+            <select class="form-select" name="tipo" id="tipo-{{ entidade|replace(' ', '_') }}" required>
+                <option value="Entrada">Entrada</option>
+                <option value="Saida">Saída</option>
+            </select>
+        </div>
+        <div class="col-12 mt-3">
+            <label for="comprovativo-{{ entidade|replace(' ', '_') }}" class="form-label">Comprovativo</label>
+            <input class="form-control" type="file" name="comprovativo" id="comprovativo-{{ entidade|replace(' ', '_') }}">
+        </div>
+        <div class="col-12 mt-3">
+            <button type="submit" class="btn btn-primary w-100">Adicionar Transação</button>
+        </div>
+    </div>
+</form>
+
+<div class="d-flex justify-content-between align-items-center mb-3 mt-5">
+    <h4>Saldo Total:
+        {% set ns = namespace(saldo_total=0) %}
+        {% for t in folhas_caixa.get(entidade, []) %}
+            {% if t.tipo == 'Entrada' %}
+                {% set ns.saldo_total = ns.saldo_total + t.valor %}
+            {% else %}
+                {% set ns.saldo_total = ns.saldo_total - t.valor %}
+            {% endif %}
+        {% endfor %}
+        <span class="total-box {% if ns.saldo_total >= 0 %}saldo-positivo{% else %}saldo-negativo{% endif %}">
+            {{ '%.2f'|format(ns.saldo_total) }}€
+        </span>
+    </h4>
+</div>
+<table class="table table-hover table-striped">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Descrição</th>
+            <th>Valor</th>
+            <th>Comprovativo</th>
+            <th>Saldo</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% set saldo = 0 %}
+        {% for t in folhas_caixa.get(entidade, []) %}
+            {% if t.tipo == 'Entrada' %}
+                {% set saldo = saldo + t.valor %}
+            {% else %}
+                {% set saldo = saldo - t.valor %}
+            {% endif %}
+        <tr class="{% if t.tipo == 'Entrada' %}table-entrada{% else %}table-saida{% endif %}">
+            <td>{{ t.data }}</td>
+            <td>{{ t.descricao }}</td>
+            <td>{{ '%.2f'|format(t.valor) }}€</td>
+            <td>
+                {% if t.comprovativo %}
+                <a href="{{ url_for('uploaded_file', filename=t.comprovativo) }}" target="_blank" rel="noopener noreferrer">Ver Ficheiro</a>
+                {% else %}
+                -
+                {% endif %}
+            </td>
+            <td>{{ '%.2f'|format(saldo) }}€</td>
+            <td>
+                <form action="{{ url_for('tesouraria') }}" method="post" style="display:inline;">
+                    <input type="hidden" name="acao" value="remover">
+                    <input type="hidden" name="entidade" value="{{ entidade }}">
+                    <input type="hidden" name="index" value="{{ loop.index0 }}">
+                    <button type="submit" class="btn btn-sm btn-danger">Remover</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
