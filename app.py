@@ -231,6 +231,58 @@ def gestao_tribos():
                 if not is_ajax:
                     return redirect(url_for("gestao_tribos"))
                 return jsonify({"status": "ok", "pessoa": pessoa, "cargos_disponiveis": cargos_disponiveis})
+                
+        elif acao == 'ordenar':
+            original_tribo = request.form.get('original_tribo')
+            nova_tribo = request.form.get('nova_tribo')
+            nome_pessoa = request.form.get('nome_pessoa')
+            ordem_json = request.form.get('ordem')
+            
+            # Validação básica
+            if not all([original_tribo, nova_tribo, nome_pessoa, ordem_json]):
+                return jsonify({'status': 'error', 'message': 'Dados em falta'}), 400
+
+            try:
+                ordem = json.loads(ordem_json)
+            except json.JSONDecodeError:
+                return jsonify({'status': 'error', 'message': 'Ordem inválida'}), 400
+
+            # 1. Encontrar a pessoa a mover na tribo original
+            pessoa_movida = None
+            if original_tribo in tribos:
+                for p in tribos[original_tribo]:
+                    if p['nome'] == nome_pessoa:
+                        pessoa_movida = p
+                        tribos[original_tribo].remove(p)
+                        break
+
+            if not pessoa_movida:
+                return jsonify({'status': 'error', 'message': 'Pessoa não encontrada na tribo original'}), 400
+
+            # 2. Adicionar a pessoa à nova tribo na ordem correta
+            if nova_tribo not in tribos:
+                tribos[nova_tribo] = []
+            
+            nova_lista_ordenada = []
+            for nome in ordem:
+                if nome == nome_pessoa:
+                    nova_lista_ordenada.append(pessoa_movida)
+                else:
+                    # Encontrar a pessoa existente na tribo de destino
+                    for p_existente in tribos[nova_tribo]:
+                        if p_existente['nome'] == nome:
+                            nova_lista_ordenada.append(p_existente)
+                            break
+                            
+            # Remover duplicados e garantir que a pessoa movida é incluída
+            nomes_na_lista = {p['nome'] for p in nova_lista_ordenada}
+            if nome_pessoa not in nomes_na_lista:
+                nova_lista_ordenada.append(pessoa_movida)
+            
+            tribos[nova_tribo] = nova_lista_ordenada
+            
+            guardar_tribos(tribos)
+            return jsonify({'status': 'ok'})
 
     return render_template("gestao_tribos.html", tribos=tribos, cargos_disponiveis=cargos_disponiveis)
 

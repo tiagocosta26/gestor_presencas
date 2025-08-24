@@ -1,16 +1,16 @@
 {
     "Peter Benenson": [
         {
-            "nome": "Tiago Costa",
-            "cargo": [
-                "Guia"
-            ]
-        },
-        {
             "nome": "Filipa Moreno",
             "cargo": [
                 "Sub-Guia",
                 "Tesoureiro"
+            ]
+        },
+        {
+            "nome": "Tiago Costa",
+            "cargo": [
+                "Guia"
             ]
         },
         {

@@ -16,7 +16,7 @@
         </form>
     </div>
     <div class="card-body">
-        <ul id="lista-{{ tribo }}" class="list-group sortable" data-tribo="{{ tribo }}">
+        <ul id="lista-{{ tribo|replace(' ', '_') }}" class="list-group sortable" data-tribo="{{ tribo }}">
             {% for pessoa in membros %}
             <li class="list-group-item d-flex justify-content-between align-items-center sortable-handle" data-nome-pessoa="{{ pessoa.nome }}">
                 <div class="flex-item-group">
@@ -93,4 +93,58 @@
 <div class="d-flex justify-content-start mt-4 mb-4">
     <a href="{{ url_for('index') }}" class="btn btn-secondary">← Voltar</a>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sortableLists = document.querySelectorAll('.sortable');
+
+        sortableLists.forEach(list => {
+            new Sortable(list, {
+                group: 'shared',
+                animation: 150,
+                handle: '.bi-grip-vertical',
+                onEnd: function(evt) {
+                    const originalTribo = evt.from.dataset.tribo;
+                    const novaTribo = evt.to.dataset.tribo;
+                    const nomePessoa = evt.item.dataset.nomePessoa;
+                    
+                    const ordem = Array.from(evt.to.children).map(item => item.dataset.nomePessoa);
+                    
+                    const formData = new FormData();
+                    formData.append('acao', 'ordenar');
+                    formData.append('original_tribo', originalTribo);
+                    formData.append('nova_tribo', novaTribo);
+                    formData.append('nome_pessoa', nomePessoa);
+                    formData.append('ordem', JSON.stringify(ordem));
+                    
+                    fetch('{{ url_for('gestao_tribos') }}', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'ok') {
+                            // Sucesso!
+                            console.log('Ordem e tribo atualizadas com sucesso.');
+                        } else {
+                            // Se der erro, reverte a ação no cliente
+                            console.error('Erro ao atualizar a ordem:', data.message);
+                            Sortable.create(evt.to, { disabled: true }); // Desativar temporariamente
+                            Sortable.create(evt.from, { disabled: true });
+                            evt.to.insertBefore(evt.item, evt.from.children[evt.oldIndex]);
+                            // Ativar novamente após um pequeno atraso
+                            setTimeout(() => {
+                                Sortable.create(evt.to, { disabled: false });
+                                Sortable.create(evt.from, { disabled: false });
+                            }, 100);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro na requisição:', error);
+                    });
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}
