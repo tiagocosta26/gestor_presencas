@@ -430,17 +430,28 @@ def tesouraria():
 
     # Garante que só carrega os dados das entidades permitidas
     folhas_caixa = {
-        "Clan": sorted(carregar_folha_caixa("Clan"), key=lambda x: x['data']),
+        "Clan": sorted(carregar_folha_caixa("Clan"), key=lambda x: x['data'], reverse=True),
     }
+
+    # Se o utilizador é "Clan", o código abaixo é executado, caso contrário, o código abaixo não é executado e o tribos_disponiveis está vazio
+    if username == "Peter Benenson":
+        tribos_disponiveis = ["Peter Benenson"]
+    elif username == "Henri Dunant":
+        tribos_disponiveis = ["Henri Dunant"]
+    elif username == "Rainha D. Leonor":
+        tribos_disponiveis = ["Rainha D. Leonor"]
+    elif username == "Clan":
+        tribos_disponiveis = list(carregar_tribos().keys())
+
     for tribo in tribos_disponiveis:
-        folhas_caixa[tribo] = sorted(carregar_folha_caixa(tribo), key=lambda x: x['data'])
-    
+        folhas_caixa[tribo] = sorted(carregar_folha_caixa(tribo), key=lambda x: x['data'], reverse=True)
+
     entidade_ativa = request.args.get('entidade_ativa') or "Clan"
-    
+        
     return render_template("tesouraria.html", 
-                           tribos=tribos_disponiveis, 
-                           folhas_caixa=folhas_caixa,
-                           entidade_ativa=entidade_ativa)
+                        tribos=tribos_disponiveis, 
+                        folhas_caixa=folhas_caixa,
+                        entidade_ativa=entidade_ativa)
 
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
