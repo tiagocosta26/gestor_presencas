@@ -17,13 +17,14 @@
         body {
             font-family: 'Open Sans';
             background-color: #f8f9fa;
+            padding-top: 150px;
         }
         .navbar, .offcanvas {
             background-color: var(--bs-dark) !important;
         }
         .navbar {
-            padding-top: 1.9rem;
-            padding-bottom: 1.9rem;
+            padding-top: 1.6rem;
+            padding-bottom: 1.6rem;
         }
         .navbar-brand-center {
             position: absolute;
@@ -66,7 +67,7 @@
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand d-none d-lg-block navbar-brand-center clan-logo" href="{{ url_for('index') }}">
                 <img src="{{ url_for('static', filename='logo.png') }}" alt="Logótipo Clan 5" class="clan-logo-img">
@@ -132,7 +133,7 @@
         </div>
     </div>
 
-    <main class="container mt-4">
+    <main class="container">
         {% block content %}{% endblock %}
     </main>
 
