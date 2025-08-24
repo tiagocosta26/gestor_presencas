@@ -94,7 +94,7 @@ def guardar_folha_caixa(entidade, folha_caixa):
 @app.before_request
 def require_login():
     # Rotas que não precisam de login
-    public_routes = ['index', 'login', 'register', 'static', 'assiduidade', 'atividades', 'ver_atividade']
+    public_routes = ['index', 'login', 'static', 'assiduidade', 'atividades', 'ver_atividade']
     if request.endpoint not in public_routes and 'username' not in session:
         flash('Por favor, faça login para aceder a esta página.', 'info')
         return redirect(url_for('login'))
@@ -471,26 +471,7 @@ def assiduidade():
                            anos_disponiveis=anos_disponiveis,
                            ano_selecionado=ano_selecionado)
 
-# --- Rotas de Login e Registo ---
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-        
-        utilizadores = carregar_utilizadores()
-        if username in utilizadores:
-            flash('Nome de utilizador já existe. Por favor, escolha outro.', 'danger')
-            return render_template("register.html")
-            
-        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        
-        utilizadores[username] = hashed_password
-        guardar_utilizadores(utilizadores)
-        
-        flash('Registo bem-sucedido. Por favor, faça login.', 'success')
-        return redirect(url_for('login'))
-    return render_template("register.html")
+# --- Rota de Login ---
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -509,7 +490,7 @@ def login():
             #flash('Login bem-sucedido!', 'success')
             return redirect(url_for('index'))
         else:
-            flash('Nome de utilizador ou senha inválidos.', 'danger')
+            flash('Nome de utilizador ou palavra-passe inválidos.', 'danger')
             return render_template("login.html")
     return render_template("login.html")
 
@@ -563,6 +544,44 @@ def mudar_password():
         return redirect(url_for('index'))
 
     return render_template("mudar_password.html")
+
+@app.route("/admin_register", methods=["GET", "POST"])
+def admin_register():
+    if session.get('username') != 'Chefe':
+        flash('Não tem permissão para aceder a esta página.', 'danger')
+        return redirect(url_for('index'))
+
+    if request.method == "POST":
+        username = request.form.get("username").strip()
+        password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+        
+        utilizadores = carregar_utilizadores()
+        
+        # Validação 1: Verificar se os campos estão preenchidos
+        if not username or not password or not confirm_password:
+            flash('Por favor, preencha todos os campos.', 'danger')
+            return render_template("admin_register.html")
+        
+        # Validação 2: Verificar se as palavras-passe correspondem
+        if password != confirm_password:
+            flash('As palavras-passe não correspondem. Por favor, tente novamente.', 'danger')
+            return render_template("admin_register.html")
+            
+        # Validação 3: Verificar se o nome de utilizador já existe
+        if username in utilizadores:
+            flash('Nome de utilizador já existe. Por favor, escolha outro.', 'danger')
+            return render_template("admin_register.html")
+            
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        
+        utilizadores[username] = hashed_password
+        guardar_utilizadores(utilizadores)
+        
+        flash(f'Utilizador "{username}" registado com sucesso!', 'success')
+        return redirect(url_for('admin_register'))
+
+    return render_template("admin_register.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
