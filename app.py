@@ -517,7 +517,7 @@ def login():
 def logout():
     session.clear()
     flash('Sessão terminada com sucesso.', 'info')
-    return redirect(url_for('login'))
+    return redirect(url_for('index'))
 
 @app.route("/mudar_password", methods=["GET", "POST"])
 def mudar_password():
