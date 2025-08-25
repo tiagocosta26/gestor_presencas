@@ -1,0 +1,20 @@
+[
+    {
+        "nome": "6",
+        "quantidade": 24,
+        "localizacao": "6",
+        "tribo_clan": "Clan"
+    },
+    {
+        "nome": "7",
+        "quantidade": 7,
+        "localizacao": "7",
+        "tribo_clan": "Clan"
+    },
+    {
+        "nome": "8",
+        "quantidade": 8,
+        "localizacao": "8",
+        "tribo_clan": "Clan"
+    }
+]

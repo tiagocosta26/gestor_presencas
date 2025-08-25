@@ -102,6 +102,9 @@
             <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
                 {% if 'username' in session %}
                 <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('index') }}">GESTOR DE PRESENÇAS</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('atividades') }}">ATIVIDADES</a>
                 </li>
                 <li class="nav-item">
@@ -112,6 +115,12 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('assiduidade') }}">ASSIDUIDADE</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('material') }}">MATERIAL</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('farmacia') }}">FARMÁCIA</a>
                 </li>
                 {% if session.get('username') == 'Chefe' %}
                 <li class="nav-item">

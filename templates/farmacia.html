@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+
+{% block title %}Farmácia{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center">
+    <h1 class="text-center flex-grow-1">Inventário Farmácia</h1>
+</div>
+
+<div class="card my-4">
+    <div class="card-header">
+        <h4>Adicionar Material</h4>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('farmacia') }}" method="post">
+            <input type="hidden" name="acao" value="adicionar_item">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="nome_item" class="form-label">Nome</label>
+                    <input type="text" class="form-control" id="nome_item" name="nome_item" required>
+                </div>
+                <div class="col-md-3">
+                    <label for="quantidade" class="form-label">Quantidade</label>
+                    <input type="number" class="form-control" id="quantidade" name="quantidade" required min="0">
+                </div>
+                <div class="col-md-3">
+                    <label for="localizacao" class="form-label">Local</label>
+                    <input type="text" class="form-control" id="localizacao" name="localizacao">
+                </div>
+                <div class="col-md-2">
+                    <label for="tribo_clan" class="form-label">Tribo/Clan</label>
+                    <select class="form-select" id="tribo_clan" name="tribo_clan" required>
+                        <option value="Clan" selected>Clan</option>
+                        {% for tribo in tribos_disponiveis %}
+                        <option value="{{ tribo }}">{{ tribo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 mt-3 text-end">
+                    <button type="submit" class="btn btn-primary">Adicionar Material</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<h4 class="mt-5">Filtrar Inventário</h4>
+<div class="card my-4">
+    <div class="card-body">
+        <form action="{{ url_for('farmacia') }}" method="get">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="filtro_nome" class="form-label">Nome</label>
+                    <select class="form-select" id="filtro_nome" name="filtro_nome">
+                        <option value="">Todos</option>
+                        {% for nome in opcoes_nome %}
+                        <option value="{{ nome }}" {% if nome.lower() == filtro_nome %}selected{% endif %}>{{ nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filtro_quantidade" class="form-label">Quantidade</label>
+                    <select class="form-select" id="filtro_quantidade" name="filtro_quantidade">
+                        <option value="">Todas</option>
+                        {% for quantidade in opcoes_quantidade %}
+                        <option value="{{ quantidade }}" {% if quantidade|string == filtro_quantidade %}selected{% endif %}>{{ quantidade }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="filtro_localizacao" class="form-label">Local</label>
+                    <select class="form-select" id="filtro_localizacao" name="filtro_localizacao">
+                        <option value="">Todas</option>
+                        {% for localizacao in opcoes_localizacao %}
+                        <option value="{{ localizacao }}" {% if localizacao.lower() == filtro_localizacao %}selected{% endif %}>{{ localizacao }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filtro_tribo_clan" class="form-label">Tribo/Clan</label>
+                    <select class="form-select" id="filtro_tribo_clan" name="filtro_tribo_clan">
+                        <option value="">Todas</option>
+                        <option value="Clan" {% if filtro_tribo_clan == "Clan" %}selected{% endif %}>Clan</option>
+                        {% for tribo in tribos_disponiveis %}
+                        <option value="{{ tribo }}" {% if tribo == filtro_tribo_clan %}selected{% endif %}>{{ tribo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-secondary w-100">Filtrar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<h4 class="mt-5">Resultados do Inventário</h4>
+<table id="tabela" class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th>Nome</th>
+            <th>Quantidade</th>
+            <th>Localização</th>
+            <th>Tribo/Clan</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in farmacia_filtrado %}
+        <tr id="item-{{ item.nome|replace(' ', '_') }}-{{ item.tribo_clan|replace(' ', '_') }}">
+            <td>{{ item.nome }}</td>
+            <td>{{ item.quantidade }}</td>
+            <td>{{ item.localizacao }}</td>
+            <td>{{ item.tribo_clan }}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-danger"
+                    onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<a href="{{ url_for('index') }}" class="btn btn-secondary mb-3"><i class="bi bi-arrow-left"></i> Voltar</a>
+
+<script>
+    function removerItem(nome, triboClan) {
+            const formData = new FormData();
+            formData.append('acao', 'remover_item');
+            formData.append('nome_item', nome);
+            formData.append('tribo_clan', triboClan);
+
+            fetch('{{ url_for("farmacia") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Remove a linha da tabela sem recarregar a página
+                    const row = document.getElementById(`item-${nome.replace(' ', '_')}-${triboClan.replace(' ', '_')}`);
+                    if (row) {
+                        row.remove();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro na comunicação com o servidor.');
+            });
+    }
+</script>
+
+{% endblock %}

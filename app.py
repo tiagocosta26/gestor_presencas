@@ -21,6 +21,8 @@ os.makedirs(DIRETORIO_UPLOADS, exist_ok=True)
 FICHEIRO_TRIBOS = "tribos.json"
 FICHEIRO_CARGOS = "cargos.json"
 FICHEIRO_UTILIZADORES = "utilizadores.json"
+FICHEIRO_MATERIAL = "material.json"
+FICHEIRO_FARMACIA = "farmacia.json"
 
 # Adicionar a pasta de uploads à configuração da aplicação
 app.config['UPLOAD_FOLDER'] = DIRETORIO_UPLOADS
@@ -89,6 +91,36 @@ def guardar_folha_caixa(entidade, folha_caixa):
     os.makedirs(DIRETORIO_TESOURARIA, exist_ok=True)
     with open(caminho, "w", encoding="utf-8") as f:
         json.dump(folha_caixa, f, indent=4, ensure_ascii=False)
+
+def carregar_material():
+    """Carrega o material do ficheiro JSON."""
+    if os.path.exists(FICHEIRO_MATERIAL):
+        with open(FICHEIRO_MATERIAL, encoding="utf-8") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return []
+    return []
+
+def guardar_farmacia(farmacia):
+    """Guarda o material da farmácia no ficheiro JSON."""
+    with open(FICHEIRO_FARMACIA, "w", encoding="utf-8") as f:
+        json.dump(farmacia, f, indent=4, ensure_ascii=False)
+
+def carregar_farmacia():
+    """Carrega o material da farmácia do ficheiro JSON."""
+    if os.path.exists(FICHEIRO_FARMACIA):
+        with open(FICHEIRO_FARMACIA, encoding="utf-8") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return []
+    return []
+
+def guardar_material(material):
+    """Guarda o material no ficheiro JSON."""
+    with open(FICHEIRO_MATERIAL, "w", encoding="utf-8") as f:
+        json.dump(material, f, indent=4, ensure_ascii=False)
 
 # --- Lógica de Proteção de Rotas ---
 @app.before_request
@@ -645,6 +677,227 @@ def admin_register():
         return redirect(url_for('admin_register'))
 
     return render_template("admin_register.html")
+
+@app.route("/material", methods=["GET", "POST"])
+def material():
+    """Página para gerir o material da farmácia."""
+    material_itens = carregar_material()
+    tribos_disponiveis = list(carregar_tribos().keys())
+
+    if request.method == "POST":
+        acao = request.form.get("acao")
+
+        if acao == "adicionar_item":
+            nome_item = request.form.get("nome_item")
+            quantidade_str = request.form.get("quantidade")
+            localizacao = request.form.get("localizacao")
+            tribo_clan = request.form.get("tribo_clan")
+
+            if not all([nome_item, quantidade_str, tribo_clan]):
+                flash("Por favor, preencha todos os campos obrigatórios.", "danger")
+                return redirect(url_for('material'))
+            
+            try:
+                quantidade = int(quantidade_str)
+            except (ValueError, TypeError):
+                flash("A quantidade deve ser um número válido.", "danger")
+                return redirect(url_for('material'))
+            
+            localizacao_normalizada = localizacao.strip().lower()
+
+            item_existente = None
+            for item in material_itens:
+                if (item['nome'].lower() == nome_item.lower() and
+                    item['localizacao'].strip().lower() == localizacao_normalizada and
+                    item['tribo_clan'] == tribo_clan):
+                    item_existente = item
+                    break
+            
+            if item_existente:
+                item_existente['quantidade'] += quantidade
+            else:
+                novo_item = {
+                    "nome": nome_item,
+                    "quantidade": quantidade,
+                    "localizacao": localizacao,
+                    "tribo_clan": tribo_clan
+                }
+                material_itens.append(novo_item)
+
+            guardar_material(material_itens)
+            flash("Item adicionado com sucesso.", "success")
+
+            return redirect(url_for('material',
+                                    filtro_nome=request.args.get('filtro_nome', ''),
+                                    filtro_quantidade=request.args.get('filtro_quantidade', ''),
+                                    filtro_localizacao=request.args.get('filtro_localizacao', ''),
+                                    filtro_tribo_clan=request.args.get('filtro_tribo_clan', '')))
+
+        elif acao == "remover_item":
+            nome_item = request.form.get("nome_item")
+            tribo_clan = request.form.get("tribo_clan")
+
+            material_itens = [
+                item for item in material_itens
+                if not (item['nome'] == nome_item and item['tribo_clan'] == tribo_clan)
+            ]
+
+            guardar_material(material_itens)
+            #flash("Item removido com sucesso.", "success")
+            return jsonify({'status': 'success', 'message': 'Item removido com sucesso!'})
+
+    # Lógica para filtrar e criar listas de opções para os dropdowns
+    filtro_nome = request.args.get('filtro_nome', '').strip().lower()
+    filtro_quantidade_str = request.args.get('filtro_quantidade', '').strip()
+    filtro_localizacao = request.args.get('filtro_localizacao', '').strip().lower()
+    filtro_tribo_clan = request.args.get('filtro_tribo_clan', '').strip()
+
+    # Criação das listas de opções únicas
+    opcoes_nome = sorted(list(set(item['nome'] for item in material_itens)))
+    opcoes_quantidade = sorted(list(set(item['quantidade'] for item in material_itens)))
+    opcoes_localizacao = sorted(list(set(item['localizacao'] for item in material_itens)))
+
+    material_filtrado = material_itens
+
+    if filtro_nome:
+        material_filtrado = [item for item in material_filtrado if filtro_nome in item['nome'].lower()]
+
+    if filtro_quantidade_str:
+        try:
+            filtro_quantidade = int(filtro_quantidade_str)
+            material_filtrado = [item for item in material_filtrado if item['quantidade'] == filtro_quantidade]
+        except (ValueError, TypeError):
+            pass
+            
+    if filtro_localizacao:
+        material_filtrado = [item for item in material_filtrado if filtro_localizacao in item['localizacao'].lower()]
+        
+    if filtro_tribo_clan:
+        material_filtrado = [item for item in material_filtrado if item['tribo_clan'] == filtro_tribo_clan]
+
+    material_filtrado = sorted(material_filtrado, key=lambda x: x['nome'].lower())
+
+    return render_template("material.html",
+                           material_filtrado=material_filtrado,
+                           tribos_disponiveis=tribos_disponiveis,
+                           filtro_nome=filtro_nome,
+                           filtro_quantidade=filtro_quantidade_str,
+                           filtro_localizacao=filtro_localizacao,
+                           filtro_tribo_clan=filtro_tribo_clan,
+                           opcoes_nome=opcoes_nome,
+                           opcoes_quantidade=opcoes_quantidade,
+                           opcoes_localizacao=opcoes_localizacao)
+
+
+@app.route("/farmacia", methods=["GET", "POST"])
+def farmacia():
+    """Página para gerir o inventário da farmácia."""
+    farmacia_itens = carregar_farmacia()
+    tribos_disponiveis = list(carregar_tribos().keys())
+
+    if request.method == "POST":
+        acao = request.form.get("acao")
+
+        if acao == "adicionar_item":
+            nome_item = request.form.get("nome_item")
+            quantidade_str = request.form.get("quantidade")
+            localizacao = request.form.get("localizacao")
+            tribo_clan = request.form.get("tribo_clan")
+
+            if not all([nome_item, quantidade_str, tribo_clan]):
+                flash("Por favor, preencha todos os campos obrigatórios.", "danger")
+                return redirect(url_for('farmacia'))
+            
+            try:
+                quantidade = int(quantidade_str)
+            except (ValueError, TypeError):
+                flash("A quantidade deve ser um número válido.", "danger")
+                return redirect(url_for('farmacia'))
+            
+            localizacao_normalizada = localizacao.strip().lower()
+
+            item_existente = None
+            for item in farmacia_itens:
+                if (item['nome'].lower() == nome_item.lower() and
+                    item['localizacao'].strip().lower() == localizacao_normalizada and
+                    item['tribo_clan'] == tribo_clan):
+                    item_existente = item
+                    break
+            
+            if item_existente:
+                item_existente['quantidade'] += quantidade
+            else:
+                novo_item = {
+                    "nome": nome_item,
+                    "quantidade": quantidade,
+                    "localizacao": localizacao,
+                    "tribo_clan": tribo_clan
+                }
+                farmacia_itens.append(novo_item)
+            
+            guardar_farmacia(farmacia_itens)
+            flash("Item adicionado com sucesso.", "success")
+            
+            return redirect(url_for('farmacia', 
+                                    filtro_nome=request.args.get('filtro_nome', ''),
+                                    filtro_quantidade=request.args.get('filtro_quantidade', ''),
+                                    filtro_localizacao=request.args.get('filtro_localizacao', ''),
+                                    filtro_tribo_clan=request.args.get('filtro_tribo_clan', '')))
+
+        elif acao == "remover_item":
+            nome_item = request.form.get("nome_item")
+            tribo_clan = request.form.get("tribo_clan")
+            
+            farmacia_itens = [
+                item for item in farmacia_itens 
+                if not (item['nome'] == nome_item and item['tribo_clan'] == tribo_clan)
+            ]
+            
+            guardar_farmacia(farmacia_itens)
+            #flash("Item removido com sucesso.", "success")
+            return jsonify({'status': 'success', 'message': 'Item removido com sucesso!'})
+
+    # Lógica para filtrar e criar listas de opções para os dropdowns
+    filtro_nome = request.args.get('filtro_nome', '').strip().lower()
+    filtro_quantidade_str = request.args.get('filtro_quantidade', '').strip()
+    filtro_localizacao = request.args.get('filtro_localizacao', '').strip().lower()
+    filtro_tribo_clan = request.args.get('filtro_tribo_clan', '').strip()
+
+    # Criação das listas de opções únicas
+    opcoes_nome = sorted(list(set(item['nome'] for item in farmacia_itens)))
+    opcoes_quantidade = sorted(list(set(item['quantidade'] for item in farmacia_itens)))
+    opcoes_localizacao = sorted(list(set(item['localizacao'] for item in farmacia_itens)))
+    
+    farmacia_filtrado = farmacia_itens
+    
+    if filtro_nome:
+        farmacia_filtrado = [item for item in farmacia_filtrado if filtro_nome in item['nome'].lower()]
+    
+    if filtro_quantidade_str:
+        try:
+            filtro_quantidade = int(filtro_quantidade_str)
+            farmacia_filtrado = [item for item in farmacia_filtrado if item['quantidade'] == filtro_quantidade]
+        except (ValueError, TypeError):
+            pass
+            
+    if filtro_localizacao:
+        farmacia_filtrado = [item for item in farmacia_filtrado if filtro_localizacao in item['localizacao'].lower()]
+        
+    if filtro_tribo_clan:
+        farmacia_filtrado = [item for item in farmacia_filtrado if item['tribo_clan'] == filtro_tribo_clan]
+    
+    farmacia_filtrado = sorted(farmacia_filtrado, key=lambda x: x['nome'].lower())
+
+    return render_template("farmacia.html",
+                           farmacia_filtrado=farmacia_filtrado,
+                           tribos_disponiveis=tribos_disponiveis,
+                           filtro_nome=filtro_nome,
+                           filtro_quantidade=filtro_quantidade_str,
+                           filtro_localizacao=filtro_localizacao,
+                           filtro_tribo_clan=filtro_tribo_clan,
+                           opcoes_nome=opcoes_nome,
+                           opcoes_quantidade=opcoes_quantidade,
+                           opcoes_localizacao=opcoes_localizacao)
 
 if __name__ == "__main__":
     app.run(debug=True)
