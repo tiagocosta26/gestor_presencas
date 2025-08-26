@@ -4,7 +4,8 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center">
-    <h1 class="text-center flex-grow-1">Inventário Material</h1>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary mb-3">Voltar</a>
+    <h1 class="text-center flex-grow-1">Material</h1>
 </div>
 
 <div class="card my-4">
@@ -35,6 +36,10 @@
                         <option value="{{ tribo }}">{{ tribo }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div class="col-12 mt-3">
+                    <label for="observacoes" class="form-label">Observações</label>
+                    <textarea class="form-control" id="observacoes" name="observacoes" rows="2"></textarea>
                 </div>
                 <div class="col-12 mt-3 text-end">
                     <button type="submit" class="btn btn-primary">Adicionar Material</button>
@@ -100,8 +105,9 @@
         <tr>
             <th>Nome</th>
             <th>Quantidade</th>
-            <th>Localização</th>
+            <th>Local</th>
             <th>Tribo/Clan</th>
+            <th>Observações</th>
             <th></th>
         </tr>
     </thead>
@@ -112,6 +118,7 @@
             <td>{{ item.quantidade }}</td>
             <td>{{ item.localizacao }}</td>
             <td>{{ item.tribo_clan }}</td>
+            <td>{{ item.observacoes }}</td>
             <td>
                 <button type="button" class="btn btn-sm btn-danger"
                     onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>

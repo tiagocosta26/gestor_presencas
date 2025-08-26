@@ -692,6 +692,7 @@ def material():
             quantidade_str = request.form.get("quantidade")
             localizacao = request.form.get("localizacao")
             tribo_clan = request.form.get("tribo_clan")
+            observacoes = request.form.get("observacoes", "") # Adiciona o campo de observações
 
             if not all([nome_item, quantidade_str, tribo_clan]):
                 flash("Por favor, preencha todos os campos obrigatórios.", "danger")
@@ -720,7 +721,8 @@ def material():
                     "nome": nome_item,
                     "quantidade": quantidade,
                     "localizacao": localizacao,
-                    "tribo_clan": tribo_clan
+                    "tribo_clan": tribo_clan,
+                    "observacoes": observacoes # Adiciona o campo ao novo item
                 }
                 material_itens.append(novo_item)
 
@@ -743,7 +745,6 @@ def material():
             ]
 
             guardar_material(material_itens)
-            #flash("Item removido com sucesso.", "success")
             return jsonify({'status': 'success', 'message': 'Item removido com sucesso!'})
 
     # Lógica para filtrar e criar listas de opções para os dropdowns
