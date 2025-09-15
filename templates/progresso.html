@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block title %}Progresso de Tribos{% endblock %}
+
+{% block content %}
+<style>
+/* Estilos para células de conteúdo */
+.objetivo-celula {
+    min-width: 170px;
+    height: 100px;
+    padding: 0 !important;
+    vertical-align: top;
+}
+
+.objetivo-celula > div {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.objetivo-select {
+    flex: 1;
+    width: 100%;
+    border: none;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+/* Estilos para as cores de fundo */
+.bg-feito {
+    background-color: #d4edda; /* verde */
+}
+.bg-em-progresso {
+    background-color: #fff3cd; /* amarelo */
+}
+.bg-pendente {
+    background-color: #f8d7da; /* vermelho */
+}
+
+/* Estilos para a tabela com colunas e cabeçalhos fixos */
+.table-container {
+    max-height: 650px;
+    overflow: auto; /* Rolagem vertical e horizontal */
+    position: relative;
+    border: 1px solid #dee2e6;
+}
+
+#tabela-progresso {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+/* Fixar as colunas do Nome e da Etapa */
+.sticky-col {
+    position: sticky;
+    z-index: 5;
+    background-color: #f8f9fa; /* Cor de fundo para evitar transparência na rolagem */
+}
+
+.sticky-col-nome {
+    left: 0;
+}
+
+.sticky-col-etapa {
+    left: 120px; /* Largura da coluna "Nome" */
+}
+
+/* Fixar as linhas de cabeçalho no topo */
+#tabela-progresso thead th {
+    position: sticky;
+    z-index: 3;
+    top: 0;
+}
+
+/* Fixar os cabeçalhos das colunas "Nome" e "Etapa" no topo e à esquerda */
+#tabela-progresso thead th.sticky-col {
+    z-index: 10;
+}
+
+/* Fixar o cabeçalho completo */
+#tabela-progresso thead th {
+    position: sticky;
+}
+
+#tabela-progresso thead tr:nth-child(1) th {
+    top: 0;
+}
+
+#tabela-progresso thead tr:nth-child(2) th {
+    top: 40px; /* Ajusta para a altura da primeira linha */
+}
+
+#tabela-progresso thead tr:nth-child(3) th {
+    top: 80px; /* Ajusta para a altura das duas primeiras linhas */
+}
+
+/* Estilos para garantir que as colunas fixas são largas o suficiente */
+#tabela-progresso thead th:nth-child(1),
+#tabela-progresso tbody td:nth-child(1) {
+    min-width: 120px;
+}
+#tabela-progresso thead th:nth-child(2),
+#tabela-progresso tbody td:nth-child(2) {
+    min-width: 120px;
+}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
+    <h1 class="text-center flex-grow-1">Progresso</h1>
+</div>
+
+<div class="table-container">
+    <table class="table table-bordered table-hover text-center" id="tabela-progresso">
+        <thead>
+            <tr>
+                <th rowspan="3" class="align-middle bg-light sticky-col sticky-col-nome">Nome</th>
+                <th rowspan="3" class="align-middle bg-light sticky-col sticky-col-etapa">Etapa</th>
+                {% for area_nome in areas %}
+                    {% set area_colspan = trilhos[area_nome]|dictsort|map(attribute=1)|map('length')|sum %}
+                    <th colspan="{{ area_colspan }}" class="area-{{ area_nome|lower|replace(' ', '-') }} text-white align-middle">
+                        {{ area_nome }}
+                    </th>
+                {% endfor %}
+            </tr>
+            <tr>
+                {% for area_nome in areas %}
+                    {% for trilho_nome, objetivos in trilhos[area_nome].items() %}
+                        <th colspan="{{ objetivos|length }}" class="trilho-{{ area_nome|lower|replace(' ', '-') }} text-white align-middle">
+                            {{ trilho_nome }}
+                        </th>
+                    {% endfor %}
+                {% endfor %}
+            </tr>
+            <tr>
+                {% for area_nome in areas %}
+                    {% for trilho_nome, objetivos in trilhos[area_nome].items() %}
+                        {% for objetivo in objetivos %}
+                            <th class="objetivo-{{ area_nome|lower|replace(' ', '-') }} text-white align-middle">{{ objetivo }}</th>
+                        {% endfor %}
+                    {% endfor %}
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for nome_pessoa, dados_pessoa in progresso.items() %}
+            <tr data-nome="{{ nome_pessoa }}">
+                <td class="align-middle font-weight-bold bg-light sticky-col sticky-col-nome">{{ nome_pessoa }}</td>
+                <td class="align-middle nivel-celula sticky-col sticky-col-etapa">
+                    {% set progresso_bool = calcular_progresso_bool_do_dicionario(dados_pessoa) %}
+                    {{ calcular_nivel(progresso_bool, trilhos) }}
+                </td>
+                
+                {% for area_nome in areas %}
+                    {% for trilho_nome, objetivos in trilhos[area_nome].items() %}
+                        {% for objetivo in objetivos %}
+                            {% set estado = dados_pessoa[area_nome][trilho_nome][objetivo] %}
+                            <td class="objetivo-celula" data-area="{{ area_nome }}" data-trilho="{{ trilho_nome }}" data-objetivo="{{ objetivo }}">
+                                <div>
+                                    <select class="form-select form-select-sm objetivo-select"
+                                            data-nome="{{ nome_pessoa }}"
+                                            data-area="{{ area_nome }}"
+                                            data-trilho="{{ trilho_nome }}"
+                                            data-objetivo="{{ objetivo }}"
+                                            style="background-color:
+                                                {% if estado == 'concluído' %}
+                                                    #d4edda
+                                                {% elif estado == 'em_progresso' %}
+                                                    #fff3cd
+                                                {% else %}
+                                                    #f8d7da
+                                                {% endif %};">
+                                        <option value="não" {% if estado == 'não' %}selected{% endif %}>❌ Não</option>
+                                        <option value="em_progresso" {% if estado == 'em_progresso' %}selected{% endif %}>🟡 Em Progresso</option>
+                                        <option value="concluído" {% if estado == 'concluído' %}selected{% endif %}>✔️ Concluído</option>
+                                    </select>
+                                </div>
+                            </td>
+                        {% endfor %}
+                    {% endfor %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.objetivo-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const nomePessoa = this.dataset.nome;
+            const area = this.dataset.area;
+            const trilho = this.dataset.trilho;
+            const objetivo = this.dataset.objetivo;
+            const novoEstado = this.value;
+
+            // Atualiza cor do fundo de acordo com estado
+            if (novoEstado === "concluído") {
+                this.style.backgroundColor = "#d4edda"; // verde
+            } else if (novoEstado === "em_progresso") {
+                this.style.backgroundColor = "#fff3cd"; // amarelo
+            } else {
+                this.style.backgroundColor = "#f8d7da"; // vermelho
+            }
+
+            fetch('{{ url_for("atualizar_objetivo") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    'nome': nomePessoa,
+                    'area': area,
+                    'trilho': trilho,
+                    'objetivo': objetivo,
+                    'estado': novoEstado
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    // Atualiza a etapa (nível) da linha
+                    const linha = select.closest('tr');
+                    linha.querySelector('.nivel-celula').textContent = data.nivel;
+                }
+            })
+            .catch(error => console.error('Erro:', error));
+        });
+    });
+});
+</script>
+{% endblock %}

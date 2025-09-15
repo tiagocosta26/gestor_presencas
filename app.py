@@ -4,6 +4,7 @@ from collections import defaultdict
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from flask_bcrypt import Bcrypt
+import copy
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -13,9 +14,13 @@ app.config['SECRET_KEY'] = 'uma_chave_segura_para_as_sessoes'  # Mude isto para 
 DIRETORIO_PRESENCAS = "registos"
 DIRETORIO_TESOURARIA = "tesouraria"
 DIRETORIO_UPLOADS = "uploads" 
+DIRETORIO_UPLOADS_COZINHA = os.path.join(DIRETORIO_UPLOADS, 'cozinha')
+DIRETORIO_UPLOADS_RECEITAS = os.path.join(DIRETORIO_UPLOADS, 'receitas')
 os.makedirs(DIRETORIO_PRESENCAS, exist_ok=True)
 os.makedirs(DIRETORIO_TESOURARIA, exist_ok=True)
 os.makedirs(DIRETORIO_UPLOADS, exist_ok=True)
+os.makedirs(DIRETORIO_UPLOADS_COZINHA, exist_ok=True) 
+os.makedirs(DIRETORIO_UPLOADS_RECEITAS, exist_ok=True)
 
 # Ficheiros JSON para guardar os dados
 FICHEIRO_TRIBOS = "tribos.json"
@@ -23,6 +28,10 @@ FICHEIRO_CARGOS = "cargos.json"
 FICHEIRO_UTILIZADORES = "utilizadores.json"
 FICHEIRO_MATERIAL = "material.json"
 FICHEIRO_FARMACIA = "farmacia.json"
+FICHEIRO_COZINHA = "inventario_cozinha.json"
+FICHEIRO_RECEITAS = "receitas.json"
+FICHEIRO_PROGRESSO = "progresso.json"
+FICHEIRO_PROGRESSO_MODELO = "progresso_modelo.json"
 
 # Adicionar a pasta de uploads à configuração da aplicação
 app.config['UPLOAD_FOLDER'] = DIRETORIO_UPLOADS
@@ -34,6 +43,21 @@ def carregar_tribos():
         with open(FICHEIRO_TRIBOS, encoding="utf-8") as f:
             return json.load(f)
     return {}
+
+def carregar_nomes():
+    """Carrega as pessoas do ficheiro JSON e devolve uma lista de todas as pessoas."""
+    if os.path.exists(FICHEIRO_TRIBOS):
+        with open(FICHEIRO_TRIBOS, 'r', encoding='utf-8') as f:
+            try:
+                data = json.load(f)
+                pessoas = []
+                for tribo, membros in data.items():
+                    for membro in membros:
+                        pessoas.append(membro['nome'])
+                return pessoas
+            except json.JSONDecodeError:
+                return []
+    return []
 
 def guardar_tribos(tribos):
     """Guarda as tribos no ficheiro JSON."""
@@ -122,14 +146,134 @@ def guardar_material(material):
     with open(FICHEIRO_MATERIAL, "w", encoding="utf-8") as f:
         json.dump(material, f, indent=4, ensure_ascii=False)
 
-# --- Lógica de Proteção de Rotas ---
-@app.before_request
-def require_login():
-    # Rotas que não precisam de login
-    public_routes = ['index', 'login', 'static', 'assiduidade', 'atividades', 'ver_atividade']
-    if request.endpoint not in public_routes and 'username' not in session:
-        flash('Por favor, faça login para aceder a esta página.', 'info')
-        return redirect(url_for('login'))
+def carregar_inventario_cozinha():
+    """Carrega o inventário da cozinha do ficheiro JSON."""
+    if os.path.exists(FICHEIRO_COZINHA):
+        with open(FICHEIRO_COZINHA, encoding="utf-8") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return []
+    return []
+
+def guardar_inventario_cozinha(inventario):
+    """Guarda o inventário da cozinha no ficheiro JSON."""
+    with open(FICHEIRO_COZINHA, "w", encoding="utf-8") as f:
+        json.dump(inventario, f, indent=4, ensure_ascii=False)
+
+def carregar_receitas():
+    """Carrega as receitas do ficheiro JSON."""
+    if os.path.exists(FICHEIRO_RECEITAS):
+        with open(FICHEIRO_RECEITAS, encoding="utf-8") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return []
+    return []
+
+def guardar_receitas(receitas):
+    """Guarda as receitas no ficheiro JSON."""
+    with open(FICHEIRO_RECEITAS, "w", encoding="utf-8") as f:
+        json.dump(receitas, f, indent=4, ensure_ascii=False)
+
+def carregar_progresso():
+    progresso = {}
+    if not os.path.exists(FICHEIRO_PROGRESSO):
+        return progresso
+    with open(FICHEIRO_PROGRESSO, encoding="utf-8") as f:
+        try:
+            progresso = json.load(f)
+        except json.JSONDecodeError:
+            progresso = {}
+    return progresso
+
+
+
+def guardar_progresso(dados):
+    """Guarda o progresso no ficheiro JSON."""
+    with open(FICHEIRO_PROGRESSO, "w", encoding="utf-8") as f:
+        json.dump(dados, f, ensure_ascii=False, indent=2)
+
+def carregar_progresso_modelo():
+    """Carrega o modelo de progresso do ficheiro JSON."""
+    if os.path.exists(FICHEIRO_PROGRESSO_MODELO):
+        with open(FICHEIRO_PROGRESSO_MODELO, encoding="utf-8") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {}
+    return {}
+
+@app.template_global()
+def calcular_progresso_bool_do_dicionario(obj):
+    """
+    Converte um dicionário de progresso de "feito"/"pendente" para True/False.
+    """
+    if isinstance(obj, dict):
+        return {k: calcular_progresso_bool_do_dicionario(v) for k, v in obj.items()}
+    elif isinstance(obj, str):
+        return obj == "concluído"
+    else:
+        return False
+        
+@app.template_global()
+def calcular_nivel(dados_pessoa_bool, trilhos_por_area):
+    """
+    Calcula a etapa de um membro com base no progresso dos trilhos.
+
+    Regras de Etapa:
+    - 'a': Estado inicial.
+    - 'b': 1 trilho concluído em cada área.
+    - 'c': 2 trilhos concluídos em cada área.
+    - 'd': Todos os trilhos concluídos em cada área.
+    """
+    trilhos_concluidos_por_area = {}
+    
+    # 1. Conta quantos trilhos foram concluídos em cada área
+    for area_nome, trilhos_da_area in trilhos_por_area.items():
+        count_trilhos_concluidos = 0
+        
+        # Itera sobre cada trilho da área
+        for trilho_nome, objetivos_do_trilho in trilhos_da_area.items():
+            trilho_completo = True
+            
+            # Acede aos dados da pessoa para este trilho
+            dados_trilho = dados_pessoa_bool.get(area_nome, {}).get(trilho_nome, {})
+            
+            # Verifica se todos os objetivos do trilho foram concluídos
+            for objetivo in objetivos_do_trilho:
+                # Se algum objetivo não for "feito" (representado como True), o trilho não está completo
+                if not dados_trilho.get(objetivo):
+                    trilho_completo = False
+                    break
+            
+            if trilho_completo:
+                count_trilhos_concluidos += 1
+        
+        trilhos_concluidos_por_area[area_nome] = count_trilhos_concluidos
+
+    # 2. Avalia a etapa com base na contagem de trilhos
+    # Verifica primeiro a etapa mais alta para garantir a progressão correta.
+    
+    # Condição para Etapa 'Anilha de Mérito': todos os trilhos concluídos em cada área.
+    todos_concluidos = all(trilhos_concluidos_por_area[area] == len(trilhos_por_area[area]) for area in trilhos_por_area)
+    if todos_concluidos:
+        return "Anilha de Mérito"
+    
+    # Condição para Etapa 'Partida': 2 trilhos concluídos em cada área.
+    dois_por_area = all(trilhos_concluidos_por_area[area] >= 2 for area in trilhos_concluidos_por_area)
+    if dois_por_area:
+        return "Partida"
+        
+    # Condição para Etapa 'Serviço': 1 trilho concluído em cada área.
+    um_por_area = all(trilhos_concluidos_por_area[area] >= 1 for area in trilhos_concluidos_por_area)
+    if um_por_area:
+        return "Serviço"
+        
+    # Se nenhuma das condições for satisfeita, o membro fica na Etapa 'Comunidade'
+    return "Comunidade"
+
+
 
 # --- ROTAS PRINCIPAIS ---
 @app.route("/", methods=["GET", "POST"])
@@ -570,23 +714,29 @@ def assiduidade():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if 'username' in session:
+    if 'username' in session and session['username'] == 'Chefe':
         return redirect(url_for('index'))
         
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
         
-        utilizadores = carregar_utilizadores()
-        stored_password_hash = utilizadores.get(username)
-        
-        if stored_password_hash and bcrypt.check_password_hash(stored_password_hash, password):
-            session['username'] = username
-            #flash('Login bem-sucedido!', 'success')
-            return redirect(url_for('index'))
+        # Apenas permite o login do 'Chefe'
+        if username == 'Chefe':
+            utilizadores = carregar_utilizadores()
+            stored_password_hash = utilizadores.get('Chefe')
+            
+            if stored_password_hash and bcrypt.check_password_hash(stored_password_hash, password):
+                session['username'] = username
+                #flash('Login bem-sucedido!', 'success')
+                return redirect(url_for('index'))
+            else:
+                flash('Nome de utilizador ou palavra-passe inválidos.', 'danger')
+                return render_template("login.html")
         else:
-            flash('Nome de utilizador ou palavra-passe inválidos.', 'danger')
+            flash('Não tem permissão de acesso.', 'danger')
             return render_template("login.html")
+
     return render_template("login.html")
 
 @app.route("/logout")
@@ -597,40 +747,31 @@ def logout():
 
 @app.route("/mudar_password", methods=["GET", "POST"])
 def mudar_password():
-    if 'username' not in session:
-        flash("Por favor, faça login para aceder a esta página.", "info")
+    if session.get('username') != 'Chefe':
+        flash("Não tem permissão para aceder a esta página.", "info")
         return redirect(url_for('login'))
 
     if request.method == "POST":
         password_atual = request.form.get("password_atual")
         nova_password = request.form.get("nova_password")
         confirmar_password = request.form.get("confirmar_password")
-
-        # 1. Validação inicial: Verifica se os campos estão vazios.
-        if not password_atual or not nova_password or not confirmar_password:
-            flash("Por favor, preencha todos os campos.", "danger")
-            return render_template("mudar_password.html")
         
         username = session['username']
         utilizadores = carregar_utilizadores()
         stored_password_hash = utilizadores.get(username)
 
-        # 2. Verificar se a palavra-passe atual está correta.
         if not stored_password_hash or not bcrypt.check_password_hash(stored_password_hash, password_atual):
             flash("A palavra-passe atual está incorreta.", "danger")
             return render_template("mudar_password.html")
         
-        # 3. Verificar se a nova palavra-passe é igual à atual.
-        if bcrypt.check_password_hash(stored_password_hash, nova_password):
-            flash("A nova palavra-passe não pode ser igual à anterior.", "warning")
-            return render_template("mudar_password.html")
-            
-        # 4. Verificar se a nova palavra-passe e a confirmação coincidem.
         if nova_password != confirmar_password:
             flash("A nova palavra-passe e a confirmação não coincidem.", "danger")
             return render_template("mudar_password.html")
 
-        # 5. Alterar e guardar a nova palavra-passe.
+        if bcrypt.check_password_hash(stored_password_hash, nova_password):
+            flash("A nova palavra-passe não pode ser igual à anterior.", "warning")
+            return render_template("mudar_password.html")
+            
         hashed_password = bcrypt.generate_password_hash(nova_password).decode('utf-8')
         utilizadores[username] = hashed_password
         guardar_utilizadores(utilizadores)
@@ -645,31 +786,29 @@ def admin_register():
     if session.get('username') != 'Chefe':
         flash('Não tem permissão para aceder a esta página.', 'danger')
         return redirect(url_for('index'))
-
+    
+    # O utilizador 'Chefe' não pode ser apagado
+    # Apenas o utilizador 'Chefe' pode ser registado por ele
+    utilizadores = carregar_utilizadores()
+    
     if request.method == "POST":
         username = request.form.get("username").strip()
         password = request.form.get("password")
         confirm_password = request.form.get("confirm_password")
         
-        utilizadores = carregar_utilizadores()
-        
-        # Validação 1: Verificar se os campos estão preenchidos
         if not username or not password or not confirm_password:
             flash('Por favor, preencha todos os campos.', 'danger')
             return render_template("admin_register.html")
         
-        # Validação 2: Verificar se as palavras-passe correspondem
         if password != confirm_password:
             flash('As palavras-passe não correspondem. Por favor, tente novamente.', 'danger')
             return render_template("admin_register.html")
             
-        # Validação 3: Verificar se o nome de utilizador já existe
         if username in utilizadores:
             flash('Nome de utilizador já existe. Por favor, escolha outro.', 'danger')
             return render_template("admin_register.html")
             
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        
         utilizadores[username] = hashed_password
         guardar_utilizadores(utilizadores)
         
@@ -899,6 +1038,269 @@ def farmacia():
                            opcoes_nome=opcoes_nome,
                            opcoes_quantidade=opcoes_quantidade,
                            opcoes_localizacao=opcoes_localizacao)
+
+@app.route("/cozinha", methods=["GET", "POST"])
+def cozinha():
+    """Página para gerir o inventário e receitas da cozinha."""
+    inventario = carregar_inventario_cozinha()
+    receitas = carregar_receitas()
+    tribos_disponiveis = list(carregar_tribos().keys())
+
+    if request.method == "POST":
+        acao = request.form.get("acao")
+
+        if acao == "adicionar_item_cozinha":
+            nome = request.form.get("nome_item_cozinha")
+            quantidade_str = request.form.get("quantidade_cozinha")
+            unidade = request.form.get("unidade_cozinha")
+            categoria = request.form.get("categoria_cozinha")
+            
+            if not all([nome, quantidade_str, unidade, categoria]):
+                flash("Por favor, preencha todos os campos do inventário.", "danger")
+                return redirect(url_for('cozinha'))
+            
+            try:
+                quantidade = int(quantidade_str)
+            except ValueError:
+                flash("A quantidade deve ser um número válido.", "danger")
+                return redirect(url_for('cozinha'))
+            
+            # Lógica para processar o comprovativo
+            caminho_comprovativo = None
+            if 'comprovativo_cozinha' in request.files:
+                file = request.files['comprovativo_cozinha']
+                if file.filename != '':
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(DIRETORIO_UPLOADS_COZINHA, filename)
+                    file.save(filepath)
+                    caminho_comprovativo = os.path.join('/uploads/cozinha', filename)
+
+            novo_item = {
+                "nome": nome,
+                "quantidade": quantidade,
+                "unidade": unidade,
+                "categoria": categoria,
+                "comprovativo": caminho_comprovativo
+            }
+            
+            item_existente = next((item for item in inventario if item['nome'].lower() == nome.lower() and item['unidade'] == unidade), None)
+            if item_existente:
+                item_existente['quantidade'] += quantidade
+            else:
+                inventario.append(novo_item)
+
+            guardar_inventario_cozinha(inventario)
+            flash("Item adicionado ao inventário.", "success")
+            return redirect(url_for('cozinha'))
+        
+        elif acao == "remover_item_cozinha":
+            nome_item = request.form.get("nome_item")
+            unidade_item = request.form.get("unidade_item")
+            
+            # Lógica para remover o ficheiro do comprovativo
+            item_a_remover = next((i for i in inventario if i['nome'] == nome_item and i['unidade'] == unidade_item), None)
+            if item_a_remover and item_a_remover.get('comprovativo'):
+                filepath = os.path.join(os.getcwd(), item_a_remover['comprovativo'].lstrip('/'))
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            
+            inventario = [i for i in inventario if not (i['nome'] == nome_item and i['unidade'] == unidade_item)]
+            guardar_inventario_cozinha(inventario)
+            return jsonify({'status': 'success'})
+
+        elif acao == "adicionar_receita":
+            nome = request.form.get("nome_receita")
+            tempo = request.form.get("tempo_preparacao")
+            dificuldade = request.form.get("dificuldade")
+            porcoes_base_str = request.form.get("porcoes_base")
+            tipo_entrada = request.form.get("tipo_entrada")
+
+            try:
+                porcoes_base = int(porcoes_base_str)
+            except (ValueError, TypeError):
+                flash("O número de porções base deve ser um número válido.", "danger")
+                return redirect(url_for('cozinha'))
+
+            if tipo_entrada == "pdf":
+                if 'ficheiro_receita' in request.files and request.files['ficheiro_receita'].filename != '':
+                    file = request.files['ficheiro_receita']
+                    
+                    ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+                    if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS:
+                        filename = secure_filename(file.filename)
+                        filepath = os.path.join(DIRETORIO_UPLOADS_RECEITAS, filename)
+                        file.save(filepath)
+                        
+                        nova_receita = {
+                            "nome": nome,
+                            "tempo_preparacao": tempo,
+                            "dificuldade": dificuldade,
+                            "porcoes_base": porcoes_base,
+                            "link_ficheiro": f'/uploads/receitas/{filename}'
+                        }
+                        receitas.append(nova_receita)
+                        guardar_receitas(receitas)
+                        flash("Receita em ficheiro adicionada com sucesso.", "success")
+                    else:
+                        flash("Formato de ficheiro inválido. Por favor, envie um PDF, JPG, PNG ou GIF.", "danger")
+                else:
+                    flash("Por favor, selecione um ficheiro para a receita.", "danger")
+            
+            elif tipo_entrada == "manual":
+                ingredientes_raw = request.form.get("ingredientes_raw")
+                instrucoes = request.form.get("instrucoes")
+
+                if not all([nome, ingredientes_raw, instrucoes]):
+                    flash("Por favor, preencha todos os campos obrigatórios da receita manual.", "danger")
+                    return redirect(url_for('cozinha'))
+
+                ingredientes_list = []
+                for linha in ingredientes_raw.splitlines():
+                    partes = linha.strip().split(maxsplit=2)
+                    if len(partes) == 3:
+                        try:
+                            quantidade = float(partes[0].replace(',', '.'))
+                        except ValueError:
+                            flash(f"Erro ao analisar a quantidade do ingrediente: {linha}", "danger")
+                            return redirect(url_for('cozinha'))
+                        
+                        ingredientes_list.append({
+                            "nome": partes[2],
+                            "quantidade": quantidade,
+                            "unidade": partes[1],
+                            "tipo_escala": "linear"
+                        })
+                    else:
+                        flash(f"Formato de ingrediente inválido: {linha}. Use 'quantidade unidade nome'.", "danger")
+                        return redirect(url_for('cozinha'))
+
+                nova_receita = {
+                    "nome": nome,
+                    "tempo_preparacao": tempo,
+                    "dificuldade": dificuldade,
+                    "porcoes_base": porcoes_base,
+                    "ingredientes": ingredientes_list,
+                    "instrucoes": instrucoes
+                }
+                receitas.append(nova_receita)
+                guardar_receitas(receitas)
+                flash("Receita adicionada manualmente com sucesso.", "success")
+            
+            return redirect(url_for('cozinha'))
+
+        elif acao == "remover_receita":
+            nome_receita = request.form.get("nome_receita")
+            link_ficheiro = request.form.get("link_ficheiro")
+            
+            if link_ficheiro:
+                filepath = os.path.join(os.getcwd(), link_ficheiro.lstrip('/'))
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+
+            receitas = [r for r in receitas if not (r['nome'] == nome_receita and r.get('link_ficheiro') == link_ficheiro)]
+            guardar_receitas(receitas)
+            return jsonify({'status': 'success'})
+
+    inventario_ordenado = sorted(inventario, key=lambda x: x['nome'])
+    receitas_ordenadas = sorted(receitas, key=lambda x: x['nome'])
+    
+    opcoes_unidade = ["unidades", "kg", "g", "l", "ml", "pacote", "rolo"]
+    opcoes_categoria = ["Cereais", "Laticínios", "Carne", "Peixe", "Frutas", "Vegetais", "Especiarias", "Bebidas", "Outros"]
+    opcoes_dificuldade = ["Fácil", "Médio", "Difícil"]
+
+    return render_template("cozinha.html",
+                           inventario=inventario_ordenado,
+                           receitas=receitas_ordenadas,
+                           opcoes_unidade=opcoes_unidade,
+                           opcoes_categoria=opcoes_categoria,
+                           opcoes_dificuldade=opcoes_dificuldade,
+                           tribos_disponiveis=tribos_disponiveis)
+
+@app.route("/cozinha/receita/<string:nome_receita>", methods=["GET"])
+def ver_receita(nome_receita):
+    """Exibe os detalhes de uma receita específica com a opção de alterar porções."""
+    receitas = carregar_receitas()
+    
+    receita = next((r for r in receitas if r['nome'] == nome_receita), None)
+
+    if not receita:
+        flash("Receita não encontrada.", "danger")
+        return redirect(url_for('cozinha'))
+        
+    return render_template("ver_receita.html", receita=receita)
+
+@app.route("/progresso")
+def progresso():
+    """Renderiza a página com a tabela de progresso completa."""
+    pessoas = carregar_nomes()
+    progresso_por_pessoa = carregar_progresso()
+    progresso_modelo = carregar_progresso_modelo()
+
+    print("Conteúdo de progresso_modelo.json carregado:", progresso_modelo)
+
+    areas = []
+    trilhos = {}
+
+    if progresso_modelo:
+        areas = list(progresso_modelo.keys())
+        for area_nome, trilhos_area in progresso_modelo.items():
+            trilhos[area_nome] = {}
+            for trilho_nome, objetivos_trilho in trilhos_area.items():
+                if isinstance(objetivos_trilho, dict):
+                    print(f"Área: {area_nome}, Trilho: {trilho_nome}, Objetivos: {list(objetivos_trilho.keys())}")
+                    trilhos[area_nome][trilho_nome] = list(objetivos_trilho.keys())
+                else:
+                    trilhos[area_nome][trilho_nome] = []
+
+    dados_para_tabela = {}
+    for nome_pessoa in pessoas:
+        dados_pessoa = progresso_por_pessoa.get(nome_pessoa, progresso_modelo)
+        dados_para_tabela[nome_pessoa] = dados_pessoa
+
+    return render_template(
+        "progresso.html",
+        progresso=dados_para_tabela,
+        areas=areas,
+        trilhos=trilhos,
+        progresso_modelo=progresso_modelo
+    )
+
+@app.route("/atualizar_objetivo", methods=["POST"])
+def atualizar_objetivo():
+    data = request.get_json()
+    nome = data["nome"]
+    area = data["area"]
+    trilho = data["trilho"]
+    objetivo = data["objetivo"]
+    novo_estado = data["estado"]  # Recebe o novo estado do front-end
+
+    progresso_raw = carregar_progresso()
+    progresso_modelo = carregar_progresso_modelo()
+
+    # Garante que cada pessoa tem a sua própria cópia do modelo
+    if nome not in progresso_raw:
+        progresso_raw[nome] = copy.deepcopy(progresso_modelo)
+    
+    # Atualizar o estado do objetivo específico
+    progresso_raw[nome][area][trilho][objetivo] = novo_estado
+
+    # Guardar alteração
+    guardar_progresso(progresso_raw)
+
+    # Calcular o nível atualizado
+    dados_pessoa_bool = calcular_progresso_bool_do_dicionario(progresso_raw[nome])
+    nivel = calcular_nivel(dados_pessoa_bool, progresso_modelo)
+
+    return jsonify({
+        "status": "ok",
+        "novo_estado": novo_estado,
+        "nivel": nivel
+    })
+
+
+
+
+
 
 if __name__ == "__main__":
     app.run(debug=True)

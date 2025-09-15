@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Receita: {{ receita.nome }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="{{ url_for('cozinha') }}" class="btn btn-secondary">Voltar</a>
+    <h1 class="text-center flex-grow-1">{{ receita.nome }}</h1>
+</div>
+
+<div class="card my-4">
+    <div class="card-body">
+        <p class="text-muted">Dificuldade: {{ receita.dificuldade }} | Tempo: {{ receita.tempo_preparacao }}</p>
+        
+        <hr>
+
+        <div class="mb-3 d-flex align-items-center">
+            <label for="inputPorcoes" class="form-label me-2">Quantas porções?</label>
+            <input type="number" id="inputPorcoes" class="form-control" style="width: 100px;" value="{{ receita.porcoes_base }}" min="1">
+        </div>
+
+        <h5 class="mt-4">Ingredientes</h5>
+        <ul class="list-group" id="lista-ingredientes">
+            </ul>
+        
+        <h5 class="mt-4">Instruções</h5>
+        <p style="white-space: pre-wrap;">{{ receita.instrucoes }}</p>
+
+    </div>
+</div>
+
+<script id="receita-data" type="application/json">
+    {{ receita | tojson }}
+</script>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const receita = JSON.parse(document.getElementById('receita-data').textContent);
+        const inputPorcoes = document.getElementById('inputPorcoes');
+        const listaIngredientes = document.getElementById('lista-ingredientes');
+
+        function calcularQuantidades() {
+            const porcoesBase = receita.porcoes_base;
+            const porcoesAtuais = parseInt(inputPorcoes.value);
+            const fatorEscala = porcoesAtuais / porcoesBase;
+
+            listaIngredientes.innerHTML = ''; // Limpa a lista antes de recalcular
+
+            receita.ingredientes.forEach(ingrediente => {
+                let novaQuantidade = ingrediente.quantidade;
+
+                if (ingrediente.tipo_escala === 'linear') {
+                    novaQuantidade = ingrediente.quantidade * fatorEscala;
+                    novaQuantidade = novaQuantidade.toFixed(2); // Duas casas decimais
+                } else if (ingrediente.tipo_escala === 'arredondar') {
+                    novaQuantidade = Math.round(ingrediente.quantidade * fatorEscala);
+                }
+                // Se o tipo for 'nao_escalavel', a quantidade não muda
+
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.textContent = `${novaQuantidade} ${ingrediente.unidade} de ${ingrediente.nome}`;
+                listaIngredientes.appendChild(li);
+            });
+        }
+
+        calcularQuantidades();
+        inputPorcoes.addEventListener('input', calcularQuantidades);
+    });
+</script>
+{% endblock %}

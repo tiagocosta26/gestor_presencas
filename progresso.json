@@ -1,0 +1,1750 @@
+{
+  "Tiago Costa": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "concluído",
+        "Diferenças fisiológicas": "concluído"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "concluído"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "concluído",
+        "Sexualidade e relação amorosa": "concluído"
+      },
+      "Emocional": {
+        "Emoções": "concluído"
+      },
+      "Autoestima": {
+        "Personalidade": "concluído",
+        "Confiança": "concluído"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "concluído",
+        "Decisão": "concluído",
+        "Aperfeiçoamento": "concluído"
+      },
+      "Responsabilidade": {
+        "Compromisso": "concluído",
+        "Perseverança": "concluído",
+        "Responsabilidade": "concluído"
+      },
+      "Coerência": {
+        "Consistência": "concluído",
+        "Coerência": "concluído"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "concluído"
+      },
+      "Aprofundamento": {
+        "Oração": "concluído",
+        "Transformação": "concluído",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "concluído"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "concluído",
+        "Filtrar": "concluído",
+        "Rumo": "concluído"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "concluído",
+        "Estratégia": "concluído"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "concluído",
+        "Expressividade": "concluído"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "concluído",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "concluído",
+        "Liderança": "concluído"
+      }
+    }
+  },
+  "Filipa Moreno": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "não"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "não",
+        "Diferenças fisiológicas": "feito"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "não",
+        "Higiene": "pendente",
+        "Comportamentos de risco": "pendente"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "pendente",
+        "Respeito": "pendente",
+        "Sexualidade e relação amorosa": "pendente"
+      },
+      "Emocional": {
+        "Emoções": "feito"
+      },
+      "Autoestima": {
+        "Personalidade": "feito",
+        "Confiança": "feito"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "pendente",
+        "Decisão": "pendente",
+        "Aperfeiçoamento": "pendente"
+      },
+      "Responsabilidade": {
+        "Compromisso": "feito",
+        "Perseverança": "feito",
+        "Responsabilidade": "feito"
+      },
+      "Coerência": {
+        "Consistência": "feito",
+        "Coerência": "feito"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "pendente",
+        "Filho/Amor": "em_progresso",
+        "Espírito Santo/Igreja": "pendente"
+      },
+      "Aprofundamento": {
+        "Oração": "feito",
+        "Transformação": "feito",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "feito"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "pendente",
+        "Filtrar": "pendente",
+        "Rumo": "pendente"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "feito",
+        "Estratégia": "concluído"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "feito",
+        "Expressividade": "feito"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "pendente",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "em_progresso",
+        "Liderança": "feito"
+      }
+    }
+  },
+  "Ana Sofia Matos": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "em_progresso"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "feito",
+        "Diferenças fisiológicas": "em_progresso"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "em_progresso"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "pendente",
+        "Sexualidade e relação amorosa": "pendente"
+      },
+      "Emocional": {
+        "Emoções": "em_progresso"
+      },
+      "Autoestima": {
+        "Personalidade": "em_progresso",
+        "Confiança": "em_progresso"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "pendente",
+        "Decisão": "em_progresso",
+        "Aperfeiçoamento": "pendente"
+      },
+      "Responsabilidade": {
+        "Compromisso": "em_progresso",
+        "Perseverança": "feito",
+        "Responsabilidade": "feito"
+      },
+      "Coerência": {
+        "Consistência": "feito",
+        "Coerência": "feito"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "pendente",
+        "Filho/Amor": "pendente",
+        "Espírito Santo/Igreja": "pendente"
+      },
+      "Aprofundamento": {
+        "Oração": "feito",
+        "Transformação": "feito",
+        "Identidade": "feito"
+      },
+      "Serviço": {
+        "Unidade": "feito",
+        "Missão": "feito"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "pendente",
+        "Filtrar": "pendente",
+        "Rumo": "pendente"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "feito",
+        "Estratégia": "feito"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "feito",
+        "Expressividade": "feito"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "pendente",
+        "Participação": "pendente",
+        "Democracia": "pendente"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "feito",
+        "Tolerância": "feito"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "feito",
+        "Liderança": "feito"
+      }
+    }
+  },
+  "Rodrigo Morais": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "feito",
+        "Diferenças fisiológicas": "feito"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "pendente",
+        "Higiene": "pendente",
+        "Comportamentos de risco": "pendente"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "pendente",
+        "Respeito": "pendente",
+        "Sexualidade e relação amorosa": "pendente"
+      },
+      "Emocional": {
+        "Emoções": "feito"
+      },
+      "Autoestima": {
+        "Personalidade": "feito",
+        "Confiança": "feito"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "pendente",
+        "Decisão": "pendente",
+        "Aperfeiçoamento": "pendente"
+      },
+      "Responsabilidade": {
+        "Compromisso": "feito",
+        "Perseverança": "feito",
+        "Responsabilidade": "feito"
+      },
+      "Coerência": {
+        "Consistência": "feito",
+        "Coerência": "feito"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "pendente",
+        "Filho/Amor": "em_progresso",
+        "Espírito Santo/Igreja": "pendente"
+      },
+      "Aprofundamento": {
+        "Oração": "feito",
+        "Transformação": "feito",
+        "Identidade": "feito"
+      },
+      "Serviço": {
+        "Unidade": "feito",
+        "Missão": "feito"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "pendente",
+        "Filtrar": "pendente",
+        "Rumo": "pendente"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "feito",
+        "Estratégia": "feito"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "feito",
+        "Expressividade": "feito"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "pendente",
+        "Participação": "pendente",
+        "Democracia": "em_progresso"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "em_progresso",
+        "Liderança": "feito"
+      }
+    }
+  },
+  "Maria Farropas": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "feito"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "feito",
+        "Diferenças fisiológicas": "feito"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "pendente",
+        "Higiene": "pendente",
+        "Comportamentos de risco": "pendente"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "pendente",
+        "Respeito": "pendente",
+        "Sexualidade e relação amorosa": "pendente"
+      },
+      "Emocional": {
+        "Emoções": "feito"
+      },
+      "Autoestima": {
+        "Personalidade": "feito",
+        "Confiança": "feito"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "pendente",
+        "Decisão": "pendente",
+        "Aperfeiçoamento": "pendente"
+      },
+      "Responsabilidade": {
+        "Compromisso": "feito",
+        "Perseverança": "feito",
+        "Responsabilidade": "feito"
+      },
+      "Coerência": {
+        "Consistência": "feito",
+        "Coerência": "feito"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "pendente",
+        "Filho/Amor": "pendente",
+        "Espírito Santo/Igreja": "pendente"
+      },
+      "Aprofundamento": {
+        "Oração": "feito",
+        "Transformação": "feito",
+        "Identidade": "feito"
+      },
+      "Serviço": {
+        "Unidade": "feito",
+        "Missão": "feito"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "pendente",
+        "Filtrar": "pendente",
+        "Rumo": "pendente"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "feito",
+        "Estratégia": "feito"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "feito",
+        "Expressividade": "feito"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "pendente",
+        "Participação": "pendente",
+        "Democracia": "pendente"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "feito",
+        "Tolerância": "feito"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "feito",
+        "Liderança": "feito"
+      }
+    }
+  },
+  "Inês Caetano": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "concluído",
+        "Diferenças fisiológicas": "concluído"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "concluído"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "concluído",
+        "Sexualidade e relação amorosa": "concluído"
+      },
+      "Emocional": {
+        "Emoções": "concluído"
+      },
+      "Autoestima": {
+        "Personalidade": "concluído",
+        "Confiança": "concluído"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "concluído",
+        "Decisão": "concluído",
+        "Aperfeiçoamento": "concluído"
+      },
+      "Responsabilidade": {
+        "Compromisso": "concluído",
+        "Perseverança": "concluído",
+        "Responsabilidade": "concluído"
+      },
+      "Coerência": {
+        "Consistência": "concluído",
+        "Coerência": "concluído"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "concluído"
+      },
+      "Aprofundamento": {
+        "Oração": "concluído",
+        "Transformação": "concluído",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "concluído"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "concluído",
+        "Filtrar": "concluído",
+        "Rumo": "concluído"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "concluído",
+        "Estratégia": "concluído"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "concluído",
+        "Expressividade": "concluído"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "concluído",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "concluído",
+        "Liderança": "concluído"
+      }
+    }
+  },
+  "Leonor Cera": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "concluído",
+        "Diferenças fisiológicas": "concluído"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "concluído"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "concluído",
+        "Sexualidade e relação amorosa": "concluído"
+      },
+      "Emocional": {
+        "Emoções": "concluído"
+      },
+      "Autoestima": {
+        "Personalidade": "concluído",
+        "Confiança": "concluído"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "concluído",
+        "Decisão": "concluído",
+        "Aperfeiçoamento": "concluído"
+      },
+      "Responsabilidade": {
+        "Compromisso": "concluído",
+        "Perseverança": "concluído",
+        "Responsabilidade": "concluído"
+      },
+      "Coerência": {
+        "Consistência": "concluído",
+        "Coerência": "concluído"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "concluído"
+      },
+      "Aprofundamento": {
+        "Oração": "concluído",
+        "Transformação": "concluído",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "concluído"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "concluído",
+        "Filtrar": "concluído",
+        "Rumo": "concluído"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "concluído",
+        "Estratégia": "concluído"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "concluído",
+        "Expressividade": "concluído"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "concluído",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "concluído",
+        "Liderança": "concluído"
+      }
+    }
+  },
+  "Diana Moreno": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "concluído",
+        "Diferenças fisiológicas": "concluído"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "concluído"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "concluído",
+        "Sexualidade e relação amorosa": "concluído"
+      },
+      "Emocional": {
+        "Emoções": "concluído"
+      },
+      "Autoestima": {
+        "Personalidade": "concluído",
+        "Confiança": "concluído"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "concluído",
+        "Decisão": "concluído",
+        "Aperfeiçoamento": "concluído"
+      },
+      "Responsabilidade": {
+        "Compromisso": "concluído",
+        "Perseverança": "concluído",
+        "Responsabilidade": "concluído"
+      },
+      "Coerência": {
+        "Consistência": "concluído",
+        "Coerência": "concluído"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "concluído"
+      },
+      "Aprofundamento": {
+        "Oração": "concluído",
+        "Transformação": "concluído",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "concluído"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "concluído",
+        "Filtrar": "concluído",
+        "Rumo": "concluído"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "concluído",
+        "Estratégia": "concluído"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "concluído",
+        "Expressividade": "concluído"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "concluído",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "concluído",
+        "Liderança": "concluído"
+      }
+    }
+  },
+  "Filipe Mendes": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "concluído",
+        "Diferenças fisiológicas": "concluído"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "concluído"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "concluído",
+        "Sexualidade e relação amorosa": "concluído"
+      },
+      "Emocional": {
+        "Emoções": "concluído"
+      },
+      "Autoestima": {
+        "Personalidade": "concluído",
+        "Confiança": "concluído"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "concluído",
+        "Decisão": "concluído",
+        "Aperfeiçoamento": "concluído"
+      },
+      "Responsabilidade": {
+        "Compromisso": "concluído",
+        "Perseverança": "concluído",
+        "Responsabilidade": "concluído"
+      },
+      "Coerência": {
+        "Consistência": "concluído",
+        "Coerência": "concluído"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "concluído"
+      },
+      "Aprofundamento": {
+        "Oração": "concluído",
+        "Transformação": "concluído",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "concluído"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "concluído",
+        "Filtrar": "concluído",
+        "Rumo": "concluído"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "concluído",
+        "Estratégia": "concluído"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "concluído",
+        "Expressividade": "concluído"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "concluído",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "concluído",
+        "Liderança": "concluído"
+      }
+    }
+  },
+  "Gonçalo Silvestre": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "concluído",
+        "Diferenças fisiológicas": "não"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "não",
+        "Higiene": "não",
+        "Comportamentos de risco": "não"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "não",
+        "Sexualidade e relação amorosa": "concluído"
+      },
+      "Emocional": {
+        "Emoções": "concluído"
+      },
+      "Autoestima": {
+        "Personalidade": "concluído",
+        "Confiança": "não"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "não",
+        "Decisão": "não",
+        "Aperfeiçoamento": "concluído"
+      },
+      "Responsabilidade": {
+        "Compromisso": "concluído",
+        "Perseverança": "não",
+        "Responsabilidade": "não"
+      },
+      "Coerência": {
+        "Consistência": "não",
+        "Coerência": "não"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "não"
+      },
+      "Aprofundamento": {
+        "Oração": "concluído",
+        "Transformação": "não",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "concluído"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "concluído",
+        "Filtrar": "concluído",
+        "Rumo": "concluído"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "concluído",
+        "Estratégia": "concluído"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "concluído",
+        "Expressividade": "concluído"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "em_progresso",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "concluído",
+        "Liderança": "não"
+      }
+    }
+  },
+  "Maria Canto": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "em_progresso",
+        "Diferenças fisiológicas": "concluído"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "em_progresso"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "em_progresso",
+        "Sexualidade e relação amorosa": "em_progresso"
+      },
+      "Emocional": {
+        "Emoções": "em_progresso"
+      },
+      "Autoestima": {
+        "Personalidade": "concluído",
+        "Confiança": "em_progresso"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "em_progresso",
+        "Decisão": "não",
+        "Aperfeiçoamento": "em_progresso"
+      },
+      "Responsabilidade": {
+        "Compromisso": "em_progresso",
+        "Perseverança": "não",
+        "Responsabilidade": "em_progresso"
+      },
+      "Coerência": {
+        "Consistência": "em_progresso",
+        "Coerência": "não"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "concluído"
+      },
+      "Aprofundamento": {
+        "Oração": "em_progresso",
+        "Transformação": "não",
+        "Identidade": "não"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "não"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "não",
+        "Filtrar": "em_progresso",
+        "Rumo": "não"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "não",
+        "Estratégia": "em_progresso"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "não",
+        "Expressividade": "não"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "não",
+        "Democracia": "em_progresso"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "em_progresso",
+        "Liderança": "não"
+      }
+    }
+  },
+  "Leandro Alberto": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "não",
+        "Diferenças fisiológicas": "não"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "não",
+        "Higiene": "não",
+        "Comportamentos de risco": "não"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "não",
+        "Respeito": "não",
+        "Sexualidade e relação amorosa": "não"
+      },
+      "Emocional": {
+        "Emoções": "não"
+      },
+      "Autoestima": {
+        "Personalidade": "não",
+        "Confiança": "não"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "não",
+        "Decisão": "não",
+        "Aperfeiçoamento": "não"
+      },
+      "Responsabilidade": {
+        "Compromisso": "não",
+        "Perseverança": "não",
+        "Responsabilidade": "não"
+      },
+      "Coerência": {
+        "Consistência": "não",
+        "Coerência": "não"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "não",
+        "Filho/Amor": "em_progresso",
+        "Espírito Santo/Igreja": "não"
+      },
+      "Aprofundamento": {
+        "Oração": "não",
+        "Transformação": "não",
+        "Identidade": "não"
+      },
+      "Serviço": {
+        "Unidade": "não",
+        "Missão": "não"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "não",
+        "Filtrar": "não",
+        "Rumo": "não"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "não",
+        "Estratégia": "não"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "não",
+        "Expressividade": "não"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "não",
+        "Participação": "não",
+        "Democracia": "em_progresso"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "em_progresso",
+        "Liderança": "não"
+      }
+    }
+  },
+  "Diogo Caetano": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "não",
+        "Diferenças fisiológicas": "em_progresso"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "em_progresso"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "em_progresso",
+        "Respeito": "em_progresso",
+        "Sexualidade e relação amorosa": "não"
+      },
+      "Emocional": {
+        "Emoções": "não"
+      },
+      "Autoestima": {
+        "Personalidade": "em_progresso",
+        "Confiança": "em_progresso"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "não",
+        "Decisão": "não",
+        "Aperfeiçoamento": "não"
+      },
+      "Responsabilidade": {
+        "Compromisso": "não",
+        "Perseverança": "não",
+        "Responsabilidade": "não"
+      },
+      "Coerência": {
+        "Consistência": "não",
+        "Coerência": "não"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "não",
+        "Filho/Amor": "não",
+        "Espírito Santo/Igreja": "não"
+      },
+      "Aprofundamento": {
+        "Oração": "não",
+        "Transformação": "não",
+        "Identidade": "não"
+      },
+      "Serviço": {
+        "Unidade": "não",
+        "Missão": "não"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "não",
+        "Filtrar": "não",
+        "Rumo": "não"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "não",
+        "Estratégia": "não"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "não",
+        "Expressividade": "não"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "não",
+        "Participação": "não",
+        "Democracia": "não"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "não",
+        "Tolerância": "não"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "não",
+        "Liderança": "não"
+      }
+    }
+  },
+  "António Faustino": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "concluído",
+        "Diferenças fisiológicas": "concluído"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "concluído"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "concluído",
+        "Sexualidade e relação amorosa": "concluído"
+      },
+      "Emocional": {
+        "Emoções": "concluído"
+      },
+      "Autoestima": {
+        "Personalidade": "concluído",
+        "Confiança": "concluído"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "concluído",
+        "Decisão": "concluído",
+        "Aperfeiçoamento": "concluído"
+      },
+      "Responsabilidade": {
+        "Compromisso": "em_progresso",
+        "Perseverança": "concluído",
+        "Responsabilidade": "concluído"
+      },
+      "Coerência": {
+        "Consistência": "concluído",
+        "Coerência": "concluído"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "concluído"
+      },
+      "Aprofundamento": {
+        "Oração": "concluído",
+        "Transformação": "concluído",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "concluído"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "concluído",
+        "Filtrar": "concluído",
+        "Rumo": "concluído"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "concluído",
+        "Estratégia": "concluído"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "concluído",
+        "Expressividade": "concluído"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "concluído",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "concluído",
+        "Liderança": "concluído"
+      }
+    }
+  },
+  "Rafael Ferreira": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "não"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "concluído",
+        "Diferenças fisiológicas": "em_progresso"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "em_progresso"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "em_progresso",
+        "Sexualidade e relação amorosa": "em_progresso"
+      },
+      "Emocional": {
+        "Emoções": "em_progresso"
+      },
+      "Autoestima": {
+        "Personalidade": "concluído",
+        "Confiança": "em_progresso"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "concluído",
+        "Decisão": "não",
+        "Aperfeiçoamento": "em_progresso"
+      },
+      "Responsabilidade": {
+        "Compromisso": "não",
+        "Perseverança": "não",
+        "Responsabilidade": "concluído"
+      },
+      "Coerência": {
+        "Consistência": "não",
+        "Coerência": "não"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "concluído"
+      },
+      "Aprofundamento": {
+        "Oração": "concluído",
+        "Transformação": "concluído",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "não"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "não",
+        "Filtrar": "não",
+        "Rumo": "não"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "não",
+        "Estratégia": "em_progresso"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "não",
+        "Expressividade": "não"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "em_progresso",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "em_progresso",
+        "Liderança": "não"
+      }
+    }
+  },
+  "Lara Serra": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "concluído",
+        "Diferenças fisiológicas": "concluído"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "concluído"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "concluído",
+        "Sexualidade e relação amorosa": "concluído"
+      },
+      "Emocional": {
+        "Emoções": "concluído"
+      },
+      "Autoestima": {
+        "Personalidade": "concluído",
+        "Confiança": "concluído"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "concluído",
+        "Decisão": "concluído",
+        "Aperfeiçoamento": "concluído"
+      },
+      "Responsabilidade": {
+        "Compromisso": "concluído",
+        "Perseverança": "concluído",
+        "Responsabilidade": "concluído"
+      },
+      "Coerência": {
+        "Consistência": "concluído",
+        "Coerência": "concluído"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "concluído"
+      },
+      "Aprofundamento": {
+        "Oração": "concluído",
+        "Transformação": "concluído",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "concluído"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "concluído",
+        "Filtrar": "concluído",
+        "Rumo": "concluído"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "concluído",
+        "Estratégia": "concluído"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "concluído",
+        "Expressividade": "concluído"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "concluído",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "concluído",
+        "Liderança": "concluído"
+      }
+    }
+  },
+  "Marta Mendes": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "concluído",
+        "Diferenças fisiológicas": "não"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "concluído"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "não",
+        "Sexualidade e relação amorosa": "concluído"
+      },
+      "Emocional": {
+        "Emoções": "concluído"
+      },
+      "Autoestima": {
+        "Personalidade": "em_progresso",
+        "Confiança": "concluído"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "concluído",
+        "Decisão": "em_progresso",
+        "Aperfeiçoamento": "concluído"
+      },
+      "Responsabilidade": {
+        "Compromisso": "concluído",
+        "Perseverança": "não",
+        "Responsabilidade": "em_progresso"
+      },
+      "Coerência": {
+        "Consistência": "em_progresso",
+        "Coerência": "concluído"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "concluído",
+        "Filho/Amor": "concluído",
+        "Espírito Santo/Igreja": "concluído"
+      },
+      "Aprofundamento": {
+        "Oração": "concluído",
+        "Transformação": "concluído",
+        "Identidade": "concluído"
+      },
+      "Serviço": {
+        "Unidade": "concluído",
+        "Missão": "concluído"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "concluído",
+        "Filtrar": "concluído",
+        "Rumo": "concluído"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "concluído",
+        "Estratégia": "concluído"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "concluído",
+        "Expressividade": "concluído"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "concluído",
+        "Participação": "em_progresso",
+        "Democracia": "concluído"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "concluído",
+        "Tolerância": "concluído"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "concluído",
+        "Liderança": "em_progresso"
+      }
+    }
+  },
+  "Mariana Quitério": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "não"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "não",
+        "Diferenças fisiológicas": "não"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "não",
+        "Higiene": "não",
+        "Comportamentos de risco": "não"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "não",
+        "Respeito": "não",
+        "Sexualidade e relação amorosa": "não"
+      },
+      "Emocional": {
+        "Emoções": "não"
+      },
+      "Autoestima": {
+        "Personalidade": "não",
+        "Confiança": "não"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "não",
+        "Decisão": "não",
+        "Aperfeiçoamento": "não"
+      },
+      "Responsabilidade": {
+        "Compromisso": "não",
+        "Perseverança": "não",
+        "Responsabilidade": "não"
+      },
+      "Coerência": {
+        "Consistência": "não",
+        "Coerência": "não"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "não",
+        "Filho/Amor": "não",
+        "Espírito Santo/Igreja": "não"
+      },
+      "Aprofundamento": {
+        "Oração": "não",
+        "Transformação": "não",
+        "Identidade": "não"
+      },
+      "Serviço": {
+        "Unidade": "não",
+        "Missão": "não"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "não",
+        "Filtrar": "não",
+        "Rumo": "não"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "não",
+        "Estratégia": "não"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "não",
+        "Expressividade": "não"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "não",
+        "Participação": "não",
+        "Democracia": "não"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "não",
+        "Tolerância": "não"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "não",
+        "Liderança": "não"
+      }
+    }
+  },
+  "Joana Caetano": {
+    "Físico": {
+      "Desempenho": {
+        "Exercício": "concluído"
+      },
+      "Auto-Conhecimento": {
+        "Relação com o corpo": "não",
+        "Diferenças fisiológicas": "em_progresso"
+      },
+      "Bem-estar físico": {
+        "Equilíbrio": "concluído",
+        "Higiene": "concluído",
+        "Comportamentos de risco": "em_progresso"
+      }
+    },
+    "Afetivo": {
+      "Relacionamento e sensibilidade": {
+        "Afetos": "concluído",
+        "Respeito": "não",
+        "Sexualidade e relação amorosa": "não"
+      },
+      "Emocional": {
+        "Emoções": "em_progresso"
+      },
+      "Autoestima": {
+        "Personalidade": "não",
+        "Confiança": "em_progresso"
+      }
+    },
+    "Caráter": {
+      "Autonomia": {
+        "Valores": "não",
+        "Decisão": "não",
+        "Aperfeiçoamento": "não"
+      },
+      "Responsabilidade": {
+        "Compromisso": "concluído",
+        "Perseverança": "não",
+        "Responsabilidade": "não"
+      },
+      "Coerência": {
+        "Consistência": "não",
+        "Coerência": "não"
+      }
+    },
+    "Espiritual": {
+      "Descoberta": {
+        "Pai/Felicidade": "não",
+        "Filho/Amor": "não",
+        "Espírito Santo/Igreja": "não"
+      },
+      "Aprofundamento": {
+        "Oração": "não",
+        "Transformação": "não",
+        "Identidade": "não"
+      },
+      "Serviço": {
+        "Unidade": "não",
+        "Missão": "não"
+      }
+    },
+    "Intelectual": {
+      "Procura do Conhecimento": {
+        "Aprendizagem": "não",
+        "Filtrar": "não",
+        "Rumo": "não"
+      },
+      "Resolução de Problemas": {
+        "Adaptação": "não",
+        "Estratégia": "não"
+      },
+      "Criatividade e Expressão": {
+        "Criatividade": "não",
+        "Expressividade": "não"
+      }
+    },
+    "Social": {
+      "Exercer ativamente a cidadania": {
+        "Cidadania": "não",
+        "Participação": "não",
+        "Democracia": "não"
+      },
+      "Solidariedade e Tolerância": {
+        "Serviço": "não",
+        "Tolerância": "não"
+      },
+      "Interação e Cooperação": {
+        "Espírito de Equipa": "não",
+        "Liderança": "não"
+      }
+    }
+  }
+}

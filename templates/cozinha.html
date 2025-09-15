@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block title %}Cozinha{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
+    <h1 class="text-center flex-grow-1">Gestão da Cozinha</h1>
+</div>
+
+<div class="card my-4">
+    <div class="card-header">
+        <h4>Adicionar Receita</h4>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('cozinha') }}" method="post" enctype="multipart/form-data" class="mb-4">
+            <input type="hidden" name="acao" value="adicionar_receita">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="nome_receita" class="form-label">Nome da Receita</label>
+                    <input type="text" class="form-control" id="nome_receita" name="nome_receita" required>
+                </div>
+                <div class="col-md-2">
+                    <label for="tempo_preparacao" class="form-label">Tempo (min)</label>
+                    <input type="text" class="form-control" id="tempo_preparacao" name="tempo_preparacao">
+                </div>
+                <div class="col-md-2">
+                    <label for="dificuldade" class="form-label">Dificuldade</label>
+                    <select class="form-select" id="dificuldade" name="dificuldade">
+                        {% for dificuldade in opcoes_dificuldade %}
+                        <option value="{{ dificuldade }}">{{ dificuldade }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="porcoes_base" class="form-label">Porções</label>
+                    <input type="number" class="form-control" id="porcoes_base" name="porcoes_base" value="4" min="1" required>
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Tipo de entrada:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_entrada" id="inputManual" value="manual" checked>
+                        <label class="form-check-label" for="inputManual">
+                            Manual
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_entrada" id="inputFicheiro" value="pdf">
+                        <label class="form-check-label" for="inputFicheiro">
+                            Ficheiro (PDF/Imagem)
+                        </label>
+                    </div>
+                </div>
+
+                <div id="secaoManual" class="col-12">
+                    <div class="mb-3">
+                        <label for="ingredientes_raw" class="form-label">Ingredientes (uma por linha, ex: **250 g de farinha**)</label>
+                        <textarea class="form-control" id="ingredientes_raw" name="ingredientes_raw" rows="5" required></textarea>
+                    </div>
+                    <div>
+                        <label for="instrucoes" class="form-label">Instruções</label>
+                        <textarea class="form-control" id="instrucoes" name="instrucoes" rows="5" required></textarea>
+                    </div>
+                </div>
+
+                <div id="secaoFicheiro" class="col-12" style="display: none;">
+                    <label for="ficheiro_receita" class="form-label">Carregar Ficheiro (PDF, JPG, PNG)</label>
+                    <input type="file" class="form-control" id="ficheiro_receita" name="ficheiro_receita" accept=".pdf, .jpg, .jpeg, .png, .gif">
+                </div>
+                
+                <div class="col-12">
+                    <label for="comprovativo_receita" class="form-label">Comprovativo (opcional)</label>
+                    <input type="file" class="form-control" id="comprovativo_receita" name="comprovativo_receita" accept=".pdf, .jpg, .jpeg, .png">
+                </div>
+                
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary">Adicionar Receita</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+---
+
+<div class="card my-4">
+    <div class="card-header">
+        <h4>Livro de Receitas</h4>
+    </div>
+    <div class="card-body">
+        <h5 class="mb-3">Minhas Receitas</h5>
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Tempo</th>
+                    <th>Dificuldade</th>
+                    <th>Tipo</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for receita in receitas %}
+                <tr>
+                    <td>{{ receita.nome }}</td>
+                    <td>{{ receita.tempo_preparacao }}</td>
+                    <td>{{ receita.dificuldade }}</td>
+                    <td>
+                        {% if receita.link_ficheiro %}
+                            <span class="badge bg-primary">Ficheiro</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Manual</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if receita.link_ficheiro %}
+                            <a href="{{ receita.link_ficheiro }}" target="_blank" class="btn btn-sm btn-info me-2">Ver Ficheiro</a>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removerReceita('{{ receita.nome }}', '{{ receita.link_ficheiro }}')">Remover</button>
+                        {% else %}
+                            <a href="{{ url_for('ver_receita', nome_receita=receita.nome) }}" class="btn btn-sm btn-info me-2">Ver</a>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removerReceita('{{ receita.nome }}', '')">Remover</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+---
+
+<div class="card my-4">
+    <div class="card-header">
+        <h4>Inventário da Cozinha</h4>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('cozinha') }}" method="post" class="mb-4">
+            <input type="hidden" name="acao" value="adicionar_item_cozinha">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="nome_item_cozinha" class="form-label">Nome</label>
+                    <input type="text" class="form-control" id="nome_item_cozinha" name="nome_item_cozinha" required>
+                </div>
+                <div class="col-md-2">
+                    <label for="quantidade_cozinha" class="form-label">Quantidade</label>
+                    <input type="number" class="form-control" id="quantidade_cozinha" name="quantidade_cozinha" required min="0">
+                </div>
+                <div class="col-md-2">
+                    <label for="unidade_cozinha" class="form-label">Unidade</label>
+                    <select class="form-select" id="unidade_cozinha" name="unidade_cozinha" required>
+                        {% for unidade in opcoes_unidade %}
+                        <option value="{{ unidade }}">{{ unidade }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="categoria_cozinha" class="form-label">Categoria</label>
+                    <select class="form-select" id="categoria_cozinha" name="categoria_cozinha" required>
+                        {% for categoria in opcoes_categoria %}
+                        <option value="{{ categoria }}">{{ categoria }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary">Adicionar Item</button>
+                </div>
+            </div>
+        </form>
+        <h5 class="mt-4">Itens em Stock</h5>
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Quantidade</th>
+                    <th>Unidade</th>
+                    <th>Categoria</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventario %}
+                <tr>
+                    <td>{{ item.nome }}</td>
+                    <td>{{ item.quantidade }}</td>
+                    <td>{{ item.unidade }}</td>
+                    <td>{{ item.categoria }}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removerItemCozinha('{{ item.nome }}', '{{ item.unidade }}')">Remover</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputManual = document.getElementById('inputManual');
+        const inputFicheiro = document.getElementById('inputFicheiro');
+        const secaoManual = document.getElementById('secaoManual');
+        const secaoFicheiro = document.getElementById('secaoFicheiro');
+        const ingredientesField = document.getElementById('ingredientes_raw');
+        const instrucoesField = document.getElementById('instrucoes');
+        const ficheiroField = document.getElementById('ficheiro_receita');
+
+        function toggleFormSections() {
+            if (inputManual.checked) {
+                secaoManual.style.display = 'block';
+                secaoFicheiro.style.display = 'none';
+                ingredientesField.setAttribute('required', 'required');
+                instrucoesField.setAttribute('required', 'required');
+                ficheiroField.removeAttribute('required');
+            } else {
+                secaoManual.style.display = 'none';
+                secaoFicheiro.style.display = 'block';
+                ingredientesField.removeAttribute('required');
+                instrucoesField.removeAttribute('required');
+                ficheiroField.setAttribute('required', 'required');
+            }
+        }
+
+        inputManual.addEventListener('change', toggleFormSections);
+        inputFicheiro.addEventListener('change', toggleFormSections);
+        toggleFormSections(); // Executa ao carregar para definir o estado inicial
+    });
+
+    function removerItemCozinha(nome, unidade) {
+        if (confirm("Tem certeza que deseja remover este item do inventário?")) {
+            fetch('{{ url_for("cozinha") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    'acao': 'remover_item_cozinha',
+                    'nome_item': nome,
+                    'unidade_item': unidade
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.reload();
+                }
+            });
+        }
+    }
+
+    function removerReceita(nome, linkFicheiro) {
+        if (confirm("Tem certeza que deseja remover esta receita?")) {
+            fetch('{{ url_for("cozinha") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    'acao': 'remover_receita',
+                    'nome_receita': nome,
+                    'link_ficheiro': linkFicheiro
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.reload();
+                }
+            });
+        }
+    }
+</script>
+{% endblock %}

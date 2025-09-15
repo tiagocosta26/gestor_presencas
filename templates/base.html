@@ -1,5 +1,30 @@
 <!DOCTYPE html>
 <html lang="pt">
+<style>
+    /* Cores personalizadas para as Áreas */
+    .area-físico { background-color: #28a745 !important; }
+    .area-afetivo { background-color: #dc3545 !important; }
+    .area-caráter { background-color: #00008b !important; }
+    .area-espiritual { background-color: #6610f2 !important; }
+    .area-intelectual { background-color: #fd7e14 !important; }
+    .area-social { background-color: #f1c40f !important; }
+
+    /* Cores para os Trilhos (mais claras) */
+    .trilho-físico { background-color: #88c29a !important; }
+    .trilho-afetivo { background-color: #e9737f !important; }
+    .trilho-caráter { background-color: #6666ad !important; }
+    .trilho-espiritual { background-color: #b28fe4 !important; }
+    .trilho-intelectual { background-color: #ffb77b !important; }
+    .trilho-social { background-color: #f4d03f !important; }
+
+    /* Cores para os Objetivos (ainda mais claras) */
+    .objetivo-físico { background-color: #90e6bf !important; }
+    .objetivo-afetivo { background-color: #faaaaf !important; }
+    .objetivo-caráter { background-color: #9292d3 !important; }
+    .objetivo-espiritual { background-color: #c9b3ee !important; }
+    .objetivo-intelectual { background-color: #f8cc89 !important; }
+    .objetivo-social { background-color: #f7e087 !important; }
+</style>
 <head>
     <meta charset="UTF-8-sig">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -100,12 +125,14 @@
         </div>
         <div class="offcanvas-body">
             <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
-                {% if 'username' in session %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('index') }}">GESTOR DE PRESENÇAS</a>
+                    <a class="nav-link" href="{{ url_for('assiduidade') }}">ASSIDUIDADE</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('atividades') }}">ATIVIDADES</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('index') }}">GESTOR DE PRESENÇAS</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('gestao_tribos') }}">GESTÃO DE TRIBOS</a>
@@ -114,30 +141,34 @@
                     <a class="nav-link" href="{{ url_for('tesouraria') }}">TESOURARIA</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('assiduidade') }}">ASSIDUIDADE</a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('material') }}">MATERIAL</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('farmacia') }}">FARMÁCIA</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('cozinha') }}">COZINHA</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('progresso') }}">PROGRESSO</a>
+                </li>
                 {% if session.get('username') == 'Chefe' %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin_register') }}">RESGISTAR NOVO UTILIZADOR</a>
                 </li>
-                {% endif %}
+               
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('mudar_password') }}">ALTERAR PALAVRA-PASSE</a>
                 </li>
                 <li class="nav-item mt-auto">
                     <a class="nav-link text-danger" href="{{ url_for('logout') }}">SAIR</a>
                 </li>
-                {% else %}
+                {% endif %}
+                
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('login') }}">LOGIN</a>
                 </li>
-                {% endif %}
+                
             </ul>
         </div>
     </div>
