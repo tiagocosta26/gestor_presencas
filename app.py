@@ -5,6 +5,12 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 from flask_bcrypt import Bcrypt
 import copy
+from datetime import datetime
+import json
+import uuid # Para gerar IDs únicos para as atividades
+from icalendar import Calendar, Event
+from flask import make_response
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -16,11 +22,13 @@ DIRETORIO_TESOURARIA = "tesouraria"
 DIRETORIO_UPLOADS = "uploads" 
 DIRETORIO_UPLOADS_COZINHA = os.path.join(DIRETORIO_UPLOADS, 'cozinha')
 DIRETORIO_UPLOADS_RECEITAS = os.path.join(DIRETORIO_UPLOADS, 'receitas')
+DIRETORIO_ATAS = os.path.join(DIRETORIO_UPLOADS, 'atas')
 os.makedirs(DIRETORIO_PRESENCAS, exist_ok=True)
 os.makedirs(DIRETORIO_TESOURARIA, exist_ok=True)
 os.makedirs(DIRETORIO_UPLOADS, exist_ok=True)
 os.makedirs(DIRETORIO_UPLOADS_COZINHA, exist_ok=True) 
 os.makedirs(DIRETORIO_UPLOADS_RECEITAS, exist_ok=True)
+os.makedirs(DIRETORIO_ATAS, exist_ok=True)
 
 # Ficheiros JSON para guardar os dados
 FICHEIRO_TRIBOS = "tribos.json"
@@ -32,6 +40,8 @@ FICHEIRO_COZINHA = "inventario_cozinha.json"
 FICHEIRO_RECEITAS = "receitas.json"
 FICHEIRO_PROGRESSO = "progresso.json"
 FICHEIRO_PROGRESSO_MODELO = "progresso_modelo.json"
+# Ficheiro JSON para guardar as atividades do calendário
+FICHEIRO_CALENDARIO = "atividades_calendario.json"
 
 # Adicionar a pasta de uploads à configuração da aplicação
 app.config['UPLOAD_FOLDER'] = DIRETORIO_UPLOADS
@@ -203,6 +213,19 @@ def carregar_progresso_modelo():
             except json.JSONDecodeError:
                 return {}
     return {}
+
+# Cria o ficheiro JSON vazio se não existir
+if not os.path.exists(FICHEIRO_CALENDARIO):
+    with open(FICHEIRO_CALENDARIO, 'w') as f:
+        json.dump([], f)
+
+def carregar_atividades_calendario():
+    with open(FICHEIRO_CALENDARIO, 'r') as f:
+        return json.load(f)
+
+def guardar_atividades_calendario(atividades):
+    with open(FICHEIRO_CALENDARIO, 'w') as f:
+        json.dump(atividades, f, indent=4)
 
 @app.template_global()
 def calcular_progresso_bool_do_dicionario(obj):
@@ -714,17 +737,17 @@ def assiduidade():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if 'username' in session and session['username'] == 'Chefe':
+    if 'username' in session and session['username'] in ['Chefe', 'Clan']:
         return redirect(url_for('index'))
         
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-        
-        # Apenas permite o login do 'Chefe'
-        if username == 'Chefe':
+
+        # Permite o login do 'Chefe' e 'Clan'
+        if username in ['Chefe', 'Clan']:
             utilizadores = carregar_utilizadores()
-            stored_password_hash = utilizadores.get('Chefe')
+            stored_password_hash = utilizadores.get(username)
             
             if stored_password_hash and bcrypt.check_password_hash(stored_password_hash, password):
                 session['username'] = username
@@ -747,7 +770,7 @@ def logout():
 
 @app.route("/mudar_password", methods=["GET", "POST"])
 def mudar_password():
-    if session.get('username') != 'Chefe':
+    if session.get('username') not in ['Chefe', 'Clan']:
         flash("Não tem permissão para aceder a esta página.", "info")
         return redirect(url_for('login'))
 
@@ -1302,7 +1325,230 @@ def atualizar_objetivo():
     })
 
 
+@app.route("/secretaria", methods=["GET", "POST"])
+def secretaria():
+    # Verifica a permissão do utilizador
+    if session.get('username') not in ['Chefe', 'Clan']:
+        flash("Não tem permissão para aceder a esta página.", "info")
+        return redirect(url_for('login'))
 
+    if request.method == "POST":
+        data_ata = request.form.get('dataAta')
+        if 'ata' not in request.files or not data_ata:
+            flash("Nenhum arquivo ou data selecionados.", "danger")
+            return redirect(request.url)
+
+        file = request.files['ata']
+        
+        if file.filename == '':
+            flash("Nenhum arquivo selecionado.", "danger")
+            return redirect(request.url)
+        
+        if file:
+            # Constrói o nome do ficheiro com a data para facilitar a ordenação
+            filename = secure_filename(file.filename)
+            nome_com_data = f"{data_ata}_{filename}"
+            
+            file.save(os.path.join(DIRETORIO_ATAS, nome_com_data))
+            flash("Ata arquivada com sucesso!", "success")
+            return redirect(url_for('secretaria'))
+
+    # Processa os ficheiros para mostrar no ecrã
+    atas = []
+    for nome_ficheiro in os.listdir(DIRETORIO_ATAS):
+        # Apanha a data no início do nome do ficheiro
+        try:
+            partes = nome_ficheiro.split('_', 1)
+            data_str = partes[0]
+            nome_original = partes[1]
+            data_ata = datetime.strptime(data_str, "%Y-%m-%d")
+            atas.append({
+                'nome_completo': nome_ficheiro,
+                'nome_original': nome_original,
+                'data': data_ata
+            })
+        except (ValueError, IndexError):
+            # Lida com ficheiros que não seguem o padrão
+            atas.append({
+                'nome_completo': nome_ficheiro,
+                'nome_original': nome_ficheiro,
+                'data': None
+            })
+
+    # Ordena a lista da data mais recente para a mais antiga
+    atas.sort(key=lambda x: x['data'] if x['data'] else datetime.min, reverse=True)
+    
+    return render_template("secretaria.html", atas=atas)
+
+@app.route('/atas/<path:filename>')
+def serve_ata(filename):
+    # Serve os ficheiros da pasta 'atas'
+    return send_from_directory(DIRETORIO_ATAS, filename)
+
+@app.route("/eliminar_ata", methods=["POST"])
+def eliminar_ata():
+    # Verifica a permissão do utilizador
+    if session.get('username') not in ['Chefe', 'Clan']:
+        flash("Não tem permissão para realizar esta ação.", "danger")
+        return redirect(url_for('login'))
+
+    nome_completo_ata = request.form.get("nome_completo_ata")
+    if not nome_completo_ata:
+        flash("Nome do ficheiro não fornecido.", "danger")
+        return redirect(url_for('secretaria'))
+    
+    caminho_ficheiro = os.path.join(DIRETORIO_ATAS, nome_completo_ata)
+
+    try:
+        # Verifica se o ficheiro existe antes de tentar eliminá-lo
+        if os.path.exists(caminho_ficheiro):
+            os.remove(caminho_ficheiro)
+            flash(f"Ata '{nome_completo_ata}' eliminada com sucesso.", "success")
+        else:
+            flash("O ficheiro não foi encontrado.", "danger")
+    except Exception as e:
+        flash(f"Ocorreu um erro ao tentar eliminar a ata: {e}", "danger")
+
+    return redirect(url_for('secretaria'))
+
+# Rota para a página do calendário, acessível por todos os utilizadores
+@app.route("/atividades_calendario")
+def atividades_calendario():
+    pode_editar = session.get('username') in ['Chefe', 'Clan']
+    return render_template("atividades_calendario.html", pode_editar=pode_editar)
+
+# Rota para a API do calendário
+@app.route("/api/atividades", methods=["GET", "POST"])
+def api_atividades():
+    cores_por_tipo = {
+        'Clan': '#ff0000', 'Agrupamento': '#0000ff', 'Núcleo': '#ffff00',
+        'Região': '#800080', 'Nacional': '#008000', 'Internacional': '#ffc0cb'
+    }
+
+    if request.method == "POST":
+        # Protege a rota de adição de atividades
+        if session.get('username') not in ['Chefe', 'Clan']:
+            return jsonify({"error": "Não tem permissão para realizar esta ação."}), 403
+
+        data = request.get_json()
+        
+        required_fields = ['title', 'start', 'type']
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "Dados incompletos. Faltam um ou mais campos."}), 400
+
+        atividades = carregar_atividades_calendario()
+        
+        nova_atividade = {
+            'id': str(uuid.uuid4()),
+            'title': data['title'],
+            'start': data['start'],
+            'type': data['type'],
+            'details': data.get('details', ''),
+            'allDay': data.get('allDay', False)
+        }
+        
+        if not nova_atividade['allDay']:
+            if 'end' not in data:
+                return jsonify({"error": "Dados incompletos. 'end' em falta para atividade não 'allDay'."}), 400
+            nova_atividade['end'] = data['end']
+        else:
+            end_date = datetime.strptime(nova_atividade['start'], '%Y-%m-%d') + timedelta(days=1)
+            nova_atividade['end'] = end_date.strftime('%Y-%m-%d')
+
+        atividades.append(nova_atividade)
+        guardar_atividades_calendario(atividades)
+        
+        nova_atividade['color'] = cores_por_tipo.get(nova_atividade['type'], '#000000')
+        
+        return jsonify(nova_atividade), 201
+        
+    elif request.method == "GET":
+        # Permite que qualquer um aceda aos dados das atividades para visualização
+        atividades = carregar_atividades_calendario()
+        eventos = []
+        for atv in atividades:
+            evento = {
+                'id': atv['id'], 
+                'title': atv['title'], 
+                'start': atv['start'],
+                'end': atv.get('end'),
+                'color': cores_por_tipo.get(atv['type'], '#000000'),
+                'type': atv['type'],
+                'details': atv.get('details', ''),
+                'allDay': atv.get('allDay', False)
+            }
+            eventos.append(evento)
+        return jsonify(eventos)
+
+# Rota para editar uma atividade existente
+@app.route("/api/atividades/<id>", methods=["PUT"])
+def api_editar_atividade(id):
+    # Protege a rota de edição de atividades
+    if session.get('username') not in ['Chefe', 'Clan']:
+        return jsonify({"error": "Não tem permissão para realizar esta ação."}), 403
+
+    cores_por_tipo = {
+        'Clan': '#ff0000', 'Agrupamento': '#0000ff', 'Núcleo': '#ffff00',
+        'Região': '#800080', 'Nacional': '#008000', 'Internacional': '#ffc0cb'
+    }
+
+    try:
+        data = request.get_json()
+        atividades = carregar_atividades_calendario()
+        atividade_encontrada = False
+        
+        for atv in atividades:
+            if atv['id'] == id:
+                atv['title'] = data.get('title', atv['title'])
+                atv['start'] = data.get('start', atv['start'])
+                atv['type'] = data.get('type', atv['type'])
+                atv['details'] = data.get('details', atv['details'])
+                atv['allDay'] = data.get('allDay', atv['allDay'])
+                
+                if not atv['allDay']:
+                    atv['end'] = data.get('end')
+                else:
+                    end_date = datetime.strptime(atv['start'], '%Y-%m-%d') + timedelta(days=1)
+                    atv['end'] = end_date.strftime('%Y-%m-%d')
+
+                atividade_encontrada = True
+                break
+        
+        if not atividade_encontrada:
+            return jsonify({"error": "Atividade não encontrada."}), 404
+        
+        guardar_atividades_calendario(atividades)
+        
+        atv_atualizada = next(atv for atv in atividades if atv['id'] == id)
+        atv_atualizada['color'] = cores_por_tipo.get(atv_atualizada['type'], '#000000')
+        
+        return jsonify(atv_atualizada), 200
+
+    except Exception as e:
+        print(f"Erro ao editar a atividade: {e}")
+        return jsonify({"error": f"Erro interno do servidor: {e}"}), 500
+        
+# Rota para eliminar uma atividade
+@app.route("/api/atividades/<id>", methods=["DELETE"])
+def api_eliminar_atividade(id):
+    # Protege a rota de eliminação de atividades
+    if session.get('username') not in ['Chefe', 'Clan']:
+        return jsonify({"error": "Não tem permissão para realizar esta ação."}), 403
+
+    try:
+        atividades = carregar_atividades_calendario()
+        atividades_originais_count = len(atividades)
+        atividades = [atv for atv in atividades if atv['id'] != id]
+        
+        if len(atividades) == atividades_originais_count:
+            return jsonify({"error": "Atividade não encontrada."}), 404
+            
+        guardar_atividades_calendario(atividades)
+        return jsonify({"message": "Atividade eliminada com sucesso!"}), 200
+        
+    except Exception as e:
+        print(f"Erro no servidor ao eliminar a atividade: {e}")
+        return jsonify({"error": f"Erro interno do servidor: {e}"}), 500
 
 
 
