@@ -152,22 +152,23 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('progresso') }}">PROGRESSO</a>
                 </li>
-                {% if session.get('username') == 'Chefe' %}
+                {% if session.get('username') in ['Chefe', 'Clan'] %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin_register') }}">RESGISTAR NOVO UTILIZADOR</a>
                 </li>
-               
+                {% endif %}
+                {% if 'username' in session %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('mudar_password') }}">ALTERAR PALAVRA-PASSE</a>
                 </li>
                 <li class="nav-item mt-auto">
                     <a class="nav-link text-danger" href="{{ url_for('logout') }}">SAIR</a>
                 </li>
-                {% endif %}
-                
+                {% else %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('login') }}">LOGIN</a>
                 </li>
+                {% endif %}
                 
             </ul>
         </div>

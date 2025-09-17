@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center">
-    <a href="{{ url_for('index') }}" class="btn btn-secondary mb-3">Voltar</a>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary mb-3"><i class="bi bi-arrow-left"></i>Voltar</a>
     <h1 class="text-center flex-grow-1">Material</h1>
 </div>
 
@@ -127,7 +127,7 @@
         {% endfor %}
     </tbody>
 </table>
-<a href="{{ url_for('index') }}" class="btn btn-secondary mb-3"><i class="bi bi-arrow-left"></i> Voltar</a>
+<a href="{{ url_for('index') }}" class="btn btn-secondary mb-3"><i class="bi bi-arrow-left"></i>Voltar</a>
 
 <script>
     function removerItem(nome, triboClan) {

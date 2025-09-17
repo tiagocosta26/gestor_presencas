@@ -1256,7 +1256,7 @@ def progresso():
     for nome_pessoa in pessoas:
         dados_pessoa = progresso_por_pessoa.get(nome_pessoa, progresso_modelo)
         dados_para_tabela[nome_pessoa] = dados_pessoa
-
+    
     return render_template(
         "progresso.html",
         progresso=dados_para_tabela,
@@ -1267,6 +1267,10 @@ def progresso():
 
 @app.route("/atualizar_objetivo", methods=["POST"])
 def atualizar_objetivo():
+    # Adicionando a verificação de permissão
+    if session.get('username') != 'Chefe':
+        return jsonify({"status": "error", "message": "Apenas o Chefe pode alterar o progresso."}), 403
+
     data = request.get_json()
     nome = data["nome"]
     area = data["area"]

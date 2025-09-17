@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Progresso de Tribos{% endblock %}
+{% block title %}Progresso{% endblock %}
 
 {% block content %}
 <style>
@@ -24,6 +24,14 @@
     border: none;
     font-size: 0.85rem;
     text-align: center;
+}
+
+/* Estilo para remover a seta quando o select está desabilitado */
+.objetivo-select[disabled] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: none; /* Remover a imagem de fundo, se houver */
 }
 
 /* Estilos para as cores de fundo */
@@ -106,7 +114,7 @@
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i>Voltar</a>
     <h1 class="text-center flex-grow-1">Progresso</h1>
 </div>
 
@@ -169,7 +177,8 @@
                                                     #fff3cd
                                                 {% else %}
                                                     #f8d7da
-                                                {% endif %};">
+                                                {% endif %};"
+                                            {% if session.get('username') != 'Chefe' %}disabled{% endif %}>
                                         <option value="não" {% if estado == 'não' %}selected{% endif %}>❌ Não</option>
                                         <option value="em_progresso" {% if estado == 'em_progresso' %}selected{% endif %}>🟡 Em Progresso</option>
                                         <option value="concluído" {% if estado == 'concluído' %}selected{% endif %}>✔️ Concluído</option>
@@ -185,6 +194,7 @@
     </table>
 </div>
 
+{% if session.get('username') == 'Chefe' %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.objetivo-select').forEach(select => {
@@ -228,4 +238,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+{% endif %}
 {% endblock %}
