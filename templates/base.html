@@ -35,7 +35,7 @@
     <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
     <style>
         :root {
-            --bs-dark: #1b69b6;
+            --bs-dark: #ffffff;
             --bs-dark-rgb: 0, 0, 41;
         }
         body {
@@ -67,11 +67,11 @@
             transition: color 0.3s ease;
         }
         .nav-link:hover {
-            color: #ffffff !important;
+            color: #6d6969 !important;
         }
         .btn-menu {
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            color: rgba(255, 255, 255, 0.75);
+            border: 1px solid rgba(64, 64, 66, 0.5);
+            color: rgba(64, 64, 66, 1);
             transition: all 0.3s ease;
         }
         .btn-menu:hover {
@@ -87,6 +87,10 @@
         .offcanvas-body .nav-link {
             padding-left: 0;
         }
+        /* Cor do botão de fechar do offcanvas */
+        .offcanvas .btn-close {
+            filter: invert(0) !important;
+        }
     </style>
 </head>
 <body>
@@ -94,10 +98,10 @@
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand d-none d-lg-block navbar-brand-center clan-logo" href="{{ url_for('index') }}">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logótipo Clan 5" class="clan-logo-img">
+                <img src="{{ url_for('static', filename='logo_clan.png') }}" alt="Logótipo Clan 5" class="clan-logo-img">
             </a>
             <a class="navbar-brand d-lg-none mx-auto clan-logo" href="{{ url_for('index') }}">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logótipo Clan 5" class="clan-logo-img">
+                <img src="{{ url_for('static', filename='logo_clan.png') }}" alt="Logótipo Clan 5" class="clan-logo-img">
             </a>
             
             <div class="d-flex align-items-center ms-auto">
@@ -118,9 +122,9 @@
     <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="offcanvasNavbarLabel">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logótipo Clan 5" class="clan-logo-img">
+                <img src="{{ url_for('static', filename='logo_clan.png') }}" alt="Logótipo Clan 5" class="clan-logo-img">
             </h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
         </div>
         <div class="offcanvas-body">
             <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">

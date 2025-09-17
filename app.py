@@ -1552,5 +1552,8 @@ def api_eliminar_atividade(id):
 
 
 
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    # Obtém o número da porta da variável de ambiente,
+    # caso não exista, usa a porta 5000 por defeito.
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
