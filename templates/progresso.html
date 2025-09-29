@@ -4,7 +4,7 @@
 
 {% block content %}
 <style>
-/* Estilos para células de conteúdo */
+/* Estilos existentes para a tabela... */
 .objetivo-celula {
     min-width: 170px;
     height: 100px;
@@ -26,29 +26,20 @@
     text-align: center;
 }
 
-/* Estilo para remover a seta quando o select está desabilitado */
 .objetivo-select[disabled] {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    background-image: none; /* Remover a imagem de fundo, se houver */
+    background-image: none;
 }
 
-/* Estilos para as cores de fundo */
-.bg-feito {
-    background-color: #d4edda; /* verde */
-}
-.bg-em-progresso {
-    background-color: #fff3cd; /* amarelo */
-}
-.bg-pendente {
-    background-color: #f8d7da; /* vermelho */
-}
+.bg-feito { background-color: #d4edda; }
+.bg-em-progresso { background-color: #fff3cd; }
+.bg-pendente { background-color: #f8d7da; }
 
-/* Estilos para a tabela com colunas e cabeçalhos fixos */
 .table-container {
     max-height: 650px;
-    overflow: auto; /* Rolagem vertical e horizontal */
+    overflow: auto;
     position: relative;
     border: 1px solid #dee2e6;
 }
@@ -58,67 +49,83 @@
     border-spacing: 0;
 }
 
-/* Fixar as colunas do Nome e da Etapa */
-.sticky-col {
-    position: sticky;
-    z-index: 5;
-    background-color: #f8f9fa; /* Cor de fundo para evitar transparência na rolagem */
+.sticky-col { position: sticky; z-index: 5; background-color: #f8f9fa; }
+.sticky-col-nome { left: 0; }
+.sticky-col-etapa { left: 120px; }
+
+#tabela-progresso thead th { position: sticky; z-index: 3; top: 0; }
+#tabela-progresso thead th.sticky-col { z-index: 10; }
+#tabela-progresso thead th { position: sticky; }
+#tabela-progresso thead tr:nth-child(1) th { top: 0; }
+#tabela-progresso thead tr:nth-child(2) th { top: 40px; }
+#tabela-progresso thead tr:nth-child(3) th { top: 80px; }
+
+#tabela-progresso thead th:nth-child(1), #tabela-progresso tbody td:nth-child(1) { min-width: 120px; }
+#tabela-progresso thead th:nth-child(2), #tabela-progresso tbody td:nth-child(2) { min-width: 120px; }
+
+/* --- NOVOS ESTILOS PARA MOBILE --- */
+.mobile-view { display: none; }
+@media (max-width: 767px) {
+    .tabela-desktop { display: none; }
+    .mobile-view { display: block; }
 }
 
-.sticky-col-nome {
-    left: 0;
+.accordion-button {
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.sticky-col-etapa {
-    left: 120px; /* Largura da coluna "Nome" */
+.accordion-button::after {
+    display: none; /* remove a seta padrão do bootstrap */
 }
 
-/* Fixar as linhas de cabeçalho no topo */
-#tabela-progresso thead th {
-    position: sticky;
-    z-index: 3;
-    top: 0;
+.accordion-button .badge {
+    margin-left: 1rem;
 }
 
-/* Fixar os cabeçalhos das colunas "Nome" e "Etapa" no topo e à esquerda */
-#tabela-progresso thead th.sticky-col {
-    z-index: 10;
+.progresso-item {
+    margin-bottom: 1rem;
+    padding: .75rem;
+    border: 1px solid #e9ecef;
+    border-radius: .25rem;
+}
+.progresso-label {
+    font-weight: bold;
+    margin-bottom: .25rem;
 }
 
-/* Fixar o cabeçalho completo */
-#tabela-progresso thead th {
-    position: sticky;
+/* Estilos de cor para as áreas, trilhos e objetivos no mobile */
+/* Você deve definir as cores aqui, replicando as que usa para os cabeçalhos da tabela */
+.area-background {
+    padding: 0.5rem 0.75rem; /* Ajuste o padding conforme necessário */
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.25rem;
+    color: #fff; /* Texto branco para contraste */
 }
 
-#tabela-progresso thead tr:nth-child(1) th {
-    top: 0;
-}
+/* Exemplo de cores para áreas - ADAPTE ESTAS CORES ÀS SUAS */
+/* Se "area_nome" for "Desenvolvimento Pessoal" */
+.area-desenvolvimento-pessoal { background-color: #007bff; } /* Azul */
+/* Se "area_nome" for "Competências Técnicas" */
+.area-competencias-tecnicas { background-color: #28a745; } /* Verde */
+/* Adicione mais regras conforme as suas áreas */
+/* .area-outra-area { background-color: #cor-desejada; } */
 
-#tabela-progresso thead tr:nth-child(2) th {
-    top: 40px; /* Ajusta para a altura da primeira linha */
-}
-
-#tabela-progresso thead tr:nth-child(3) th {
-    top: 80px; /* Ajusta para a altura das duas primeiras linhas */
-}
-
-/* Estilos para garantir que as colunas fixas são largas o suficiente */
-#tabela-progresso thead th:nth-child(1),
-#tabela-progresso tbody td:nth-child(1) {
-    min-width: 120px;
-}
-#tabela-progresso thead th:nth-child(2),
-#tabela-progresso tbody td:nth-child(2) {
-    min-width: 120px;
+.back-button-container {
+    text-align: center;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
 }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i>Voltar</a>
     <h1 class="text-center flex-grow-1">Progresso</h1>
 </div>
 
-<div class="table-container">
+<div class="table-container tabela-desktop">
     <table class="table table-bordered table-hover text-center" id="tabela-progresso">
         <thead>
             <tr>
@@ -171,12 +178,9 @@
                                             data-trilho="{{ trilho_nome }}"
                                             data-objetivo="{{ objetivo }}"
                                             style="background-color:
-                                                {% if estado == 'concluído' %}
-                                                    #d4edda
-                                                {% elif estado == 'em_progresso' %}
-                                                    #fff3cd
-                                                {% else %}
-                                                    #f8d7da
+                                                {% if estado == 'concluído' %} #d4edda
+                                                {% elif estado == 'em_progresso' %} #fff3cd
+                                                {% else %} #f8d7da
                                                 {% endif %};"
                                             {% if session.get('username') != 'Chefe' %}disabled{% endif %}>
                                         <option value="não" {% if estado == 'não' %}selected{% endif %}>❌ Não</option>
@@ -194,9 +198,62 @@
     </table>
 </div>
 
+<div class="mobile-view">
+    <div class="accordion" id="accordionPessoas">
+        {% for nome_pessoa, dados_pessoa in progresso.items() %}
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="heading-{{ loop.index }}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" aria-expanded="false" aria-controls="collapse-{{ loop.index }}">
+                    <span>{{ nome_pessoa }}</span>
+                    {% set progresso_bool = calcular_progresso_bool_do_dicionario(dados_pessoa) %}
+                    <span class="badge bg-primary">{{ calcular_nivel(progresso_bool, trilhos) }}</span>
+                </button>
+            </h2>
+            <div id="collapse-{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#accordionPessoas">
+                <div class="accordion-body">
+                    {% for area_nome, trilhos_area in dados_pessoa.items() %}
+                    <h5 class="area-background area-{{ area_nome|lower|replace(' ', '-') }}">{{ area_nome }}</h5>
+                    {% for trilho_nome, objetivos_trilho in trilhos_area.items() %}
+                    <h6>{{ trilho_nome }}</h6>
+                    {% for objetivo, estado in objetivos_trilho.items() %}
+                    <div class="progresso-item">
+                        <div class="progresso-label">{{ objetivo }}</div>
+                        <div>
+                            <select class="form-select form-select-sm objetivo-select"
+                                    data-nome="{{ nome_pessoa }}"
+                                    data-area="{{ area_nome }}"
+                                    data-trilho="{{ trilho_nome }}"
+                                    data-objetivo="{{ objetivo }}"
+                                    style="background-color:
+                                        {% if estado == 'concluído' %} #d4edda
+                                        {% elif estado == 'em_progresso' %} #fff3cd
+                                        {% else %} #f8d7da
+                                        {% endif %};"
+                                    {% if session.get('username') != 'Chefe' %}disabled{% endif %}>
+                                <option value="não" {% if estado == 'não' %}selected{% endif %}>❌ Não</option>
+                                <option value="em_progresso" {% if estado == 'em_progresso' %}selected{% endif %}>🟡 Em Progresso</option>
+                                <option value="concluído" {% if estado == 'concluído' %}selected{% endif %}>✔️ Concluído</option>
+                            </select>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="back-button-container">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
+</div>
+
 {% if session.get('username') == 'Chefe' %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Lógica para atualização de progresso
     document.querySelectorAll('.objetivo-select').forEach(select => {
         select.addEventListener('change', function() {
             const nomePessoa = this.dataset.nome;
@@ -205,13 +262,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const objetivo = this.dataset.objetivo;
             const novoEstado = this.value;
 
-            // Atualiza cor do fundo de acordo com estado
+            // Atualiza a cor de fundo do select
             if (novoEstado === "concluído") {
-                this.style.backgroundColor = "#d4edda"; // verde
+                this.style.backgroundColor = "#d4edda";
             } else if (novoEstado === "em_progresso") {
-                this.style.backgroundColor = "#fff3cd"; // amarelo
+                this.style.backgroundColor = "#fff3cd";
             } else {
-                this.style.backgroundColor = "#f8d7da"; // vermelho
+                this.style.backgroundColor = "#f8d7da";
             }
 
             fetch('{{ url_for("atualizar_objetivo") }}', {
@@ -228,9 +285,21 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'ok') {
-                    // Atualiza a etapa (nível) da linha
-                    const linha = select.closest('tr');
-                    linha.querySelector('.nivel-celula').textContent = data.nivel;
+                    // Atualiza o nível na tabela (se visível)
+                    const linha = document.querySelector(`tr[data-nome='${nomePessoa}'] .nivel-celula`);
+                    if (linha) {
+                        linha.textContent = data.nivel;
+                    }
+                    // Atualiza o nível no dropdown (se visível)
+                    // Nota: Assumindo que o `data-nome` está no botão do acordeão ou num elemento pai
+                    const accordionButton = document.querySelector(`#accordionPessoas .accordion-button[data-bs-target="#collapse-${this.closest('.accordion-item').id.replace('heading-', '')}"]`);
+                    if (accordionButton) {
+                         // O badge é um filho do botão, precisamos encontrá-lo
+                        const badge = accordionButton.querySelector('.badge');
+                        if (badge) {
+                            badge.textContent = data.nivel;
+                        }
+                    }
                 }
             })
             .catch(error => console.error('Erro:', error));

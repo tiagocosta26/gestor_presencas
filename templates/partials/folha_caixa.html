@@ -3,26 +3,192 @@
     {% set entidade = tribo %}
 {% endif %}
 
+<style>
+    /* -------------------------------------------------------------------------- */
+    /* REGRAS GERAIS E COMPUTADOR (> 767px) */
+    /* -------------------------------------------------------------------------- */
+    @media (min-width: 768px) {
+        /* Centra o texto nos títulos (thead) */
+        #tabela-caixa thead th {
+            text-align: center;
+        }
+
+        /* Garante que todas as células de dados aparecem como tabela (desktop padrão) */
+        #tabela-caixa tbody td {
+            display: table-cell !important;
+            padding: 0.75rem !important; 
+            text-align: center;
+        }
+        
+        /* NOVO: Alinhamento à esquerda para a Descrição (agora é a 2ª coluna) em Desktop */
+        /* Data é 1ª, Descrição é 2ª, Comprovativo é 3ª, Saldo é 4ª, Ação é 5ª */
+        #tabela-caixa tbody td:nth-child(2) {
+            text-align: left; /* Descrição */
+        }
+        
+        /* O conteúdo mobile (details/summary) deve ser escondido em desktop */
+        #tabela-caixa details {
+            display: none;
+        }
+
+        /* O formulário de adição já usa col-md/lg/etc. e não precisa de grandes alterações */
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /* REGRAS DE LAYOUT RESPONSIVO (TELEMÓVEL - <= 767px) */
+    /* Implementa o efeito Dropdown (Expandir/Ocultar) */
+    /* -------------------------------------------------------------------------- */
+    @media (max-width: 767px) {
+        /* Esconde o cabeçalho da tabela (thead) */
+        #tabela-caixa thead {
+            display: none;
+        }
+
+        /* Faz com que cada linha da tabela (tr) pareça um cartão */
+        #tabela-caixa tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            background-color: #fff;
+            padding: 0; 
+        }
+
+        /* Torna a primeira célula (Data/Dropdown) visível e as outras invisíveis */
+        #tabela-caixa tbody tr td:first-child {
+            display: block;
+            padding: 0;
+            border: none;
+        }
+
+        /* Esconde todas as células (TDs) da 2ª em diante (Descrição, Comprovativo, etc.) */
+        #tabela-caixa tbody tr td:nth-child(n+2) {
+             display: none;
+        }
+        
+        /* Estilo para o elemento <details> (o container expansível) */
+        #tabela-caixa details {
+            padding: 0;
+            margin: 0;
+            display: block; 
+        }
+
+        /* Estilo para o Summary (a Data, que é o toggle) */
+        #tabela-caixa summary {
+            list-style: none; 
+            display: block;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            font-weight: bold;
+            color: #343a40;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+        
+        /* Adiciona a Descrição por baixo da Data no Summary, para um melhor contexto inicial */
+        #tabela-caixa summary::after {
+            content: " - " attr(data-description); /* Usa o atributo data-description que adicionámos */
+            font-weight: normal;
+            display: inline;
+            color: #6c757d;
+        }
+
+        /* Ícone de seta (mais bonito que o símbolo ▼) */
+        #tabela-caixa summary::before {
+            content: "";
+            display: inline-block;
+            width: 0;
+            height: 0;
+            margin-right: 0.5rem;
+            vertical-align: middle;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid #6c757d; /* Cor da seta */
+            transition: transform 0.2s ease-in-out;
+        }
+
+        /* Roda a seta quando está expandido */
+        #tabela-caixa details[open] summary::before {
+            transform: rotate(180deg);
+        }
+
+        
+        /* Remove o list-style-type padrão do summary */
+        #tabela-caixa summary::-webkit-details-marker {
+            display: none;
+        }
+
+        /* Estilo para a lista de detalhes (o conteúdo expandido) */
+        #tabela-caixa .mobile-details-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        /* Estilo para cada item de detalhe */
+        #tabela-caixa .mobile-details-list li {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        /* Rótulo (Label) dos campos */
+        #tabela-caixa .mobile-details-list li strong {
+            font-weight: bold;
+            color: #343a40;
+            text-align: left;
+            flex-shrink: 0; 
+            padding-right: 10px;
+        }
+
+        /* Valor dos campos */
+        #tabela-caixa .mobile-details-list li span {
+            text-align: right; 
+            word-wrap: break-word;
+            word-break: break-all;
+            flex-grow: 1; 
+        }
+        
+        /* Ajuste para o botão de Ação/Remover - Fica no fim, centrado */
+        #tabela-caixa .mobile-details-list li:last-child {
+            border-bottom: none;
+            display: block; 
+            text-align: center;
+            padding-bottom: 1rem;
+        }
+    }
+    
+    /* Regra para a caixa do Saldo Total */
+    .total-box {
+        font-weight: bold;
+        background-color: #f8f9fa;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        border: 1px solid #dee2e6;
+        display: inline-block; /* Garante que fica ao lado do texto */
+    }
+</style>
+
 {% if session.get('username') != 'Clan' %}
 <h4 class="mt-4">Adicionar Transação</h4>
 <form action="{{ url_for('tesouraria') }}" method="post" enctype="multipart/form-data">
     <input type="hidden" name="acao" value="adicionar">
     <input type="hidden" name="entidade" value="{{ entidade }}">
     <div class="row g-3">
-        <div class="col-md-3">
+        <div class="col-12 col-md-3">
             <label for="data-{{ entidade|replace(' ', '_') }}" class="form-label">Data</label>
             <input type="date" class="form-control" name="data" id="data-{{ entidade|replace(' ', '_') }}" required>
         </div>
-        <div class="col-md-5">
+        <div class="col-12 col-md-5">
             <label for="descricao-{{ entidade|replace(' ', '_') }}" class="form-label">Descrição</label>
             <input type="text" class="form-control" name="descricao" id="descricao-{{ entidade|replace(' ', '_') }}" required>
         </div>
-        <div class="col-md-2">
-            <label for="valor-{{ entidade|replace(' ', '_') }}" class="form-label">Valor</label>
+        <div class="col-6 col-md-2"> <label for="valor-{{ entidade|replace(' ', '_') }}" class="form-label">Valor</label>
             <input type="number" class="form-control" name="valor" id="valor-{{ entidade|replace(' ', '_') }}" step="0.01" required>
         </div>
-        <div class="col-md-2">
-            <label for="tipo-{{ entidade|replace(' ', '_') }}" class="form-label">Tipo</label>
+        <div class="col-6 col-md-2"> <label for="tipo-{{ entidade|replace(' ', '_') }}" class="form-label">Tipo</label>
             <select class="form-select" name="tipo" id="tipo-{{ entidade|replace(' ', '_') }}" required>
                 <option value="Entrada">Entrada</option>
                 <option value="Saida">Saída</option>
@@ -55,14 +221,14 @@
         </span>
     </h4>
 </div>
-<table class="table table-hover table-striped">
+
+<table id="tabela-caixa" class="table table-hover table-striped">
     <thead>
         <tr>
             <th>Data</th>
             <th>Descrição</th>
-            <th>Valor</th>
             <th>Comprovativo</th>
-            <th>Saldo</th>
+            <th>Valor</th>
             {% if session.get('username') != 'Clan' %}
             <th></th>
             {% endif %}
@@ -77,23 +243,62 @@
                 {% set saldo = saldo - t.valor %}
             {% endif %}
         <tr class="{% if t.tipo == 'Entrada' %}table-entrada{% else %}table-saida{% endif %}">
-            <td>{{ t.data }}</td>
-            <td>{{ t.descricao }}</td>
-            <td class="{% if t.tipo == 'Entrada' %}text-success{% else %}text-danger{% endif %}">{{ '%.2f'|format(t.valor) }}€</td>
-            <td>
+            <td data-label="Data">
+                <span class="d-none d-md-block">{{ t.data }}</span>
+                
+                <details class="d-block d-md-none">
+                    <summary data-description="{{ t.descricao }}">{{ t.data }}</summary>
+                    
+                    <ul class="mobile-details-list">
+                        <li><strong>Descrição:</strong> <span>{{ t.descricao }}</span></li>
+
+                        <!-- Linha alterada: antes do comprovativo -->
+                        <li><strong>Valor:</strong> 
+                            <span class="{% if t.tipo == 'Entrada' %}text-success{% else %}text-danger{% endif %}">
+                                {{ '%.2f'|format(saldo) }}€
+                            </span>
+                        </li>
+
+                        <li><strong>Comprovativo:</strong> 
+                            <span>
+                                {% if t.comprovativo %}
+                                <a href="{{ url_for('uploaded_file', filename=t.comprovativo) }}" target="_blank" rel="noopener noreferrer">Ver Ficheiro</a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </span>
+                        </li>
+
+                        {% if session.get('username') != 'Clan' %}
+                        <li>
+                            <form action="{{ url_for('tesouraria') }}" method="post" class="d-block w-100">
+                                <input type="hidden" name="acao" value="remover">
+                                <input type="hidden" name="entidade" value="{{ entidade }}">
+                                <input type="hidden" name="index" value="{{ loop.index0 }}">
+                                <button type="submit" class="btn btn-sm btn-danger w-100" style="max-width: 150px;">Remover</button>
+                            </form>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </details>
+
+            </td>
+            
+            <td data-label="Descrição">{{ t.descricao }}</td>
+            <td data-label="Comprovativo">
                 {% if t.comprovativo %}
                 <a href="{{ url_for('uploaded_file', filename=t.comprovativo) }}" target="_blank" rel="noopener noreferrer">Ver Ficheiro</a>
                 {% else %}
                 -
                 {% endif %}
             </td>
-            <td>
+            <td data-label="Saldo">
                 <span class="{% if saldo >= 0 %}text-success{% else %}text-danger{% endif %}">
                     {{ '%.2f'|format(saldo) }}€
                 </span>
             </td>
             {% if session.get('username') != 'Clan' %}
-            <td>
+            <td data-label="Ação">
                 <form action="{{ url_for('tesouraria') }}" method="post" style="display:inline;">
                     <input type="hidden" name="acao" value="remover">
                     <input type="hidden" name="entidade" value="{{ entidade }}">

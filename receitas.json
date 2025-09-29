@@ -1,16 +1,57 @@
 [
     {
-        "nome": "fdgh",
-        "instrucoes": "te trhn",
-        "ingredientes": "fthgd ghd",
-        "tempo_preparacao": "7",
-        "dificuldade": "Fácil"
+        "nome": "tyht",
+        "tempo_preparacao": "15",
+        "dificuldade": "Médio",
+        "porcoes_base": 2,
+        "ingredientes": [],
+        "instrucoes": "parte\r\ncoze"
     },
     {
-        "nome": "fghgdn",
-        "instrucoes": "rthb",
-        "ingredientes": "dfhsgb ",
-        "tempo_preparacao": "7",
-        "dificuldade": "Fácil"
+        "nome": "uuuuuuu",
+        "tempo_preparacao": "0",
+        "dificuldade": "Fácil",
+        "porcoes_base": 4,
+        "ingredientes": [],
+        "instrucoes": "i\r\npp"
+    },
+    {
+        "nome": "vvvvvvvvvvvv",
+        "tempo_preparacao": "8",
+        "dificuldade": "Fácil",
+        "porcoes_base": 4,
+        "ingredientes": [],
+        "instrucoes": "k\r\nk\r\nk"
+    },
+    {
+        "nome": "yyyyyyyyyyyyyy",
+        "tempo_preparacao": "y",
+        "dificuldade": "Fácil",
+        "porcoes_base": 4,
+        "ingredientes": [
+            {
+                "nome": "sdav",
+                "quantidade": null,
+                "unidade": "",
+                "tipo_escala": "nao_escalavel"
+            },
+            {
+                "nome": "sdv",
+                "quantidade": null,
+                "unidade": "",
+                "tipo_escala": "nao_escalavel"
+            }
+        ],
+        "instrucoes": "sdvg\r\nsdv"
+    },
+    {
+        "nome": "uuuuuuuuuuuuuuu",
+        "ingredientes": [
+            "uuuuuuuuuuuuuuuuu"
+        ],
+        "instrucoes": "uuuuuuuuuuuuuuu",
+        "tempo_preparacao": "1",
+        "dificuldade": "Fácil",
+        "porcoes_base": "4"
     }
 ]

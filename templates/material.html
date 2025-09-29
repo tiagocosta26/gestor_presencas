@@ -3,9 +3,181 @@
 {% block title %}Material{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center">
-    <a href="{{ url_for('index') }}" class="btn btn-secondary mb-3"><i class="bi bi-arrow-left"></i>Voltar</a>
-    <h1 class="text-center flex-grow-1">Material</h1>
+<style>
+    /* -------------------------------------------------------------------------- */
+    /* REGRAS EXCLUSIVAS PARA VISUALIZAÇÃO EM COMPUTADOR (> 767px) */
+    /* -------------------------------------------------------------------------- */
+    @media (min-width: 768px) {
+        /* Centra o texto nos títulos (thead) */
+        #tabela thead th {
+            text-align: center;
+        }
+
+        /* Força todas as células a aparecerem como células de tabela (padrão desktop) */
+        #tabela tbody td {
+            display: table-cell !important;
+            /* Reseta o padding se houver herança de mobile */
+            padding: 0.75rem !important; 
+        }
+
+        /* Garante que o conteúdo de todos os campos MENOS as Observações está centrado */
+        #tabela tbody td:nth-child(1), /* Nome */
+        #tabela tbody td:nth-child(2), /* Quantidade */
+        #tabela tbody td:nth-child(3), /* Local */
+        #tabela tbody td:nth-child(4), /* Tribo/Clan */
+        #tabela tbody td:nth-child(6)  /* Ação/Remover */
+        {
+            text-align: center;
+        }
+        
+        /* NOVO: Justifica o texto na célula de Observações (5ª coluna) */
+        #tabela tbody td:nth-child(5) {
+            text-align: justify;
+        }
+        
+        /* O conteúdo mobile (details/summary) deve ser escondido em desktop */
+        #tabela details {
+            display: none;
+        }
+
+        /* O conteúdo do item deve ser diretamente visível em desktop */
+        #tabela tbody td:first-child {
+             /* O texto do nome é visível e não é um summary */
+             text-align: center;
+        }
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /* REGRAS DE LAYOUT RESPONSIVO (TELEMÓVEL - <= 767px) */
+    /* Implementa o efeito Dropdown (Expandir/Ocultar) */
+    /* -------------------------------------------------------------------------- */
+    @media (max-width: 767px) {
+        /* Esconde o cabeçalho da tabela (thead) */
+        #tabela thead {
+            display: none;
+        }
+
+        /* Faz com que cada linha da tabela (tr) pareça um cartão */
+        #tabela tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            background-color: #fff;
+            padding: 0; 
+        }
+
+        /* Torna a primeira célula (Nome/Dropdown) visível e as outras invisíveis */
+        #tabela tbody tr td:first-child {
+            display: block;
+            padding: 0;
+            border: none;
+        }
+
+        /* Esconde todas as células (TDs) da 2ª em diante, que em desktop carregam os dados repetidos */
+        #tabela tbody tr td:nth-child(n+2) {
+             display: none;
+        }
+        
+        /* Estilo para o elemento <details> (o container expansível) */
+        #tabela details {
+            padding: 0;
+            margin: 0;
+            /* Garante que o dropdown é visível e ocupa o espaço */
+            display: block; 
+        }
+
+        /* Estilo para o Summary (o Nome, que é o toggle) */
+        #tabela summary {
+            list-style: none; 
+            display: block;
+            /* Reseta o estilo do browser e adiciona padding e borda */
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            font-weight: bold;
+            color: #343a40;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* Adiciona ícone de seta/caret para indicar expansão */
+        #tabela summary::before {
+            content: "\25BC"; /* Seta para baixo (ícone de expansão) */
+            float: right;
+            margin-left: 0.5rem;
+            transition: transform 0.2s;
+            font-size: 0.8rem;
+            line-height: 1.5rem;
+        }
+        
+        /* Rota o ícone quando expandido */
+        #tabela details[open] summary::before {
+            transform: rotate(180deg); /* Seta para cima (ícone de retração) */
+        }
+        
+        /* Remove o list-style-type padrão do summary em alguns browsers */
+        #tabela summary::-webkit-details-marker {
+            display: none;
+        }
+
+        /* Estilo para a lista de detalhes (o conteúdo expandido) */
+        #tabela .mobile-details-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        /* Estilo para cada item de detalhe (Quantidade, Local, etc.) */
+        #tabela .mobile-details-list li {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            /* NOVO: Ajusta o display para que a observação ocupe a linha inteira */
+            flex-wrap: wrap; 
+        }
+        
+        /* Rótulo (Label) dos campos (à esquerda) */
+        #tabela .mobile-details-list li strong {
+            font-weight: bold;
+            color: #343a40;
+            text-align: left;
+            flex-shrink: 0; /* Para não encolher o label */
+            padding-right: 10px;
+        }
+
+        /* Valor dos campos (à direita) */
+        #tabela .mobile-details-list li span {
+            text-align: left; /* Alinhamento esquerdo do valor */
+            word-wrap: break-word;
+            word-break: break-all;
+            flex-grow: 1; /* Para o valor ocupar o espaço restante */
+        }
+        
+        /* NOVO: Regra específica para justificar e ocupar toda a largura no campo Observações em mobile */
+        #tabela .mobile-details-list li:nth-child(4) { /* 4º LI: Observações */
+            display: block; /* Para o rótulo e valor ficarem em linhas separadas */
+        }
+
+        #tabela .mobile-details-list li:nth-child(4) span {
+            text-align: justify; /* Justifica o texto das observações */
+            display: block; /* Ocupa a largura total abaixo do rótulo */
+            margin-top: 5px; /* Pequeno espaço entre o rótulo e o texto */
+        }
+
+
+        /* Ajuste para o botão de Ação/Remover */
+        #tabela .mobile-details-list li:last-child {
+            border-bottom: none;
+            display: block; 
+            text-align: center;
+            padding-bottom: 1rem;
+        }
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
+    <h1 class="text-center flex-grow-1 fs-3">Material</h1>
 </div>
 
 <div class="card my-4">
@@ -16,19 +188,19 @@
         <form action="{{ url_for('material') }}" method="post">
             <input type="hidden" name="acao" value="adicionar_item">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-12 col-sm-6 col-lg-4">
                     <label for="nome_item" class="form-label">Nome</label>
                     <input type="text" class="form-control" id="nome_item" name="nome_item" required>
                 </div>
-                <div class="col-md-3">
+                <div class="col-12 col-sm-6 col-lg-3">
                     <label for="quantidade" class="form-label">Quantidade</label>
                     <input type="number" class="form-control" id="quantidade" name="quantidade" required min="0">
                 </div>
-                <div class="col-md-3">
+                <div class="col-12 col-sm-6 col-lg-3">
                     <label for="localizacao" class="form-label">Local</label>
                     <input type="text" class="form-control" id="localizacao" name="localizacao">
                 </div>
-                <div class="col-md-2">
+                <div class="col-12 col-sm-6 col-lg-2">
                     <label for="tribo_clan" class="form-label">Tribo/Clan</label>
                     <select class="form-select" id="tribo_clan" name="tribo_clan" required>
                         <option value="Clan" selected>Clan</option>
@@ -42,7 +214,7 @@
                     <textarea class="form-control" id="observacoes" name="observacoes" rows="2"></textarea>
                 </div>
                 <div class="col-12 mt-3 text-end">
-                    <button type="submit" class="btn btn-primary">Adicionar Material</button>
+                    <button type="submit" class="btn btn-primary w-100 w-sm-auto">Adicionar Material</button>
                 </div>
             </div>
         </form>
@@ -54,7 +226,7 @@
     <div class="card-body">
         <form action="{{ url_for('material') }}" method="get">
             <div class="row g-3 align-items-end">
-                <div class="col-md-3">
+                <div class="col-12 col-sm-6 col-lg-3">
                     <label for="filtro_nome" class="form-label">Nome</label>
                     <select class="form-select" id="filtro_nome" name="filtro_nome">
                         <option value="">Todos</option>
@@ -63,7 +235,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-12 col-sm-6 col-lg-2">
                     <label for="filtro_quantidade" class="form-label">Quantidade</label>
                     <select class="form-select" id="filtro_quantidade" name="filtro_quantidade">
                         <option value="">Todas</option>
@@ -72,7 +244,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-12 col-sm-6 col-lg-3">
                     <label for="filtro_localizacao" class="form-label">Local</label>
                     <select class="form-select" id="filtro_localizacao" name="filtro_localizacao">
                         <option value="">Todas</option>
@@ -81,7 +253,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-12 col-sm-6 col-lg-2">
                     <label for="filtro_tribo_clan" class="form-label">Tribo/Clan</label>
                     <select class="form-select" id="filtro_tribo_clan" name="filtro_tribo_clan">
                         <option value="">Todas</option>
@@ -91,7 +263,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-12 col-lg-2">
                     <button type="submit" class="btn btn-secondary w-100">Filtrar</button>
                 </div>
             </div>
@@ -114,20 +286,39 @@
     <tbody>
         {% for item in material_filtrado %}
         <tr id="item-{{ item.nome|replace(' ', '_') }}-{{ item.tribo_clan|replace(' ', '_') }}">
-            <td>{{ item.nome }}</td>
-            <td>{{ item.quantidade }}</td>
-            <td>{{ item.localizacao }}</td>
-            <td>{{ item.tribo_clan }}</td>
-            <td>{{ item.observacoes }}</td>
-            <td>
-                <button type="button" class="btn btn-sm btn-danger"
+            <td data-label="Nome">
+                <span class="d-none d-md-block">{{ item.nome }}</span>
+                
+                <details class="d-block d-md-none">
+                    <summary>{{ item.nome }}</summary>
+                    
+                    <ul class="mobile-details-list">
+                        <li><strong>Quantidade:</strong> <span>{{ item.quantidade }}</span></li>
+                        <li><strong>Local:</strong> <span>{{ item.localizacao }}</span></li>
+                        <li><strong>Tribo/Clan:</strong> <span>{{ item.tribo_clan }}</span></li>
+                        <li><strong>Observações:</strong> <span>{{ item.observacoes }}</span></li>
+                        <li>
+                            <button type="button" class="btn btn-danger w-100" style="max-width: 150px;"
+                                onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>
+                        </li>
+                    </ul>
+                </details>
+            </td>
+            
+            <td data-label="Quantidade">{{ item.quantidade }}</td>
+            <td data-label="Local">{{ item.localizacao }}</td>
+            <td data-label="Tribo/Clan">{{ item.tribo_clan }}</td>
+            <td data-label="Observações">{{ item.observacoes }}</td>
+            <td data-label="Ação">
+                <button type="button" class="btn btn-danger w-100" style="max-width: 150px;"
                     onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
-<a href="{{ url_for('index') }}" class="btn btn-secondary mb-3"><i class="bi bi-arrow-left"></i>Voltar</a>
+
+<a href="{{ url_for('index') }}" class="btn btn-secondary mb-3"><i class="bi bi-arrow-left"></i> Voltar</a>
 
 <script>
     function removerItem(nome, triboClan) {

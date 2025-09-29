@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center">
-    <h1 class="text-center flex-grow-1">Inventário Farmácia</h1>
+    <h1 class="text-center flex-grow-1 my-3">Inventário Farmácia</h1>
 </div>
 
 <div class="card my-4">
@@ -14,7 +14,7 @@
     <div class="card-body">
         <form action="{{ url_for('farmacia') }}" method="post">
             <input type="hidden" name="acao" value="adicionar_item">
-            <div class="row g-3">
+            <div class="row g-3 flex-column flex-md-row">
                 <div class="col-md-4">
                     <label for="nome_item" class="form-label">Nome</label>
                     <input type="text" class="form-control" id="nome_item" name="nome_item" required>
@@ -40,8 +40,8 @@
                     <label for="observacoes" class="form-label">Observações</label>
                     <textarea class="form-control" id="observacoes" name="observacoes" rows="2"></textarea>
                 </div>
-                <div class="col-12 mt-3 text-end">
-                    <button type="submit" class="btn btn-primary">Adicionar Material</button>
+                <div class="col-12 mt-3 text-end text-md-end">
+                    <button type="submit" class="btn btn-primary w-100 w-md-auto">Adicionar Material</button>
                 </div>
             </div>
         </form>
@@ -52,7 +52,7 @@
 <div class="card my-4">
     <div class="card-body">
         <form action="{{ url_for('farmacia') }}" method="get">
-            <div class="row g-3 align-items-end">
+            <div class="row g-3 flex-column flex-md-row align-items-end">
                 <div class="col-md-3">
                     <label for="filtro_nome" class="form-label">Nome</label>
                     <select class="form-select" id="filtro_nome" name="filtro_nome">
@@ -99,61 +99,99 @@
 </div>
 
 <h4 class="mt-5">Resultados do Inventário</h4>
-<table id="tabela" class="table table-striped table-hover">
-    <thead>
-        <tr>
-            <th>Nome</th>
-            <th>Quantidade</th>
-            <th>Localização</th>
-            <th>Tribo/Clan</th>
-            <th>Observações</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for item in farmacia_filtrado %}
-        <tr id="item-{{ item.nome|replace(' ', '_') }}-{{ item.tribo_clan|replace(' ', '_') }}">
-            <td>{{ item.nome }}</td>
-            <td>{{ item.quantidade }}</td>
-            <td>{{ item.localizacao }}</td>
-            <td>{{ item.tribo_clan }}</td>
-            <td>{{ item.observacoes }}</td>
-            <td>
-                <button type="button" class="btn btn-sm btn-danger"
-                    onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+
+<!-- Para telas grandes: tabela normal -->
+<div class="d-none d-lg-block">
+    <table id="tabela" class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Quantidade</th>
+                <th>Localização</th>
+                <th>Tribo/Clan</th>
+                <th>Observações</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in farmacia_filtrado %}
+            <tr id="item-{{ item.nome|replace(' ', '_') }}-{{ item.tribo_clan|replace(' ', '_') }}">
+                <td>{{ item.nome }}</td>
+                <td>{{ item.quantidade }}</td>
+                <td>{{ item.localizacao }}</td>
+                <td>{{ item.tribo_clan }}</td>
+                <td>{{ item.observacoes }}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-danger w-100 w-md-auto"
+                        onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Para mobile: cards -->
+<div class="d-lg-none">
+    {% for item in farmacia_filtrado %}
+    <div class="card mb-3" id="item-card-{{ item.nome|replace(' ', '_') }}-{{ item.tribo_clan|replace(' ', '_') }}">
+        <div class="card-body">
+            <h5 class="card-title">{{ item.nome }} <span class="badge bg-secondary">{{ item.tribo_clan }}</span></h5>
+            <p class="mb-1"><strong>Quantidade:</strong> {{ item.quantidade }}</p>
+            <p class="mb-1"><strong>Local:</strong> {{ item.localizacao }}</p>
+            {% if item.observacoes %}
+            <p class="mb-1"><strong>Observações:</strong> {{ item.observacoes }}</p>
+            {% endif %}
+            <button type="button" class="btn btn-danger w-100"
+                onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
 <a href="{{ url_for('index') }}" class="btn btn-secondary mb-3"><i class="bi bi-arrow-left"></i> Voltar</a>
 
 <script>
     function removerItem(nome, triboClan) {
-            const formData = new FormData();
-            formData.append('acao', 'remover_item');
-            formData.append('nome_item', nome);
-            formData.append('tribo_clan', triboClan);
+        const formData = new FormData();
+        formData.append('acao', 'remover_item');
+        formData.append('nome_item', nome);
+        formData.append('tribo_clan', triboClan);
 
-            fetch('{{ url_for("farmacia") }}', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Remove a linha da tabela sem recarregar a página
-                    const row = document.getElementById(`item-${nome.replace(' ', '_')}-${triboClan.replace(' ', '_')}`);
-                    if (row) {
-                        row.remove();
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro na comunicação com o servidor.');
-            });
+        fetch('{{ url_for("farmacia") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const row = document.getElementById(`item-${nome.replace(' ', '_')}-${triboClan.replace(' ', '_')}`);
+                if (row) row.remove();
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro na comunicação com o servidor.');
+        });
     }
 </script>
 
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Ajustes Mobile */
+@media (max-width: 992px) {
+    .row.flex-column.flex-md-row {
+        flex-direction: column !important;
+    }
+    .btn.w-100 {
+        width: 100% !important;
+        margin-top: 0.5rem;
+    }
+    .table-responsive {
+        overflow-x: auto;
+    }
+}
+</style>
 {% endblock %}

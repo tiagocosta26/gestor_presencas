@@ -1,6 +1,43 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    /* Estilo para ajustar os botões do FullCalendar e o tamanho dos dias da semana em telemóveis */
+    @media (max-width: 767px) {
+        .fc-toolbar-title {
+            font-size: 1.25rem !important;
+            margin: 0 !important;
+        }
+
+        .fc-toolbar.fc-header-toolbar {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .fc-toolbar .fc-button-group {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        .fc-toolbar .fc-button {
+            flex-grow: 1;
+        }
+
+        .fc-toolbar .fc-toolbar-chunk {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        /* Novo estilo para reduzir o tamanho da fonte dos dias da semana apenas em telemóveis */
+        .fc-timeGridWeek-view .fc-col-header-cell-cushion {
+            font-size: 0.7em;
+        }
+    }
+</style>
+
 <div class="container my-5">
     <h1 class="text-center mb-4">Calendário de Atividades</h1>
 
@@ -121,12 +158,12 @@
             initialView: 'dayGridMonth',
             locale: 'pt',
             headerToolbar: {
-                left: 'prev,next today',
+                left: 'dayGridMonth,timeGridWeek,timeGridDay',
                 center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                right: 'prev,next today'
             },
             events: '/api/atividades',
-            editable: podeEditar, // Permite arrastar/redimensionar apenas se tiver permissão
+            editable: podeEditar,
             eventStartEditable: podeEditar,
             eventDurationEditable: podeEditar,
             eventTimeFormat: { 
@@ -161,7 +198,6 @@
             }
         };
 
-        // Adiciona a funcionalidade de adicionar eventos apenas se o utilizador tiver permissão
         if (podeEditar) {
             config.dateClick = function(info) {
                 modoEdicao = false;

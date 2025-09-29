@@ -1,66 +1,134 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1 class="text-center">Assiduidade</h1>
+<style>
+/* Estilos para o layout mobile */
+@media (max-width: 767px) {
+    .tabela-desktop { display: none; }
+    .mobile-view { display: block; }
+    .assiduidade-card-mobile {
+        padding: 1rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .assiduidade-card-mobile:last-child {
+        border-bottom: none;
+    }
+    .assiduidade-card-mobile div {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.25rem;
+    }
+    .accordion-button:not(.collapsed) {
+        background-color: var(--bs-light) !important;
+    }
+}
+@media (min-width: 768px) {
+    .tabela-desktop { display: block; }
+    .mobile-view { display: none; }
+}
+</style>
 
-<div class="row my-4">
-    <div class="col-md-6 offset-md-3">
-        <form action="{{ url_for('assiduidade') }}" method="post">
-            <div class="input-group">
-                <label for="ano_escotista" class="input-group-text">Ano Escutista</label>
-                <select class="form-select" name="ano_escotista" id="ano_escotista" onchange="this.form.submit()">
-                    {% for ano in anos_disponiveis %}
-                        <option value="{{ ano }}" {% if ano == ano_selecionado %}selected{% endif %}>
-                            {{ ano }}-{{ ano|int + 1 }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-        </form>
-    </div>
-</div>
+<div class="container-fluid">
+    <h1 class="text-center">Assiduidade</h1>
 
-{% if atividades_do_ano > 0 %}
-<p class="text-center fs-5">Total de atividades neste ano escutista: {{ atividades_do_ano }}</p>
-{% endif %}
-
-{% if assiduidade_por_tribo %}
-    {% for tribo, membros in assiduidade_por_tribo.items() %}
-        <div class="card my-4">
-            <div class="card-header">
-                <h3 class="mb-0">{{ tribo }}</h3>
-            </div>
-            <div class="card-body">
-                <table class="table table-hover table-striped">
-                    <thead>
-                        <tr>
-                            <th>Elemento</th>
-                            <th>Presenças</th>
-                            <th>Total</th>
-                            <th>Assiduidade</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for nome, dados in membros.items() %}
-                            <tr>
-                                <td>{{ nome }}</td>
-                                <td>{{ dados.presente }}</td>
-                                <td>{{ dados.total }}</td>
-                                <td>{{ '%.2f'|format(dados.percentagem) }}%</td>
-                            </tr>
+    <div class="row my-4">
+        <div class="col-md-6 offset-md-3">
+            <form action="{{ url_for('assiduidade') }}" method="post">
+                <div class="input-group">
+                    <label for="ano_escotista" class="input-group-text">Ano Escutista</label>
+                    <select class="form-select" name="ano_escotista" id="ano_escotista" onchange="this.form.submit()">
+                        {% for ano in anos_disponiveis %}
+                            <option value="{{ ano }}" {% if ano == ano_selecionado %}selected{% endif %}>
+                                {{ ano }}-{{ ano|int + 1 }}
+                            </option>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if atividades_do_ano > 0 %}
+    <p class="text-center fs-5">Total de atividades neste ano escutista: {{ atividades_do_ano }}</p>
+    {% endif %}
+
+    {% if assiduidade_por_tribo %}
+        
+        <div class="tabela-desktop">
+            {% for tribo, membros in assiduidade_por_tribo.items() %}
+                <div class="card my-4">
+                    <div class="card-header">
+                        <h3 class="mb-0">{{ tribo }}</h3>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-hover table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Elemento</th>
+                                    <th>Presenças</th>
+                                    <th>Total</th>
+                                    <th>Assiduidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for nome, dados in membros.items() %}
+                                    <tr>
+                                        <td>{{ nome }}</td>
+                                        <td>{{ dados.presente }}</td>
+                                        <td>{{ dados.total }}</td>
+                                        <td>{{ '%.2f'|format(dados.percentagem) }}%</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="mobile-view">
+            <div class="accordion" id="accordionAssiduidade">
+                {% for tribo, membros in assiduidade_por_tribo.items() %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading-{{ loop.index }}">
+                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" aria-controls="collapse-{{ loop.index }}">
+                            {{ tribo }}
+                        </button>
+                    </h2>
+                    <div id="collapse-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#accordionAssiduidade">
+                        <div class="accordion-body p-0">
+                            {% for nome, dados in membros.items() %}
+                                <div class="assiduidade-card-mobile">
+                                    <h6 class="mb-1 fw-bold">{{ nome }}</h6>
+                                    <div>
+                                        <small class="text-muted">Presenças:</small>
+                                        <span class="fw-bold">{{ dados.presente }}</span>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">Total:</small>
+                                        <span class="fw-bold">{{ dados.total }}</span>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">Assiduidade:</small>
+                                        <span class="fw-bold">{{ '%.2f'|format(dados.percentagem) }}%</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
-    {% endfor %}
-{% else %}
-    <div class="alert alert-warning text-center mt-4">
-        Não há dados de assiduidade para o ano selecionado.
-    </div>
-{% endif %}
 
-<div class="d-flex justify-content-start mt-4 mb-4">
-    <a href="{{ url_for('atividades') }}" class="btn btn-secondary">← Voltar para Atividades</a>
+    {% else %}
+        <div class="alert alert-warning text-center mt-4">
+            Não há dados de assiduidade para o ano selecionado.
+        </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-center mt-4 mb-4">
+        <a href="{{ url_for('atividades') }}" class="btn btn-secondary">← Voltar para Atividades</a>
+    </div>
 </div>
 {% endblock %}
