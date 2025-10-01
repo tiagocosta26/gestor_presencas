@@ -39,7 +39,7 @@
                     <select class="form-select" name="ano_escotista" id="ano_escotista" onchange="this.form.submit()">
                         {% for ano in anos_disponiveis %}
                             <option value="{{ ano }}" {% if ano == ano_selecionado %}selected{% endif %}>
-                                {{ ano }}-{{ ano|int + 1 }}
+                                {{ ano }}  {# <-- CORRIGIDO: Removido o "-{{ ano|int + 1 }}" que adicionava o "-1" #}
                             </option>
                         {% endfor %}
                     </select>

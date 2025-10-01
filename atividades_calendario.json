@@ -1,1 +1,20 @@
-[]
+[
+    {
+        "id": "ba6cdc9a-07e5-446a-ae48-5a876ce8f30a",
+        "title": "Partydas",
+        "start": "2025-10-10",
+        "type": "Clan",
+        "details": "",
+        "allDay": true,
+        "end": "2025-10-11"
+    },
+    {
+        "id": "cca6b026-f4f3-40bc-9144-1c85fb13c854",
+        "title": "Abertura Ano 2025/2026",
+        "start": "2025-10-11T10:00:00",
+        "type": "Agrupamento",
+        "details": "Missa \u00e0s 17h30",
+        "allDay": false,
+        "end": "2025-10-11T19:00:00"
+    }
+]

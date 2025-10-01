@@ -171,7 +171,6 @@
     }
 </style>
 
-{% if session.get('username') != 'Clan' %}
 <h4 class="mt-4">Adicionar Transação</h4>
 <form action="{{ url_for('tesouraria') }}" method="post" enctype="multipart/form-data">
     <input type="hidden" name="acao" value="adicionar">
@@ -203,7 +202,7 @@
         </div>
     </div>
 </form>
-{% endif %}
+
 
 <div class="d-flex align-items-center mb-3 mt-5">
     <h4>
@@ -229,9 +228,7 @@
             <th>Descrição</th>
             <th>Comprovativo</th>
             <th>Valor</th>
-            {% if session.get('username') != 'Clan' %}
             <th></th>
-            {% endif %}
         </tr>
     </thead>
     <tbody>
@@ -269,7 +266,7 @@
                             </span>
                         </li>
 
-                        {% if session.get('username') != 'Clan' %}
+                        
                         <li>
                             <form action="{{ url_for('tesouraria') }}" method="post" class="d-block w-100">
                                 <input type="hidden" name="acao" value="remover">
@@ -278,7 +275,7 @@
                                 <button type="submit" class="btn btn-sm btn-danger w-100" style="max-width: 150px;">Remover</button>
                             </form>
                         </li>
-                        {% endif %}
+                        
                     </ul>
                 </details>
 
@@ -297,7 +294,6 @@
                     {{ '%.2f'|format(saldo) }}€
                 </span>
             </td>
-            {% if session.get('username') != 'Clan' %}
             <td data-label="Ação">
                 <form action="{{ url_for('tesouraria') }}" method="post" style="display:inline;">
                     <input type="hidden" name="acao" value="remover">
@@ -306,7 +302,6 @@
                     <button type="submit" class="btn btn-sm btn-danger">Remover</button>
                 </form>
             </td>
-            {% endif %}
         </tr>
         {% endfor %}
     </tbody>

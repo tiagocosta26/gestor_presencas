@@ -38,16 +38,13 @@
 .bg-pendente { background-color: #f8d7da; }
 
 .table-container {
-    max-height: 650px;
-    overflow: auto;
+    height: calc(100vh - 100px); /* 150px (navbar) + ~30px (margens/paddings) */
+    overflow-y: auto;
     position: relative;
-    border: 1px solid #dee2e6;
+    border-bottom: none;
+    background-color: #fff; /* fundo igual ao da tabela */
 }
 
-#tabela-progresso {
-    border-collapse: separate;
-    border-spacing: 0;
-}
 
 .sticky-col { position: sticky; z-index: 5; background-color: #f8f9fa; }
 .sticky-col-nome { left: 0; }
@@ -125,7 +122,7 @@
     <h1 class="text-center flex-grow-1">Progresso</h1>
 </div>
 
-<div class="table-container tabela-desktop">
+<div class="table-container tabela-desktop shadow-lg">
     <table class="table table-bordered table-hover text-center" id="tabela-progresso">
         <thead>
             <tr>

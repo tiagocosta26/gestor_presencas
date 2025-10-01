@@ -38,8 +38,8 @@
     }
 </style>
 
-<div class="container my-5">
-    <h1 class="text-center mb-4">Calendário de Atividades</h1>
+<div class="container-fluid">
+    <h1 class="text-center">Calendário de Atividades</h1>
 
     <div id="calendar"></div>
 
@@ -112,11 +112,9 @@
                     <p><strong>Detalhes:</strong> <span id="detalhesDescricao"></span></p>
                 </div>
                 <div class="modal-footer">
-                    {% if pode_editar %}
                     <button type="button" class="btn btn-secondary" id="editarAtividadeBtn">Editar Atividade</button>
                     <button type="button" class="btn btn-danger" id="eliminarAtividadeBtn">Eliminar Atividade</button>
-                    {% endif %}
-                </div>
+                    </div>
             </div>
         </div>
     </div>
@@ -124,7 +122,8 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales-all.global.min.js"></script>
 <script>
-    const podeEditar = {{ pode_editar | tojson }};
+    // ALTERAÇÃO 2: Definir podeEditar como true, ignorando a sessão
+    const podeEditar = true; 
 
     document.addEventListener('DOMContentLoaded', function() {
         const calendarEl = document.getElementById('calendar');
@@ -136,7 +135,7 @@
         const atividadeModalLabel = document.getElementById('atividadeModalLabel');
         const submitBtn = document.getElementById('submitBtn');
 
-        // Referências aos botões de edição/eliminação que podem não existir
+        // Referências aos botões que agora existem sempre
         const editarAtividadeBtn = document.getElementById('editarAtividadeBtn');
         const eliminarAtividadeBtn = document.getElementById('eliminarAtividadeBtn');
 
@@ -163,9 +162,11 @@
                 right: 'prev,next today'
             },
             events: '/api/atividades',
-            editable: podeEditar,
-            eventStartEditable: podeEditar,
-            eventDurationEditable: podeEditar,
+            // ALTERAÇÃO 3A: 'editable' é sempre true
+            editable: true, 
+            eventStartEditable: true,
+            eventDurationEditable: true,
+            // FIM ALTERAÇÃO 3A
             eventTimeFormat: { 
                 hour: '2-digit', 
                 minute: '2-digit', 
@@ -189,176 +190,175 @@
 
                 document.getElementById('detalhesDescricao').textContent = event.extendedProps.details || event.details || 'N/A';
 
-                if (podeEditar) {
-                    eliminarAtividadeBtn.setAttribute('data-id', event.id);
-                    editarAtividadeBtn.setAttribute('data-id', event.id);
-                }
+                // Estes botões existem sempre, mas precisam do ID
+                eliminarAtividadeBtn.setAttribute('data-id', event.id);
+                editarAtividadeBtn.setAttribute('data-id', event.id);
+                
 
                 detalhesAtividadeModal.show();
             }
         };
 
-        if (podeEditar) {
-            config.dateClick = function(info) {
-                modoEdicao = false;
-                atividadeModalLabel.textContent = 'Adicionar Atividade';
-                submitBtn.textContent = 'Adicionar';
-                atividadeForm.reset();
-                document.getElementById('atividadeId').value = '';
-                const dataSelecionada = info.dateStr.split('T')[0];
-                document.getElementById('atividadeData').value = dataSelecionada;
-                horariosCampos.style.display = 'block';
-                document.getElementById('atividadeHoraInicio').setAttribute('required', 'required');
-                document.getElementById('atividadeHoraFim').setAttribute('required', 'required');
-                atividadeModal.show();
-            };
-        }
+        // ALTERAÇÃO 3B: Remoção da condição 'if (podeEditar)' no dateClick
+        config.dateClick = function(info) {
+            modoEdicao = false;
+            atividadeModalLabel.textContent = 'Adicionar Atividade';
+            submitBtn.textContent = 'Adicionar';
+            atividadeForm.reset();
+            document.getElementById('atividadeId').value = '';
+            const dataSelecionada = info.dateStr.split('T')[0];
+            document.getElementById('atividadeData').value = dataSelecionada;
+            horariosCampos.style.display = 'block';
+            document.getElementById('atividadeHoraInicio').setAttribute('required', 'required');
+            document.getElementById('atividadeHoraFim').setAttribute('required', 'required');
+            atividadeModal.show();
+        };
+        // FIM ALTERAÇÃO 3B
 
         const calendar = new FullCalendar.Calendar(calendarEl, config);
         calendar.render();
 
-        if (podeEditar) {
-            eliminarAtividadeBtn.addEventListener('click', function() {
-                const eventoId = this.getAttribute('data-id');
-                fetch(`/api/atividades/${eventoId}`, {
-                    method: 'DELETE'
-                })
-                .then(response => {
-                    if (response.ok) {
-                        calendar.getEventById(eventoId).remove();
-                        detalhesAtividadeModal.hide();
-                    } else {
-                        const contentType = response.headers.get("content-type");
-                        if (contentType && contentType.indexOf("application/json") !== -1) {
-                            return response.json().then(data => {
-                                alert('Erro ao eliminar a atividade: ' + data.error);
-                            });
-                        } else {
-                            alert('Erro ao eliminar a atividade. Resposta inválida do servidor.');
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro de rede ao eliminar a atividade.');
-                });
-            });
-
-            editarAtividadeBtn.addEventListener('click', function() {
-                modoEdicao = true;
-                const event = calendar.getEventById(this.getAttribute('data-id'));
-                
-                atividadeModalLabel.textContent = 'Editar Atividade';
-                submitBtn.textContent = 'Guardar Alterações';
-
-                document.getElementById('atividadeId').value = event.id;
-                document.getElementById('atividadeTitulo').value = event.title;
-                
-                const startStr = event.startStr.split('T')[0];
-                document.getElementById('atividadeData').value = startStr;
-                
-                document.getElementById('atividadeAllDay').checked = event.allDay;
-                if (event.allDay) {
-                    horariosCampos.style.display = 'none';
-                    document.getElementById('atividadeHoraInicio').removeAttribute('required');
-                    document.getElementById('atividadeHoraFim').removeAttribute('required');
+        // ALTERAÇÃO 3C: Remoção da condição 'if (podeEditar)' em torno dos Listeners
+        eliminarAtividadeBtn.addEventListener('click', function() {
+            const eventoId = this.getAttribute('data-id');
+            fetch(`/api/atividades/${eventoId}`, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (response.ok) {
+                    calendar.getEventById(eventoId).remove();
+                    detalhesAtividadeModal.hide();
                 } else {
-                    horariosCampos.style.display = 'block';
-                    document.getElementById('atividadeHoraInicio').setAttribute('required', 'required');
-                    document.getElementById('atividadeHoraFim').setAttribute('required', 'required');
-                    document.getElementById('atividadeHoraInicio').value = event.startStr.split('T')[1].substring(0, 5);
-                    document.getElementById('atividadeHoraFim').value = event.endStr.split('T')[1].substring(0, 5);
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        return response.json().then(data => {
+                            alert('Erro ao eliminar a atividade: ' + data.error);
+                        });
+                    } else {
+                        alert('Erro ao eliminar a atividade. Resposta inválida do servidor.');
+                    }
                 }
-                
-                const eventType = event.extendedProps.type || event.type;
-                document.getElementById('atividadeTipo').value = eventType;
-                
-                const eventDetails = event.extendedProps.details || event.details;
-                document.getElementById('atividadeDetalhes').value = eventDetails;
-                
-                detalhesAtividadeModal.hide();
-                atividadeModal.show();
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro de rede ao eliminar a atividade.');
             });
+        });
+
+        editarAtividadeBtn.addEventListener('click', function() {
+            modoEdicao = true;
+            const event = calendar.getEventById(this.getAttribute('data-id'));
             
-            atividadeForm.addEventListener('submit', function(event) {
-                event.preventDefault();
+            atividadeModalLabel.textContent = 'Editar Atividade';
+            submitBtn.textContent = 'Guardar Alterações';
 
-                const titulo = document.getElementById('atividadeTitulo').value;
-                const data = document.getElementById('atividadeData').value;
-                const tipo = document.getElementById('atividadeTipo').value;
-                const detalhes = document.getElementById('atividadeDetalhes').value;
-                const isAllDay = atividadeAllDay.checked;
-                const atividadeId = document.getElementById('atividadeId').value;
+            document.getElementById('atividadeId').value = event.id;
+            document.getElementById('atividadeTitulo').value = event.title;
+            
+            const startStr = event.startStr.split('T')[0];
+            document.getElementById('atividadeData').value = startStr;
+            
+            document.getElementById('atividadeAllDay').checked = event.allDay;
+            if (event.allDay) {
+                horariosCampos.style.display = 'none';
+                document.getElementById('atividadeHoraInicio').removeAttribute('required');
+                document.getElementById('atividadeHoraFim').removeAttribute('required');
+            } else {
+                horariosCampos.style.display = 'block';
+                document.getElementById('atividadeHoraInicio').setAttribute('required', 'required');
+                document.getElementById('atividadeHoraFim').setAttribute('required', 'required');
+                document.getElementById('atividadeHoraInicio').value = event.startStr.split('T')[1].substring(0, 5);
+                document.getElementById('atividadeHoraFim').value = event.endStr.split('T')[1].substring(0, 5);
+            }
+            
+            const eventType = event.extendedProps.type || event.type;
+            document.getElementById('atividadeTipo').value = eventType;
+            
+            const eventDetails = event.extendedProps.details || event.details;
+            document.getElementById('atividadeDetalhes').value = eventDetails;
+            
+            detalhesAtividadeModal.hide();
+            atividadeModal.show();
+        });
+        
+        atividadeForm.addEventListener('submit', function(event) {
+            event.preventDefault();
 
-                let start, end;
-                if (isAllDay) {
-                    start = data;
-                    end = data;
-                } else {
-                    const horaInicio = document.getElementById('atividadeHoraInicio').value;
-                    const horaFim = document.getElementById('atividadeHoraFim').value;
-                    start = `${data}T${horaInicio}:00`;
-                    end = `${data}T${horaFim}:00`;
+            const titulo = document.getElementById('atividadeTitulo').value;
+            const data = document.getElementById('atividadeData').value;
+            const tipo = document.getElementById('atividadeTipo').value;
+            const detalhes = document.getElementById('atividadeDetalhes').value;
+            const isAllDay = atividadeAllDay.checked;
+            const atividadeId = document.getElementById('atividadeId').value;
+
+            let start, end;
+            if (isAllDay) {
+                start = data;
+                end = data;
+            } else {
+                const horaInicio = document.getElementById('atividadeHoraInicio').value;
+                const horaFim = document.getElementById('atividadeHoraFim').value;
+                start = `${data}T${horaInicio}:00`;
+                end = `${data}T${horaFim}:00`;
+            }
+
+            const method = modoEdicao ? 'PUT' : 'POST';
+            const url = modoEdicao ? `/api/atividades/${atividadeId}` : '/api/atividades';
+
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: titulo,
+                    start: start,
+                    end: end,
+                    type: tipo,
+                    details: detalhes,
+                    allDay: isAllDay
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.error);
+                    });
                 }
-
-                const method = modoEdicao ? 'PUT' : 'POST';
-                const url = modoEdicao ? `/api/atividades/${atividadeId}` : '/api/atividades';
-
-                fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        title: titulo,
-                        start: start,
-                        end: end,
-                        type: tipo,
-                        details: detalhes,
-                        allDay: isAllDay
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(errorData => {
-                            throw new Error(errorData.error);
-                        });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (modoEdicao) {
-                        const event = calendar.getEventById(atividadeId);
-                        event.setProp('title', data.title);
-                        event.setStart(data.start);
-                        event.setEnd(data.end);
-                        event.setAllDay(data.allDay);
-                        event.setExtendedProp('type', data.type);
-                        event.setExtendedProp('details', data.details);
-                        event.setProp('color', data.color);
-                    } else {
-                        calendar.addEvent({
-                            id: data.id,
-                            title: data.title,
-                            start: data.start,
-                            end: data.end,
-                            color: data.color,
-                            allDay: data.allDay,
-                            extendedProps: {
-                                type: data.type,
-                                details: data.details
-                            }
-                        });
-                    }
-                    atividadeModal.hide();
-                    atividadeForm.reset();
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro ao guardar a atividade: ' + error.message);
-                });
+                return response.json();
+            })
+            .then(data => {
+                if (modoEdicao) {
+                    const event = calendar.getEventById(atividadeId);
+                    event.setProp('title', data.title);
+                    event.setStart(data.start);
+                    event.setEnd(data.end);
+                    event.setAllDay(data.allDay);
+                    event.setExtendedProp('type', data.type);
+                    event.setExtendedProp('details', data.details);
+                    event.setProp('color', data.color);
+                } else {
+                    calendar.addEvent({
+                        id: data.id,
+                        title: data.title,
+                        start: data.start,
+                        end: data.end,
+                        color: data.color,
+                        allDay: data.allDay,
+                        extendedProps: {
+                            type: data.type,
+                            details: data.details
+                        }
+                    });
+                }
+                atividadeModal.hide();
+                atividadeForm.reset();
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao guardar a atividade: ' + error.message);
             });
-        }
+        });
     });
 </script>
 {% endblock %}

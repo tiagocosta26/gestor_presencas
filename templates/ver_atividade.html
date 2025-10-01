@@ -5,7 +5,7 @@
 {% block content %}
 <h1 class="text-center">Detalhes da Atividade</h1>
 
-<div class="card mt-4 mb-4">
+<div class="card mt-4 mb-4 shadow-lg">
     <div class="card-header">
         <h4>{{ ficheiro.split('_')[0] }}</h4>
         <p class="mb-0">Data: {{ data_display }}</p>
@@ -35,8 +35,11 @@
 </div>
 <div class="d-flex justify-content-between">
     <a href="{{ url_for('atividades') }}" class="btn btn-secondary">← Voltar</a>
+    
+    {% if session.get('username') in ['Clan', 'Chefe'] %}
     <form action="{{ url_for('eliminar_atividade', nome_ficheiro=ficheiro) }}" method="post" style="display:inline;">
         <button type="submit" class="btn btn-danger">Eliminar Atividade</button>
     </form>
-</div>
+    {% endif %}
+    </div>
 {% endblock %}

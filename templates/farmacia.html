@@ -3,11 +3,10 @@
 {% block title %}Farmácia{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center">
-    <h1 class="text-center flex-grow-1 my-3">Inventário Farmácia</h1>
-</div>
+<div class="container-fluid">
+    <h1 class="text-center">Farmácia</h1>
 
-<div class="card my-4">
+<div class="card my-4 shadow-lg">
     <div class="card-header">
         <h4>Adicionar Material</h4>
     </div>
@@ -49,7 +48,7 @@
 </div>
 
 <h4 class="mt-5">Filtrar Inventário</h4>
-<div class="card my-4">
+<div class="card my-4 shadow-lg">
     <div class="card-body">
         <form action="{{ url_for('farmacia') }}" method="get">
             <div class="row g-3 flex-column flex-md-row align-items-end">
@@ -99,42 +98,43 @@
 </div>
 
 <h4 class="mt-5">Resultados do Inventário</h4>
-
-<!-- Para telas grandes: tabela normal -->
-<div class="d-none d-lg-block">
-    <table id="tabela" class="table table-striped table-hover">
-        <thead>
-            <tr>
-                <th>Nome</th>
-                <th>Quantidade</th>
-                <th>Localização</th>
-                <th>Tribo/Clan</th>
-                <th>Observações</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in farmacia_filtrado %}
-            <tr id="item-{{ item.nome|replace(' ', '_') }}-{{ item.tribo_clan|replace(' ', '_') }}">
-                <td>{{ item.nome }}</td>
-                <td>{{ item.quantidade }}</td>
-                <td>{{ item.localizacao }}</td>
-                <td>{{ item.tribo_clan }}</td>
-                <td>{{ item.observacoes }}</td>
-                <td>
-                    <button type="button" class="btn btn-sm btn-danger w-100 w-md-auto"
-                        onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="card my-4 shadow-lg rounded-3 d-none d-lg-block">
+    <div class="card-body p-0 overflow-hidden"> 
+        <div class="table-responsive">
+            <table id="tabela" class="table table-striped table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Quantidade</th>
+                        <th>Localização</th>
+                        <th>Tribo/Clan</th>
+                        <th>Observações</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in farmacia_filtrado %}
+                    <tr id="item-{{ item.nome|replace(' ', '_') }}-{{ item.tribo_clan|replace(' ', '_') }}">
+                        <td>{{ item.nome }}</td>
+                        <td>{{ item.quantidade }}</td>
+                        <td>{{ item.localizacao }}</td>
+                        <td>{{ item.tribo_clan }}</td>
+                        <td>{{ item.observacoes }}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-danger w-100 w-md-auto"
+                                onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
-<!-- Para mobile: cards -->
 <div class="d-lg-none">
     {% for item in farmacia_filtrado %}
-    <div class="card mb-3" id="item-card-{{ item.nome|replace(' ', '_') }}-{{ item.tribo_clan|replace(' ', '_') }}">
+    <div class="card mb-3 shadow-lg rounded-3" id="item-card-{{ item.nome|replace(' ', '_') }}-{{ item.tribo_clan|replace(' ', '_') }}">
         <div class="card-body">
             <h5 class="card-title">{{ item.nome }} <span class="badge bg-secondary">{{ item.tribo_clan }}</span></h5>
             <p class="mb-1"><strong>Quantidade:</strong> {{ item.quantidade }}</p>
@@ -165,8 +165,13 @@
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
+                // Remove a linha da tabela (desktop)
                 const row = document.getElementById(`item-${nome.replace(' ', '_')}-${triboClan.replace(' ', '_')}`);
                 if (row) row.remove();
+                
+                // Remove o card (mobile)
+                const card = document.getElementById(`item-card-${nome.replace(' ', '_')}-${triboClan.replace(' ', '_')}`);
+                if (card) card.remove();
             }
         })
         .catch(error => {

@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container my-5">
-    <h1 class="text-center mb-4">Cozinha</h1>
+<div class="container-fluid">
+    <h1 class="text-center">Cozinha</h1>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -18,7 +18,7 @@
     <div class="row g-4">
         <div class="col-lg-7">
             
-            <div class="card mb-4 shadow-sm">
+            <div class="card mb-4 shadow-lg">
                 <div class="card-header bg-dark text-white">
                     <h5 class="mb-0"><i class="bi bi-file-earmark-plus me-2"></i>Nova Receita</h5>
                 </div>
@@ -72,7 +72,7 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm">
+            <div class="card shadow-lg">
                 <div class="card-header bg-secondary text-white">
                     <h5 class="mb-0"><i class="bi bi-list-stars me-2"></i>Receitas Arquivadas</h5>
                 </div>
@@ -114,7 +114,7 @@
         </div>
         
         <div class="col-lg-5">
-            <div class="card mb-4 shadow-sm">
+            <div class="card mb-4 shadow-lg">
                 <div class="card-header bg-success text-white">
                     <h5 class="mb-0"><i class="bi bi-basket me-2"></i>Adicionar Comida/Material</h5>
                 </div>
@@ -155,7 +155,7 @@
                 </div>
             </div>
             
-            <div class="card mb-4 shadow-sm border-info">
+            <div class="card mb-4 shadow-lg border-info">
                 <div class="card-body p-3">
                     <form action="{{ url_for('cozinha') }}" method="GET" class="row align-items-center g-2">
                         <div class="col-auto">
@@ -181,7 +181,7 @@
                     </form>
                 </div>
             </div>
-            <div class="card shadow-sm">
+            <div class="card shadow-lg">
                 <div class="card-header bg-info text-white">
                     <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Inventário Atual</h5>
                 </div>

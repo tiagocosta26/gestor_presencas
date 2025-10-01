@@ -23,11 +23,13 @@ DIRETORIO_UPLOADS = "uploads"
 DIRETORIO_RECEITAS = os.path.join(DIRETORIO_UPLOADS, 'receitas')
 DIRETORIO_UPLOADS_COZINHA = os.path.join(DIRETORIO_UPLOADS, 'cozinha')
 DIRETORIO_ATAS = os.path.join(DIRETORIO_UPLOADS, 'atas')
+DIRETORIO_OUTROS_DOCS = os.path.join(DIRETORIO_UPLOADS, 'outros')
 os.makedirs(DIRETORIO_PRESENCAS, exist_ok=True)
 os.makedirs(DIRETORIO_TESOURARIA, exist_ok=True)
 os.makedirs(DIRETORIO_UPLOADS, exist_ok=True)
 os.makedirs(DIRETORIO_RECEITAS, exist_ok=True)
 os.makedirs(DIRETORIO_ATAS, exist_ok=True)
+os.makedirs(DIRETORIO_OUTROS_DOCS, exist_ok=True)
 os.makedirs(DIRETORIO_UPLOADS_COZINHA, exist_ok=True)
 
 # Ficheiros JSON para guardar os dados
@@ -106,9 +108,11 @@ def guardar_utilizadores(utilizadores):
         json.dump(utilizadores, f, indent=4, ensure_ascii=False)
 
 def limpar_nome(nome):
-    """Limpa uma string para ser usada como nome de ficheiro seguro."""
-    nome_limpo = re.sub(r'[^A-Za-z0-9áéíóúãõàèùçÁÉÍÓÚÀÈÙÇ_\-@ ]', '_', nome)
-    return nome_limpo
+    """Limpa uma string para ser usada como nome de ficheiro seguro, permitindo '/' no nome real da atividade."""
+    nome_ficheiro = nome.replace('/', '-')
+    nome_ficheiro = re.sub(r'[^A-Za-z0-9áéíóúãõàèùçÁÉÍÓÚÀÈÙÇ_\-@ ]', '_', nome_ficheiro)
+    return nome_ficheiro
+
 
 def carregar_folha_caixa(entidade):
     """Carrega a folha de caixa de uma entidade (Clan ou tribo)."""
@@ -335,22 +339,91 @@ def presencas():
     hoje = date.today().isoformat()
     return render_template("gestao_presencas.html", hoje=hoje, tribos=tribos)
 
+
 @app.route("/atividades")
 def atividades():
     """Exibe a lista de atividades registadas."""
     ficheiros = [f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")]
     atividades_agrupadas = defaultdict(list)
 
-    for ficheiro in ficheiros:
-        data_inicio = ficheiro.split('_')[1]
-        mes_ano = data_inicio[:7]
-        atividades_agrupadas[mes_ano].append(ficheiro)
+    def extrair_titulo_e_data(ficheiro):
+        """Tenta extrair a data e o título limpo de um nome de ficheiro."""
+        
+        # 1. Remover a extensão .csv
+        nome_base = ficheiro.rsplit('.', 1)[0]
+        partes = nome_base.split('_')
+        
+        data_atividade = None
+        indice_data = -1
+        
+        # 2. Procurar a primeira parte que consiga ser convertida em data (YYYY-MM-DD)
+        for i in range(1, len(partes)):
+            try:
+                # Tenta converter a parte atual do nome em data
+                data_atividade = datetime.strptime(partes[i].strip(), "%Y-%m-%d")
+                indice_data = i
+                break # Se encontrar, sai do loop
+            except ValueError:
+                # Não é uma data, continua a procurar
+                continue
+        
+        if data_atividade and indice_data != -1:
+            # 3. Extrair e Limpar o Título
+            
+            # O título é a junção de todas as partes *antes* da data encontrada
+            titulo_partes = partes[0:indice_data]
+            
+            # Rejuntar as partes do título *apenas* com um espaço para remover separadores _
+            titulo_limpo = ' '.join(p.strip() for p in titulo_partes).strip()
+            
+            # Reaplicar o separador '+' apenas onde existe a concatenação de atividades.
+            # O padrão é ' Nome da 1ª Atividade _ Nome da 2ª Atividade '.
+            # Se juntarmos as partes com espaço, temos "Preparação do Imaginário   Preparação Acanatal  Pegada Cenáculo".
+            
+            # Vamos usar o método de substituição no nome base, mas mais preciso.
+            
+            # Encontrar o ponto de corte no nome_base usando as partes originais
+            # As partes do título são [0] a [indice_data - 1]
+            
+            # Reconstituir o título *exatamente* como estava no ficheiro, antes da data.
+            titulo_bruto_list = partes[0:indice_data]
+            titulo_bruto = '_'.join(titulo_bruto_list).strip()
+            
+            # 4. Limpeza final:
+            # - O separador das suas atividades é ' _ ' (underscore com espaços).
+            # - Vamos substituí-lo por ' + ' e limpar quaisquer outros underscores
+            titulo_limpo = titulo_bruto.replace(' _ ', ' + ').replace('_', ' ').strip()
+            
+            # O trim 'strip()' final garante que não há espaços indesejados no início ou fim.
+            
+            return data_atividade, titulo_limpo
+        
+        # Se não encontrar a data, retorna None
+        return None, None
 
+
+    for ficheiro in ficheiros:
+        data_inicio, titulo = extrair_titulo_e_data(ficheiro)
+        
+        if data_inicio and titulo:
+            # Agrupamos pelo ficheiro original, mas usamos o título limpo como nome
+            mes_ano = data_inicio.strftime("%Y-%m")
+            # Adicionamos o ficheiro original e o título limpo (como tuplo)
+            atividades_agrupadas[mes_ano].append((data_inicio, ficheiro, titulo))
+            
+    # Restante do código (que já estava correto) ...
+    # Ordena os meses do mais recente para o mais antigo
     meses_ordenados = sorted(atividades_agrupadas.keys(), reverse=True)
+
+    # Ordena as atividades dentro de cada mês da mais recente para a mais antiga
     for mes in meses_ordenados:
-        atividades_agrupadas[mes].sort(reverse=True)
+        atividades_agrupadas[mes].sort(key=lambda x: x[0], reverse=True)
+        
+        # Mantemos o nome do ficheiro (índice [1]) e o título limpo (índice [2]) na lista
+        atividades_agrupadas[mes] = [(f[1], f[2]) for f in atividades_agrupadas[mes]]
 
     return render_template("atividades.html", atividades_agrupadas=atividades_agrupadas, meses_ordenados=meses_ordenados)
+
 
 @app.route('/eliminar_atividade/<nome_ficheiro>', methods=['POST'])
 def eliminar_atividade(nome_ficheiro):
@@ -555,7 +628,7 @@ def tesouraria():
         tribo_peter = "Peter Benenson"
         if tribo_peter in tribos_disponiveis:
             tribos_disponiveis = [tribo_peter]
-            flash('Olá, Peter! Tem acesso restrito à tesouraria da sua tribo.', 'info')
+            #flash('Olá, Peter! Tem acesso restrito à tesouraria da sua tribo.', 'info')
         else:
             tribos_disponiveis = []  # Se a tribo não existir, ele não vê nada
             flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
@@ -564,7 +637,7 @@ def tesouraria():
         tribo_henri = "Henri Dunant"
         if tribo_henri in tribos_disponiveis:
             tribos_disponiveis = [tribo_henri]
-            flash('Olá, Henri! Tem acesso restrito à tesouraria da sua tribo.', 'info')
+            #flash('Olá, Henri! Tem acesso restrito à tesouraria da sua tribo.', 'info')
         else:
             tribos_disponiveis = []  # Se a tribo não existir, ele não vê nada
             flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
@@ -573,14 +646,14 @@ def tesouraria():
         tribo_rainha = "Rainha D. Leonor"
         if tribo_rainha in tribos_disponiveis:
             tribos_disponiveis = [tribo_rainha]
-            flash('Olá, Rainha D. Leonor! Tem acesso restrito à tesouraria da sua tribo.', 'info')
+            #flash('Olá, Rainha D. Leonor! Tem acesso restrito à tesouraria da sua tribo.', 'info')
         else:
             tribos_disponiveis = []  # Se a tribo não existir, ele não vê nada
             flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
 
     elif username == "Clan":
         tribos_disponiveis = []  # Remove todas as tribos, deixando apenas o Clan
-        flash('Olá, Clan! Tem acesso restrito à tesouraria do Clan.', 'info')
+        #flash('Olá, Clan! Tem acesso restrito à tesouraria do Clan.', 'info')
 
     entidade_ativa = "Clan"
     if request.method == "POST":
@@ -664,16 +737,16 @@ def uploaded_file(filename):
 def assiduidade():
     """Calcula e exibe a assiduidade por pessoa e tribo para um ano escutista."""
     ano_selecionado = request.form.get("ano_escotista")
-    if not ano_selecionado:
+    if ano_selecionado:
+        # Recebe ano no formato "YYYY/YYYY+1", extrai apenas o ano de início
+        ano_inicio = int(ano_selecionado.split('/')[0])
+    else:
         # Padrão: ano escutista atual (Outubro do ano anterior a Setembro do ano atual)
         hoje = datetime.now()
-        ano_selecionado = hoje.year
+        ano_inicio = hoje.year
         if hoje.month < 10:
-            ano_selecionado -= 1
-        ano_selecionado = str(ano_selecionado)
+            ano_inicio -= 1
 
-    # Definir o intervalo do ano escutista
-    ano_inicio = int(ano_selecionado)
     ano_fim = ano_inicio + 1
     data_inicio = datetime(ano_inicio, 10, 1)
     data_fim = datetime(ano_fim, 9, 30)
@@ -685,8 +758,31 @@ def assiduidade():
     ficheiros = [f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")]
     for ficheiro in ficheiros:
         try:
-            data_str = ficheiro.split('_')[1]
-            data_atividade = datetime.strptime(data_str, "%Y-%m-%d")
+            # CORREÇÃO APLICADA AQUI: Tentar encontrar a data no nome do ficheiro
+            data_atividade = None
+            partes = ficheiro.split('_')
+            
+            # Tentativa 1: Assumir que é um nome longo, com data no índice [3] (caso do utilizador)
+            if len(partes) > 3:
+                data_str = partes[3].strip()
+                try:
+                    data_atividade = datetime.strptime(data_str, "%Y-%m-%d")
+                except ValueError:
+                    # Se falhar, tenta outra posição
+                    pass
+            
+            # Tentativa 2: Assumir o formato original (data no índice [1])
+            if data_atividade is None and len(partes) > 1:
+                data_str = partes[1].strip()
+                try:
+                    data_atividade = datetime.strptime(data_str, "%Y-%m-%d")
+                except ValueError:
+                    # Se falhar, o ficheiro será ignorado no 'except' principal
+                    pass
+            
+            if data_atividade is None:
+                raise ValueError("Formato de data não reconhecido no nome do ficheiro.")
+            # FIM DA CORREÇÃO
 
             if data_inicio <= data_atividade <= data_fim:
                 atividades_do_ano += 1
@@ -702,6 +798,7 @@ def assiduidade():
                         if presente == "Sim":
                             assiduidade_por_tribo[tribo][elemento]['presente'] += 1
         except Exception as e:
+            # O ficheiro que não puder ser lido ou que não tiver data será ignorado aqui
             print(f"Erro ao processar o ficheiro {ficheiro}: {e}")
 
     # Calcular as percentagens
@@ -713,28 +810,58 @@ def assiduidade():
             else:
                 dados['percentagem'] = 0
 
-    # Obter anos escutistas para o seletor
+    # Obter anos escutistas disponíveis
     anos_disponiveis = set()
-    for ficheiro in os.listdir(DIRETORIO_PRESENCAS):
+    for ficheiro in ficheiros:
         if len(ficheiro.split('_')) > 1:
             try:
-                data_str = ficheiro.split('_')[1]
-                data_atividade = datetime.strptime(data_str, "%Y-%m-%d")
-                ano_escotista = data_atividade.year
-                if data_atividade.month >= 10:
-                    anos_disponiveis.add(str(ano_escotista))
-                else:
-                    anos_disponiveis.add(str(ano_escotista - 1))
+                # CORREÇÃO APLICADA AQUI TAMBÉM: Usar a nova lógica de extração
+                data_atividade = None
+                partes = ficheiro.split('_')
+                
+                # Tenta índice [3]
+                if len(partes) > 3:
+                    data_str = partes[3].strip()
+                    try:
+                        data_atividade = datetime.strptime(data_str, "%Y-%m-%d")
+                    except ValueError:
+                        pass
+                
+                # Tenta índice [1]
+                if data_atividade is None and len(partes) > 1:
+                    data_str = partes[1].strip()
+                    try:
+                        data_atividade = datetime.strptime(data_str, "%Y-%m-%d")
+                    except ValueError:
+                        pass
+                
+                if data_atividade:
+                    ano_inicio_ficheiro = data_atividade.year if data_atividade.month >= 10 else data_atividade.year - 1
+                    anos_disponiveis.add(ano_inicio_ficheiro)
+                # FIM DA CORREÇÃO
+                
             except Exception:
                 pass
-    
+
+    # Garante que o ano escutista atual aparece sempre
+    hoje = datetime.now()
+    ano_atual = hoje.year if hoje.month >= 10 else hoje.year - 1
+    anos_disponiveis.add(ano_atual)
+
+    # Ordena do mais recente para o mais antigo
     anos_disponiveis = sorted(list(anos_disponiveis), reverse=True)
 
-    return render_template("assiduidade.html", 
-                           assiduidade_por_tribo=assiduidade_por_tribo,
-                           atividades_do_ano=atividades_do_ano,
-                           anos_disponiveis=anos_disponiveis,
-                           ano_selecionado=ano_selecionado)
+    # Converte para formato "YYYY/YYYY+1"
+    anos_formatados = [f"{ano}/{ano+1}" for ano in anos_disponiveis]
+
+    return render_template(
+        "assiduidade.html", 
+        assiduidade_por_tribo=assiduidade_por_tribo,
+        atividades_do_ano=atividades_do_ano,
+        anos_disponiveis=anos_formatados,
+        ano_selecionado=f"{ano_inicio}/{ano_inicio+1}"
+    )
+
 
 # --- Rota de Login ---
 
@@ -1369,30 +1496,55 @@ def atualizar_objetivo():
 def secretaria():
     
     if request.method == "POST":
-        data_ata = request.form.get('dataAta')
-        if 'ata' not in request.files or not data_ata:
-            flash("Nenhum arquivo ou data selecionados.", "danger")
-            return redirect(request.url)
+        
+        # --- Lógica de Upload de ATAS ---
+        if 'ata' in request.files:
+            data_ata = request.form.get('dataAta')
+            file = request.files['ata']
 
-        file = request.files['ata']
-        
-        if file.filename == '':
-            flash("Nenhum arquivo selecionado.", "danger")
-            return redirect(request.url)
-        
-        if file:
-            # Constrói o nome do ficheiro com a data para facilitar a ordenação
-            filename = secure_filename(file.filename)
-            nome_com_data = f"{data_ata}_{filename}"
+            if file.filename == '' or not data_ata:
+                flash("Nenhum arquivo ou data de Ata selecionados.", "danger")
+                return redirect(request.url)
             
-            file.save(os.path.join(DIRETORIO_ATAS, nome_com_data))
-            flash("Ata arquivada com sucesso!", "success")
-            return redirect(url_for('secretaria'))
+            # Garante que o ficheiro não é "vazio"
+            if file:
+                filename = secure_filename(file.filename)
+                nome_com_data = f"{data_ata}_{filename}"
+                
+                try:
+                    file.save(os.path.join(DIRETORIO_ATAS, nome_com_data))
+                    flash("Ata arquivada com sucesso!", "success")
+                except Exception as e:
+                    flash(f"Erro ao arquivar Ata: {e}", "danger")
 
-    # Processa os ficheiros para mostrar no ecrã
+        # --- Lógica de Upload de OUTROS DOCUMENTOS ---
+        elif 'documento' in request.files:
+            file = request.files['documento']
+
+            if file.filename == '':
+                flash("Nenhum arquivo de Documento selecionado.", "danger")
+                return redirect(request.url)
+            
+            # Não é necessário data para outros documentos, mas vamos usar um timestamp para ordenação
+            if file:
+                filename = secure_filename(file.filename)
+                
+                # Usa um timestamp para garantir nomes únicos e ordenação por upload (opcional)
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+                nome_com_timestamp = f"{timestamp}_{filename}"
+                
+                try:
+                    file.save(os.path.join(DIRETORIO_OUTROS_DOCS, nome_com_timestamp))
+                    flash("Documento arquivado com sucesso!", "success")
+                except Exception as e:
+                    flash(f"Erro ao arquivar Documento: {e}", "danger")
+
+        return redirect(url_for('secretaria'))
+
+
+    # --- Processamento de ATAS (GET) ---
     atas = []
     for nome_ficheiro in os.listdir(DIRETORIO_ATAS):
-        # Apanha a data no início do nome do ficheiro
         try:
             partes = nome_ficheiro.split('_', 1)
             data_str = partes[0]
@@ -1404,17 +1556,74 @@ def secretaria():
                 'data': data_ata
             })
         except (ValueError, IndexError):
-            # Lida com ficheiros que não seguem o padrão
             atas.append({
                 'nome_completo': nome_ficheiro,
                 'nome_original': nome_ficheiro,
                 'data': None
             })
-
-    # Ordena a lista da data mais recente para a mais antiga
     atas.sort(key=lambda x: x['data'] if x['data'] else datetime.min, reverse=True)
     
-    return render_template("secretaria.html", atas=atas)
+    
+    # --- Processamento de OUTROS DOCUMENTOS (GET) ---
+    outros_documentos = []
+    for nome_ficheiro in os.listdir(DIRETORIO_OUTROS_DOCS):
+        try:
+            # Apanha o timestamp no início do nome (usando o formato YYYY-MM-DD_HHMMSS)
+            partes = nome_ficheiro.split('_', 2) # Divide em 3 partes: Data, Hora, Resto
+            timestamp_str = f"{partes[0]}_{partes[1]}"
+            nome_original = partes[2]
+            data_doc = datetime.strptime(timestamp_str, "%Y-%m-%d_%H%M%S")
+            
+            outros_documentos.append({
+                'nome_completo': nome_ficheiro,
+                'nome_original': nome_original,
+                'data': data_doc
+            })
+        except (ValueError, IndexError):
+             # Lida com ficheiros que não seguem o padrão
+            outros_documentos.append({
+                'nome_completo': nome_ficheiro,
+                'nome_original': nome_ficheiro,
+                'data': None
+            })
+            
+    # Ordena pelo timestamp de upload (mais recente primeiro)
+    outros_documentos.sort(key=lambda x: x['data'] if x['data'] else datetime.min, reverse=True)
+
+    return render_template("secretaria.html", atas=atas, outros_documentos=outros_documentos)
+
+# --- NOVAS ROTAS ---
+
+@app.route('/outros_documentos/<path:filename>')
+def serve_outro_doc(filename):
+    # Serve os ficheiros da pasta 'outros_documentos'
+    return send_from_directory(DIRETORIO_OUTROS_DOCS, filename)
+
+
+@app.route("/eliminar_outro_doc", methods=["POST"])
+def eliminar_outro_doc():
+    # Verifica a permissão do utilizador
+    if session.get('username') not in ['Chefe', 'Clan']:
+        flash("Não tem permissão para realizar esta ação.", "danger")
+        return redirect(url_for('login'))
+
+    nome_completo_doc = request.form.get("nome_completo_doc")
+    if not nome_completo_doc:
+        flash("Nome do ficheiro não fornecido.", "danger")
+        return redirect(url_for('secretaria'))
+    
+    caminho_ficheiro = os.path.join(DIRETORIO_OUTROS_DOCS, nome_completo_doc)
+
+    try:
+        if os.path.exists(caminho_ficheiro):
+            os.remove(caminho_ficheiro)
+            flash(f"Documento '{nome_completo_doc}' eliminado com sucesso.", "success")
+        else:
+            flash("O ficheiro não foi encontrado.", "danger")
+    except Exception as e:
+        flash(f"Ocorreu um erro ao tentar eliminar o documento: {e}", "danger")
+
+    return redirect(url_for('secretaria'))
 
 @app.route('/atas/<path:filename>')
 def serve_ata(filename):

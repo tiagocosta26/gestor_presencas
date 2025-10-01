@@ -1,21 +1,24 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1 class="text-center">Atividades Registadas</h1>
+<div class="container-fluid">
+    <h1 class="text-center">Atividades</h1>
 
 {% for mes_ano in meses_ordenados %}
   <h3 class="mt-5">{{ mes_ano }}</h3>
-  <ul class="list-group mt-4">
-    {% for ficheiro in atividades_agrupadas[mes_ano] %}
+  <ul class="list-group mt-4 shadow-lg">
+    {# CORREÇÃO APLICADA AQUI: Desembalar o tuplo (ficheiro, titulo) #}
+    {% for nome_ficheiro, titulo_limpo in atividades_agrupadas[mes_ano] %} 
       <li class="list-group-item">
-        <a href="{{ url_for('ver_atividade', ficheiro=ficheiro) }}" class="text-decoration-none">{{ ficheiro.split('_')[0] }}</a>
+        {# Usar 'nome_ficheiro' para o link e 'titulo_limpo' para o texto exibido #}
+        <a href="{{ url_for('ver_atividade', ficheiro=nome_ficheiro) }}" class="text-decoration-none">{{ titulo_limpo }}</a>
       </li>
     {% endfor %}
   </ul>
 {% endfor %}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <a href="{{ url_for('index') }}" class="btn btn-secondary">← Voltar</a>
+  <a href="{{ url_for('presencas') }}" class="btn btn-secondary">← Voltar</a>
   <a href="{{ url_for('assiduidade') }}" class="btn btn-primary">Ver Assiduidade</a>
 </div>
 {% endblock %}
