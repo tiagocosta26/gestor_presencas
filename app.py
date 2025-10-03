@@ -45,6 +45,7 @@ FICHEIRO_RECEITAS = "receitas.json"
 FICHEIRO_PROGRESSO = "progresso.json"
 FICHEIRO_PROGRESSO_MODELO = "progresso_modelo.json"
 FICHEIRO_CALENDARIO = "atividades_calendario.json"
+FICHEIRO_CONTAS = "contas.json"
 
 # Adicionar a pasta de uploads à configuração da aplicação
 app.config['UPLOAD_FOLDER'] = DIRETORIO_UPLOADS
@@ -223,6 +224,23 @@ def guardar_receitas(receitas):
     with open(FICHEIRO_RECEITAS, "w", encoding="utf-8") as f:
         json.dump(receitas, f, indent=4, ensure_ascii=False)
 
+
+# Função para ler contas do ficheiro JSON
+def ler_contas():
+    if not os.path.exists(FICHEIRO_CONTAS):
+        # Cria ficheiro vazio se não existir
+        with open(FICHEIRO_CONTAS, "w") as f:
+            json.dump({}, f)
+        return {}
+    with open(FICHEIRO_CONTAS, "r") as f:
+        return json.load(f)
+
+# Função para gravar contas no ficheiro JSON
+def gravar_contas(contas):
+    with open(FICHEIRO_CONTAS, "w") as f:
+        json.dump(contas, f, indent=4)
+        
+
 def carregar_progresso():
     progresso = {}
     if not os.path.exists(FICHEIRO_PROGRESSO):
@@ -278,15 +296,7 @@ def calcular_progresso_bool_do_dicionario(obj):
         
 @app.template_global()
 def calcular_nivel(dados_pessoa_bool, trilhos_por_area):
-    """
-    Calcula a etapa de um membro com base no progresso dos trilhos.
 
-    Regras de Etapa:
-    - 'a': Estado inicial.
-    - 'b': 1 trilho concluído em cada área.
-    - 'c': 2 trilhos concluídos em cada área.
-    - 'd': Todos os trilhos concluídos em cada área.
-    """
     trilhos_concluidos_por_area = {}
     
     # 1. Conta quantos trilhos foram concluídos em cada área
@@ -653,7 +663,7 @@ def tesouraria():
             #flash('Olá, Peter! Tem acesso restrito à tesouraria da sua tribo.', 'info')
         else:
             tribos_disponiveis = []  # Se a tribo não existir, ele não vê nada
-            flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
+            #flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
     
     elif username == "Henri Dunant":
         tribo_henri = "Henri Dunant"
@@ -662,7 +672,7 @@ def tesouraria():
             #flash('Olá, Henri! Tem acesso restrito à tesouraria da sua tribo.', 'info')
         else:
             tribos_disponiveis = []  # Se a tribo não existir, ele não vê nada
-            flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
+            #flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
 
     elif username == "Rainha D. Leonor":
         tribo_rainha = "Rainha D. Leonor"
@@ -671,7 +681,7 @@ def tesouraria():
             #flash('Olá, Rainha D. Leonor! Tem acesso restrito à tesouraria da sua tribo.', 'info')
         else:
             tribos_disponiveis = []  # Se a tribo não existir, ele não vê nada
-            flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
+            #flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
 
     elif username == "Clan":
         tribos_disponiveis = []  # Remove todas as tribos, deixando apenas o Clan
@@ -684,7 +694,7 @@ def tesouraria():
         
         # Garante que 'Peter' só pode editar a sua própria tribo
         if username == "Peter" and entidade != "Peter Benenson":
-            flash("Não tem permissão para alterar esta folha de caixa.", "danger")
+            #flash("Não tem permissão para alterar esta folha de caixa.", "danger")
             return redirect(url_for('tesouraria'))
             
         folha_caixa = carregar_folha_caixa(entidade)
@@ -1000,13 +1010,13 @@ def material():
             observacoes = request.form.get("observacoes", "")
 
             if not all([nome_item, quantidade_str, tribo_clan]):
-                flash("Por favor, preencha todos os campos obrigatórios.", "danger")
+                #flash("Por favor, preencha todos os campos obrigatórios.", "danger")
                 return redirect(url_for('material'))
             
             try:
                 quantidade = int(quantidade_str)
             except (ValueError, TypeError):
-                flash("A quantidade deve ser um número válido.", "danger")
+                #flash("A quantidade deve ser um número válido.", "danger")
                 return redirect(url_for('material'))
             
             localizacao_normalizada = localizacao.strip().lower()
@@ -1032,7 +1042,7 @@ def material():
                 material_itens.append(novo_item)
 
             guardar_material(material_itens)
-            flash("Item adicionado com sucesso.", "success")
+            #flash("Item adicionado com sucesso.", "success")
 
             return redirect(url_for('material',
                                     filtro_nome=request.args.get('filtro_nome', ''),
@@ -1125,13 +1135,13 @@ def farmacia():
             observacoes = request.form.get("observacoes", "")
 
             if not all([nome_item, quantidade_str, tribo_clan]):
-                flash("Por favor, preencha todos os campos obrigatórios.", "danger")
+                #flash("Por favor, preencha todos os campos obrigatórios.", "danger")
                 return redirect(url_for('farmacia'))
 
             try:
                 quantidade = int(quantidade_str)
             except (ValueError, TypeError):
-                flash("A quantidade deve ser um número válido.", "danger")
+                #flash("A quantidade deve ser um número válido.", "danger")
                 return redirect(url_for('farmacia'))
 
             localizacao_normalizada = localizacao.strip().lower() if localizacao else ""
@@ -1158,7 +1168,7 @@ def farmacia():
                 farmacia_itens.append(novo_item)
 
             guardar_farmacia(farmacia_itens)
-            flash("Item adicionado com sucesso.", "success")
+            #flash("Item adicionado com sucesso.", "success")
             return redirect(url_for('farmacia'))
 
         # ---------- REMOVER ITEM ----------
@@ -1187,7 +1197,7 @@ def farmacia():
 
             guardar_alergias(alergias)
             guardar_condicoes(condicoes)
-            flash("Informações de saúde atualizadas com sucesso.", "success")
+            #flash("Informações de saúde atualizadas com sucesso.", "success")
             return redirect(url_for("farmacia"))
 
     # ---------- FILTROS ----------
@@ -1621,8 +1631,6 @@ def secretaria():
 
     return render_template("secretaria.html", atas=atas, outros_documentos=outros_documentos)
 
-# --- NOVAS ROTAS ---
-
 @app.route('/outros_documentos/<path:filename>')
 def serve_outro_doc(filename):
     # Serve os ficheiros da pasta 'outros_documentos'
@@ -1824,6 +1832,54 @@ def api_eliminar_atividade(id):
         print(f"Erro no servidor ao eliminar a atividade: {e}")
         return jsonify({"error": f"Erro interno do servidor: {e}"}), 500
     
+
+@app.route("/contas")
+def contas_individuais():
+    nomes = carregar_nomes()  # Pega todos os nomes das tribos
+    # Carrega valores do ficheiro contas.json
+    if os.path.exists(FICHEIRO_CONTAS):
+        with open(FICHEIRO_CONTAS, "r", encoding="utf-8") as f:
+            try:
+                contas = json.load(f)
+            except json.JSONDecodeError:
+                contas = {}
+    else:
+        contas = {}
+
+    # Garante que todos os nomes têm um valor
+    for nome in nomes:
+        if nome not in contas:
+            contas[nome] = 0.0
+
+    return render_template("contas.html", nomes=nomes, contas=contas)
+
+
+@app.route("/atualizar_valor/<nome>", methods=["POST"])
+def atualizar_valor(nome):
+    if session.get("username") != "Chefe":
+        return "Acesso negado", 403
+
+    novo_valor = request.form.get("valor")
+    if novo_valor:
+        try:
+            novo_valor = float(novo_valor)
+            if os.path.exists(FICHEIRO_CONTAS):
+                with open(FICHEIRO_CONTAS, "r", encoding="utf-8") as f:
+                    try:
+                        contas = json.load(f)
+                    except json.JSONDecodeError:
+                        contas = {}
+            else:
+                contas = {}
+
+            contas[nome] = novo_valor
+
+            with open(FICHEIRO_CONTAS, "w", encoding="utf-8") as f:
+                json.dump(contas, f, indent=4, ensure_ascii=False)
+        except ValueError:
+            pass
+
+    return redirect(url_for("contas_individuais"))
 
 
 

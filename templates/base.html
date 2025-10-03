@@ -53,15 +53,6 @@
             padding-top: 150px; 
         }
 
-        /* Fix para iOS Safari que estica o fundo */
-        @supports (-webkit-touch-callout: none) {
-            body {
-                background-attachment: scroll !important;
-                background-size: cover !important;
-                background-position: center center !important;
-            }
-        }
-
         .container {
             background-color: rgba(255, 255, 255, 0); 
             padding-top: 20px;
@@ -225,6 +216,9 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('progresso') }}">PROGRESSO</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('contas_individuais') }}">CONTAS INDIVIDUAIS</a>
                 </li>
                 {% if session.get('username') == 'Chefe' %}
                 <li class="nav-item">
