@@ -20,10 +20,8 @@
             text-align: center;
         }
         
-        /* NOVO: Alinhamento à esquerda para a Descrição (agora é a 2ª coluna) em Desktop */
-        /* Data é 1ª, Descrição é 2ª, Comprovativo é 3ª, Saldo é 4ª, Ação é 5ª */
         #tabela-caixa tbody td:nth-child(2) {
-            text-align: left; /* Descrição */
+            text-align: left; 
         }
         
         /* O conteúdo mobile (details/summary) deve ser escondido em desktop */
@@ -31,7 +29,6 @@
             display: none;
         }
 
-        /* O formulário de adição já usa col-md/lg/etc. e não precisa de grandes alterações */
     }
 
     /* -------------------------------------------------------------------------- */
@@ -88,13 +85,13 @@
         
         /* Adiciona a Descrição por baixo da Data no Summary, para um melhor contexto inicial */
         #tabela-caixa summary::after {
-            content: " - " attr(data-description); /* Usa o atributo data-description que adicionámos */
+            content: " - " attr(data-description); 
             font-weight: normal;
             display: inline;
             color: #6c757d;
         }
 
-        /* Ícone de seta (mais bonito que o símbolo ▼) */
+        /* Ícone de seta */
         #tabela-caixa summary::before {
             content: "";
             display: inline-block;

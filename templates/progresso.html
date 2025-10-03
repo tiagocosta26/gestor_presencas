@@ -4,7 +4,7 @@
 
 {% block content %}
 <style>
-/* Estilos existentes para a tabela... */
+
 .objetivo-celula {
     min-width: 170px;
     height: 100px;
@@ -38,7 +38,7 @@
 .bg-pendente { background-color: #f8d7da; }
 
 .table-container {
-    height: calc(100vh - 100px); /* 150px (navbar) + ~30px (margens/paddings) */
+    height: calc(100vh - 100px);
     overflow-y: auto;
     position: relative;
     border-bottom: none;
@@ -94,22 +94,14 @@
 }
 
 /* Estilos de cor para as áreas, trilhos e objetivos no mobile */
-/* Você deve definir as cores aqui, replicando as que usa para os cabeçalhos da tabela */
 .area-background {
-    padding: 0.5rem 0.75rem; /* Ajuste o padding conforme necessário */
+    padding: 0.5rem 0.75rem; 
     margin-top: 1rem;
     margin-bottom: 0.5rem;
     border-radius: 0.25rem;
     color: #fff; /* Texto branco para contraste */
 }
 
-/* Exemplo de cores para áreas - ADAPTE ESTAS CORES ÀS SUAS */
-/* Se "area_nome" for "Desenvolvimento Pessoal" */
-.area-desenvolvimento-pessoal { background-color: #007bff; } /* Azul */
-/* Se "area_nome" for "Competências Técnicas" */
-.area-competencias-tecnicas { background-color: #28a745; } /* Verde */
-/* Adicione mais regras conforme as suas áreas */
-/* .area-outra-area { background-color: #cor-desejada; } */
 
 .back-button-container {
     text-align: center;
@@ -288,10 +280,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         linha.textContent = data.nivel;
                     }
                     // Atualiza o nível no dropdown (se visível)
-                    // Nota: Assumindo que o `data-nome` está no botão do acordeão ou num elemento pai
                     const accordionButton = document.querySelector(`#accordionPessoas .accordion-button[data-bs-target="#collapse-${this.closest('.accordion-item').id.replace('heading-', '')}"]`);
                     if (accordionButton) {
-                         // O badge é um filho do botão, precisamos encontrá-lo
                         const badge = accordionButton.querySelector('.badge');
                         if (badge) {
                             badge.textContent = data.nivel;

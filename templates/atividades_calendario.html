@@ -122,7 +122,7 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales-all.global.min.js"></script>
 <script>
-    // ALTERAÇÃO 2: Definir podeEditar como true, ignorando a sessão
+    //Definir podeEditar como true, ignorando a sessão
     const podeEditar = true; 
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -135,7 +135,6 @@
         const atividadeModalLabel = document.getElementById('atividadeModalLabel');
         const submitBtn = document.getElementById('submitBtn');
 
-        // Referências aos botões que agora existem sempre
         const editarAtividadeBtn = document.getElementById('editarAtividadeBtn');
         const eliminarAtividadeBtn = document.getElementById('eliminarAtividadeBtn');
 
@@ -162,11 +161,9 @@
                 right: 'prev,next today'
             },
             events: '/api/atividades',
-            // ALTERAÇÃO 3A: 'editable' é sempre true
             editable: true, 
             eventStartEditable: true,
             eventDurationEditable: true,
-            // FIM ALTERAÇÃO 3A
             eventTimeFormat: { 
                 hour: '2-digit', 
                 minute: '2-digit', 
@@ -199,7 +196,6 @@
             }
         };
 
-        // ALTERAÇÃO 3B: Remoção da condição 'if (podeEditar)' no dateClick
         config.dateClick = function(info) {
             modoEdicao = false;
             atividadeModalLabel.textContent = 'Adicionar Atividade';
@@ -213,12 +209,10 @@
             document.getElementById('atividadeHoraFim').setAttribute('required', 'required');
             atividadeModal.show();
         };
-        // FIM ALTERAÇÃO 3B
 
         const calendar = new FullCalendar.Calendar(calendarEl, config);
         calendar.render();
 
-        // ALTERAÇÃO 3C: Remoção da condição 'if (podeEditar)' em torno dos Listeners
         eliminarAtividadeBtn.addEventListener('click', function() {
             const eventoId = this.getAttribute('data-id');
             fetch(`/api/atividades/${eventoId}`, {

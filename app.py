@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
-app.config['SECRET_KEY'] = 'uma_chave_segura_para_as_sessoes'  # Mude isto para uma chave aleatória e forte
+app.config['SECRET_KEY'] = 'uma_chave_segura_para_as_sessoes'
 
 # Diretórios para guardar os ficheiros
 DIRETORIO_PRESENCAS = "registos"
@@ -38,6 +38,8 @@ FICHEIRO_CARGOS = "cargos.json"
 FICHEIRO_UTILIZADORES = "utilizadores.json"
 FICHEIRO_MATERIAL = "material.json"
 FICHEIRO_FARMACIA = "farmacia.json"
+FICHEIRO_ALERGIAS = "alergias.json"
+FICHEIRO_CONDICOES = "condicoes.json"
 FICHEIRO_COZINHA = "inventario_cozinha.json"
 FICHEIRO_RECEITAS = "receitas.json"
 FICHEIRO_PROGRESSO = "progresso.json"
@@ -153,6 +155,38 @@ def carregar_farmacia():
             except json.JSONDecodeError:
                 return []
     return []
+
+
+def guardar_alergias(alergias):
+    """Guarda as alergias no ficheiro JSON."""
+    with open(FICHEIRO_ALERGIAS, "w", encoding="utf-8") as f:
+        json.dump(alergias, f, indent=4, ensure_ascii=False)
+
+def carregar_alergias():
+    """Carrega as alergias do ficheiro JSON."""
+    if os.path.exists(FICHEIRO_ALERGIAS):
+        with open(FICHEIRO_ALERGIAS, encoding="utf-8") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {}
+    return {}
+
+def guardar_condicoes(condicoes):
+    """Guarda as condições no ficheiro JSON."""
+    with open(FICHEIRO_CONDICOES, "w", encoding="utf-8") as f:
+        json.dump(condicoes, f, indent=4, ensure_ascii=False)
+
+def carregar_condicoes():
+    """Carrega as condições do ficheiro JSON."""
+    if os.path.exists(FICHEIRO_CONDICOES):
+        with open(FICHEIRO_CONDICOES, encoding="utf-8") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {}
+    return {}
+
 
 def guardar_material(material):
     """Guarda o material no ficheiro JSON."""
@@ -349,14 +383,14 @@ def atividades():
     def extrair_titulo_e_data(ficheiro):
         """Tenta extrair a data e o título limpo de um nome de ficheiro."""
         
-        # 1. Remover a extensão .csv
+        # Remover a extensão .csv
         nome_base = ficheiro.rsplit('.', 1)[0]
         partes = nome_base.split('_')
         
         data_atividade = None
         indice_data = -1
-        
-        # 2. Procurar a primeira parte que consiga ser convertida em data (YYYY-MM-DD)
+
+        # Procurar a primeira parte que consiga ser convertida em data (YYYY-MM-DD)
         for i in range(1, len(partes)):
             try:
                 # Tenta converter a parte atual do nome em data
@@ -368,7 +402,6 @@ def atividades():
                 continue
         
         if data_atividade and indice_data != -1:
-            # 3. Extrair e Limpar o Título
             
             # O título é a junção de todas as partes *antes* da data encontrada
             titulo_partes = partes[0:indice_data]
@@ -376,25 +409,10 @@ def atividades():
             # Rejuntar as partes do título *apenas* com um espaço para remover separadores _
             titulo_limpo = ' '.join(p.strip() for p in titulo_partes).strip()
             
-            # Reaplicar o separador '+' apenas onde existe a concatenação de atividades.
-            # O padrão é ' Nome da 1ª Atividade _ Nome da 2ª Atividade '.
-            # Se juntarmos as partes com espaço, temos "Preparação do Imaginário   Preparação Acanatal  Pegada Cenáculo".
-            
-            # Vamos usar o método de substituição no nome base, mas mais preciso.
-            
-            # Encontrar o ponto de corte no nome_base usando as partes originais
-            # As partes do título são [0] a [indice_data - 1]
-            
             # Reconstituir o título *exatamente* como estava no ficheiro, antes da data.
             titulo_bruto_list = partes[0:indice_data]
             titulo_bruto = '_'.join(titulo_bruto_list).strip()
-            
-            # 4. Limpeza final:
-            # - O separador das suas atividades é ' _ ' (underscore com espaços).
-            # - Vamos substituí-lo por ' + ' e limpar quaisquer outros underscores
             titulo_limpo = titulo_bruto.replace(' _ ', ' + ').replace('_', ' ').strip()
-            
-            # O trim 'strip()' final garante que não há espaços indesejados no início ou fim.
             
             return data_atividade, titulo_limpo
         
@@ -406,12 +424,9 @@ def atividades():
         data_inicio, titulo = extrair_titulo_e_data(ficheiro)
         
         if data_inicio and titulo:
-            # Agrupamos pelo ficheiro original, mas usamos o título limpo como nome
             mes_ano = data_inicio.strftime("%Y-%m")
-            # Adicionamos o ficheiro original e o título limpo (como tuplo)
             atividades_agrupadas[mes_ano].append((data_inicio, ficheiro, titulo))
-            
-    # Restante do código (que já estava correto) ...
+
     # Ordena os meses do mais recente para o mais antigo
     meses_ordenados = sorted(atividades_agrupadas.keys(), reverse=True)
 
@@ -419,7 +434,6 @@ def atividades():
     for mes in meses_ordenados:
         atividades_agrupadas[mes].sort(key=lambda x: x[0], reverse=True)
         
-        # Mantemos o nome do ficheiro (índice [1]) e o título limpo (índice [2]) na lista
         atividades_agrupadas[mes] = [(f[1], f[2]) for f in atividades_agrupadas[mes]]
 
     return render_template("atividades.html", atividades_agrupadas=atividades_agrupadas, meses_ordenados=meses_ordenados)
@@ -522,7 +536,7 @@ def gestao_tribos():
             except json.JSONDecodeError:
                 return jsonify({'status': 'error', 'message': 'Ordem inválida'}), 400
 
-            # 1. Encontrar a pessoa a mover na tribo original
+            # Encontrar a pessoa a mover na tribo original
             pessoa_movida = None
             if original_tribo in tribos:
                 for p in tribos[original_tribo]:
@@ -534,7 +548,7 @@ def gestao_tribos():
             if not pessoa_movida:
                 return jsonify({'status': 'error', 'message': 'Pessoa não encontrada na tribo original'}), 400
 
-            # 2. Adicionar a pessoa à nova tribo na ordem correta
+            # Adicionar a pessoa à nova tribo na ordem correta
             if nova_tribo not in tribos:
                 tribos[nova_tribo] = []
             
@@ -601,12 +615,20 @@ def ver_atividade(ficheiro):
                     cargos_str = linha.get('Cargos', '')
                     cargos_list = [c.strip() for c in cargos_str.split(',')] if cargos_str else []
                     presente = linha['Presente']
-                    dados[tribo_nome].append({'nome': nome, 'presente': presente, 'cargos': cargos_list})
+                    dados[tribo_nome].append({
+                        'nome': nome,
+                        'presente': presente,
+                        'cargos': cargos_list
+                    })
 
-    partes_ficheiro = ficheiro.split('_')
-    data_inicio_format = partes_ficheiro[1]
-    data_fim_format = partes_ficheiro[3].replace('.csv', '')
-    data_display = data_inicio_format if data_inicio_format == data_fim_format else f"{data_inicio_format} - {data_fim_format}"
+    # Extrair as datas com regex
+    match = re.search(r'(\d{4}-\d{2}-\d{2})_a_(\d{4}-\d{2}-\d{2})', ficheiro)
+    if match:
+        data_inicio_format = match.group(1)
+        data_fim_format = match.group(2)
+        data_display = data_inicio_format if data_inicio_format == data_fim_format else f"{data_inicio_format} - {data_fim_format}"
+    else:
+        data_display = "Data desconhecida"
 
     return render_template(
         "ver_atividade.html",
@@ -758,11 +780,9 @@ def assiduidade():
     ficheiros = [f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")]
     for ficheiro in ficheiros:
         try:
-            # CORREÇÃO APLICADA AQUI: Tentar encontrar a data no nome do ficheiro
             data_atividade = None
             partes = ficheiro.split('_')
             
-            # Tentativa 1: Assumir que é um nome longo, com data no índice [3] (caso do utilizador)
             if len(partes) > 3:
                 data_str = partes[3].strip()
                 try:
@@ -771,7 +791,6 @@ def assiduidade():
                     # Se falhar, tenta outra posição
                     pass
             
-            # Tentativa 2: Assumir o formato original (data no índice [1])
             if data_atividade is None and len(partes) > 1:
                 data_str = partes[1].strip()
                 try:
@@ -782,7 +801,6 @@ def assiduidade():
             
             if data_atividade is None:
                 raise ValueError("Formato de data não reconhecido no nome do ficheiro.")
-            # FIM DA CORREÇÃO
 
             if data_inicio <= data_atividade <= data_fim:
                 atividades_do_ano += 1
@@ -798,7 +816,6 @@ def assiduidade():
                         if presente == "Sim":
                             assiduidade_por_tribo[tribo][elemento]['presente'] += 1
         except Exception as e:
-            # O ficheiro que não puder ser lido ou que não tiver data será ignorado aqui
             print(f"Erro ao processar o ficheiro {ficheiro}: {e}")
 
     # Calcular as percentagens
@@ -815,11 +832,9 @@ def assiduidade():
     for ficheiro in ficheiros:
         if len(ficheiro.split('_')) > 1:
             try:
-                # CORREÇÃO APLICADA AQUI TAMBÉM: Usar a nova lógica de extração
                 data_atividade = None
                 partes = ficheiro.split('_')
                 
-                # Tenta índice [3]
                 if len(partes) > 3:
                     data_str = partes[3].strip()
                     try:
@@ -827,7 +842,6 @@ def assiduidade():
                     except ValueError:
                         pass
                 
-                # Tenta índice [1]
                 if data_atividade is None and len(partes) > 1:
                     data_str = partes[1].strip()
                     try:
@@ -838,7 +852,6 @@ def assiduidade():
                 if data_atividade:
                     ano_inicio_ficheiro = data_atividade.year if data_atividade.month >= 10 else data_atividade.year - 1
                     anos_disponiveis.add(ano_inicio_ficheiro)
-                # FIM DA CORREÇÃO
                 
             except Exception:
                 pass
@@ -984,7 +997,7 @@ def material():
             quantidade_str = request.form.get("quantidade")
             localizacao = request.form.get("localizacao")
             tribo_clan = request.form.get("tribo_clan")
-            observacoes = request.form.get("observacoes", "") # Adiciona o campo de observações
+            observacoes = request.form.get("observacoes", "")
 
             if not all([nome_item, quantidade_str, tribo_clan]):
                 flash("Por favor, preencha todos os campos obrigatórios.", "danger")
@@ -1014,7 +1027,7 @@ def material():
                     "quantidade": quantidade,
                     "localizacao": localizacao,
                     "tribo_clan": tribo_clan,
-                    "observacoes": observacoes # Adiciona o campo ao novo item
+                    "observacoes": observacoes
                 }
                 material_itens.append(novo_item)
 
@@ -1084,31 +1097,46 @@ def material():
 
 @app.route("/farmacia", methods=["GET", "POST"])
 def farmacia():
-    """Página para gerir o inventário da farmácia."""
+    """Página para gerir o inventário da farmácia e as informações de saúde das pessoas."""
     farmacia_itens = carregar_farmacia()
-    tribos_disponiveis = list(carregar_tribos().keys())
+    alergias = carregar_alergias()
+    condicoes = carregar_condicoes()
+    tribos = carregar_tribos()
+    tribos_disponiveis = list(tribos.keys())
+
+    # Lista de todas as pessoas existentes nas tribos
+    pessoas_disponiveis = []
+    for membros in tribos.values():
+        for pessoa in membros:
+            if isinstance(pessoa, dict) and "nome" in pessoa:
+                pessoas_disponiveis.append(pessoa["nome"])
+            else:
+                pessoas_disponiveis.append(pessoa)
 
     if request.method == "POST":
         acao = request.form.get("acao")
 
+        # ---------- ADICIONAR ITEM ----------
         if acao == "adicionar_item":
             nome_item = request.form.get("nome_item")
             quantidade_str = request.form.get("quantidade")
             localizacao = request.form.get("localizacao")
             tribo_clan = request.form.get("tribo_clan")
+            observacoes = request.form.get("observacoes", "")
 
             if not all([nome_item, quantidade_str, tribo_clan]):
                 flash("Por favor, preencha todos os campos obrigatórios.", "danger")
                 return redirect(url_for('farmacia'))
-            
+
             try:
                 quantidade = int(quantidade_str)
             except (ValueError, TypeError):
                 flash("A quantidade deve ser um número válido.", "danger")
                 return redirect(url_for('farmacia'))
-            
-            localizacao_normalizada = localizacao.strip().lower()
 
+            localizacao_normalizada = localizacao.strip().lower() if localizacao else ""
+
+            # Verificar se já existe
             item_existente = None
             for item in farmacia_itens:
                 if (item['nome'].lower() == nome_item.lower() and
@@ -1116,7 +1144,7 @@ def farmacia():
                     item['tribo_clan'] == tribo_clan):
                     item_existente = item
                     break
-            
+
             if item_existente:
                 item_existente['quantidade'] += quantidade
             else:
@@ -1124,85 +1152,97 @@ def farmacia():
                     "nome": nome_item,
                     "quantidade": quantidade,
                     "localizacao": localizacao,
-                    "tribo_clan": tribo_clan
+                    "tribo_clan": tribo_clan,
+                    "observacoes": observacoes
                 }
                 farmacia_itens.append(novo_item)
-            
+
             guardar_farmacia(farmacia_itens)
             flash("Item adicionado com sucesso.", "success")
-            
-            return redirect(url_for('farmacia', 
-                                    filtro_nome=request.args.get('filtro_nome', ''),
-                                    filtro_quantidade=request.args.get('filtro_quantidade', ''),
-                                    filtro_localizacao=request.args.get('filtro_localizacao', ''),
-                                    filtro_tribo_clan=request.args.get('filtro_tribo_clan', '')))
+            return redirect(url_for('farmacia'))
 
+        # ---------- REMOVER ITEM ----------
         elif acao == "remover_item":
             nome_item = request.form.get("nome_item")
             tribo_clan = request.form.get("tribo_clan")
-            
-            farmacia_itens = [
-                item for item in farmacia_itens 
-                if not (item['nome'] == nome_item and item['tribo_clan'] == tribo_clan)
-            ]
-            
+            farmacia_itens = [item for item in farmacia_itens if not (item['nome'] == nome_item and item['tribo_clan'] == tribo_clan)]
             guardar_farmacia(farmacia_itens)
-            #flash("Item removido com sucesso.", "success")
             return jsonify({'status': 'success', 'message': 'Item removido com sucesso!'})
 
-    # Lógica para filtrar e criar listas de opções para os dropdowns
+        # ---------- GUARDAR INFORMAÇÕES DE SAÚDE ----------
+        elif acao == "guardar_saude":
+            for pessoa in pessoas_disponiveis:
+                alergia_raw = request.form.get(f"alergia-{pessoa}", "").strip()
+                condicao_raw = request.form.get(f"condicao-{pessoa}", "").strip()
+
+                if alergia_raw:
+                    alergias[pessoa] = ",".join([linha.strip() for linha in alergia_raw.splitlines() if linha.strip()])
+                else:
+                    alergias.pop(pessoa, None)
+
+                if condicao_raw:
+                    condicoes[pessoa] = ",".join([linha.strip() for linha in condicao_raw.splitlines() if linha.strip()])
+                else:
+                    condicoes.pop(pessoa, None)
+
+            guardar_alergias(alergias)
+            guardar_condicoes(condicoes)
+            flash("Informações de saúde atualizadas com sucesso.", "success")
+            return redirect(url_for("farmacia"))
+
+    # ---------- FILTROS ----------
     filtro_nome = request.args.get('filtro_nome', '').strip().lower()
     filtro_quantidade_str = request.args.get('filtro_quantidade', '').strip()
     filtro_localizacao = request.args.get('filtro_localizacao', '').strip().lower()
     filtro_tribo_clan = request.args.get('filtro_tribo_clan', '').strip()
 
-    # Criação das listas de opções únicas
     opcoes_nome = sorted(list(set(item['nome'] for item in farmacia_itens)))
     opcoes_quantidade = sorted(list(set(item['quantidade'] for item in farmacia_itens)))
     opcoes_localizacao = sorted(list(set(item['localizacao'] for item in farmacia_itens)))
-    
+
     farmacia_filtrado = farmacia_itens
-    
     if filtro_nome:
         farmacia_filtrado = [item for item in farmacia_filtrado if filtro_nome in item['nome'].lower()]
-    
     if filtro_quantidade_str:
         try:
             filtro_quantidade = int(filtro_quantidade_str)
             farmacia_filtrado = [item for item in farmacia_filtrado if item['quantidade'] == filtro_quantidade]
         except (ValueError, TypeError):
             pass
-            
     if filtro_localizacao:
         farmacia_filtrado = [item for item in farmacia_filtrado if filtro_localizacao in item['localizacao'].lower()]
-        
     if filtro_tribo_clan:
         farmacia_filtrado = [item for item in farmacia_filtrado if item['tribo_clan'] == filtro_tribo_clan]
-    
+
     farmacia_filtrado = sorted(farmacia_filtrado, key=lambda x: x['nome'].lower())
 
-    return render_template("farmacia.html",
-                           farmacia_filtrado=farmacia_filtrado,
-                           tribos_disponiveis=tribos_disponiveis,
-                           filtro_nome=filtro_nome,
-                           filtro_quantidade=filtro_quantidade_str,
-                           filtro_localizacao=filtro_localizacao,
-                           filtro_tribo_clan=filtro_tribo_clan,
-                           opcoes_nome=opcoes_nome,
-                           opcoes_quantidade=opcoes_quantidade,
-                           opcoes_localizacao=opcoes_localizacao)
+    return render_template(
+        "farmacia.html",
+        farmacia_filtrado=farmacia_filtrado,
+        tribos_disponiveis=tribos_disponiveis,
+        pessoas_disponiveis=pessoas_disponiveis,
+        filtro_nome=filtro_nome,
+        filtro_quantidade=filtro_quantidade_str,
+        filtro_localizacao=filtro_localizacao,
+        filtro_tribo_clan=filtro_tribo_clan,
+        opcoes_nome=opcoes_nome,
+        opcoes_quantidade=opcoes_quantidade,
+        opcoes_localizacao=opcoes_localizacao,
+        alergias=alergias,
+        condicoes=condicoes
+    )
+
+
+
 
 @app.route("/cozinha", methods=["GET", "POST"])
 def cozinha():
     """Página para gerir o inventário e receitas da cozinha."""
     
-    # É CRUCIAL que estas funções estejam definidas e importadas no seu script principal
     inventario = carregar_inventario_cozinha()
     receitas = carregar_receitas()
-    # Assume-se que 'carregar_tribos' existe ou é ignorada se não for encontrada
     tribos_disponiveis = list(carregar_tribos().keys()) if 'carregar_tribos' in globals() else []
 
-    # Opções que serão usadas tanto no POST quanto no GET
     opcoes_unidade = ["unidades", "kg", "g", "l", "ml", "pacote", "rolo", "a gosto"]
     opcoes_categoria = ["Cereais", "Laticínios", "Carne", "Peixe", "Frutas", "Vegetais", "Especiarias", "Bebidas", "Outros"]
     opcoes_dificuldade = ["Fácil", "Médio", "Difícil"]
@@ -1230,14 +1270,13 @@ def cozinha():
             if 'comprovativo_receita' in request.files:
                 file = request.files['comprovativo_receita']
                 if file.filename != '':
-                    # Certifique-se de que DIRETORIO_RECEITAS está definido globalmente
                     if not os.path.exists(DIRETORIO_RECEITAS):
                         os.makedirs(DIRETORIO_RECEITAS)
                         
                     filename = secure_filename(file.filename)
                     filepath = os.path.join(DIRETORIO_RECEITAS, filename)
                     file.save(filepath)
-                    link_ficheiro = url_for('serve_receita', filename=filename) # URL público
+                    link_ficheiro = url_for('serve_receita', filename=filename)
 
             # Se houver ficheiro, a receita é baseada em ficheiro
             if link_ficheiro:
@@ -1269,33 +1308,23 @@ def cozinha():
             
             # Adicionar e guardar
             receitas.append(nova_receita)
-            guardar_receitas(receitas) # Assumindo que tem uma função guardar_receitas()
+            guardar_receitas(receitas)
             
             flash(f"Receita '{nome_receita}' arquivada com sucesso!", "success")
             return redirect(url_for('cozinha'))
             
-        # --- GESTÃO DE STOCK: ADICIONAR/ATUALIZAR (CORRIGIDO) ---
+        # --- GESTÃO DE STOCK: ADICIONAR/ATUALIZAR ---
         if acao == "adicionar_item_cozinha":
-            # ... (Toda a sua lógica de stock aqui) ...
-            
-            # Exemplo de onde a lógica de stock termina:
-            # Assumir que a lógica de stock preenche e guarda o 'inventario'
             guardar_inventario_cozinha(inventario)
             return redirect(url_for('cozinha'))
 
         # Se a ação não for reconhecida, redireciona sem erro grave.
         return redirect(url_for('cozinha'))
 
-    # ------------------------------------
-    # Lógica GET (Renderização e FILTRAGEM)
-    # ------------------------------------
-    
-    # 1. Obter o filtro da URL (query parameter)
     filtro_categoria = request.args.get('categoria', 'Todos') 
     
     inventario_ordenado = sorted(inventario, key=lambda x: x['nome'])
     
-    # 2. Aplicar o filtro
     inventario_filtrado = []
     if filtro_categoria == 'Todos':
         inventario_filtrado = inventario_ordenado
@@ -1370,7 +1399,7 @@ def eliminar_receita():
 def eliminar_item_inventario():
     """Elimina um item específico do inventário, incluindo o ficheiro de comprovativo associado, se existir."""
     
-    # 1. Obter dados do formulário (nome e unidade são a chave única)
+    # Obter dados do formulário (nome e unidade são a chave única)
     nome_item_raw = request.form.get("nome_item", "").strip()
     unidade_item_raw = request.form.get("unidade_item", "").strip()
     
