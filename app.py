@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, session, flash, send_file
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, session, flash
 import csv, os, re, json
 from collections import defaultdict
 from werkzeug.utils import secure_filename
@@ -46,38 +46,9 @@ FICHEIRO_PROGRESSO = "progresso.json"
 FICHEIRO_PROGRESSO_MODELO = "progresso_modelo.json"
 FICHEIRO_CALENDARIO = "atividades_calendario.json"
 FICHEIRO_CONTAS = "contas.json"
-CAMINHO_DADOS = "dados.json"
 
 # Adicionar a pasta de uploads à configuração da aplicação
 app.config['UPLOAD_FOLDER'] = DIRETORIO_UPLOADS
-
-
-@app.route("/exportar_dados", methods=["GET"])
-def exportar_dados():
-    """
-    Rota para exportar os dados guardados no ficheiro JSON.
-    """
-    if not os.path.exists(CAMINHO_DADOS):
-        return jsonify({"erro": "ficheiro 'dados.json' não encontrado"}), 404
-
-    # Lê o conteúdo do ficheiro JSON
-    with open(CAMINHO_DADOS, "r", encoding="utf-8") as f:
-        dados = json.load(f)
-
-    return jsonify(dados)  # devolve em formato JSON
-
-@app.route("/download_dados", methods=["GET"])
-def download_dados():
-    if not os.path.exists(CAMINHO_DADOS):
-        return jsonify({"erro": "ficheiro não encontrado"}), 404
-    return send_file(CAMINHO_DADOS, as_attachment=True)
-
-
-url = "https://clan5.onrender.com/exportar_dados"
-r = requests.get(url)
-with open("dados_baixados.json", "w", encoding="utf-8") as f:
-    json.dump(r.json(), f, ensure_ascii=False, indent=2)
-
 
 
 # --- FUNÇÕES AUXILIARES ---
