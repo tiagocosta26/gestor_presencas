@@ -1,22 +1,28 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, session, flash
+from flask_sqlalchemy import SQLAlchemy
 import csv, os, re, json
 from collections import defaultdict
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, date
 from flask_bcrypt import Bcrypt
 import copy
-from datetime import datetime
-import json
-import uuid # Para gerar IDs únicos para as atividades
+import uuid 
 from icalendar import Calendar, Event
 from flask import make_response
-from datetime import datetime, timedelta
+from datetime import timedelta
+from sqlalchemy import func
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
-app.config['SECRET_KEY'] = 'uma_chave_segura_para_as_sessoes'
 
-# Diretórios para guardar os ficheiros
+# --- CONFIGURAÇÃO DO FLASK-SQLALCHEMY ---
+# Usa um ficheiro SQLite como base de dados.
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app_dados.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = 'uma_chave_segura_para_as_sessoes'
+db = SQLAlchemy(app)
+
+# Diretórios para guardar os ficheiros (Mantidos)
 DIRETORIO_PRESENCAS = "registos"
 DIRETORIO_TESOURARIA = "tesouraria"
 DIRETORIO_UPLOADS = "uploads" 
@@ -24,6 +30,7 @@ DIRETORIO_RECEITAS = os.path.join(DIRETORIO_UPLOADS, 'receitas')
 DIRETORIO_UPLOADS_COZINHA = os.path.join(DIRETORIO_UPLOADS, 'cozinha')
 DIRETORIO_ATAS = os.path.join(DIRETORIO_UPLOADS, 'atas')
 DIRETORIO_OUTROS_DOCS = os.path.join(DIRETORIO_UPLOADS, 'outros')
+
 os.makedirs(DIRETORIO_PRESENCAS, exist_ok=True)
 os.makedirs(DIRETORIO_TESOURARIA, exist_ok=True)
 os.makedirs(DIRETORIO_UPLOADS, exist_ok=True)
@@ -32,94 +39,200 @@ os.makedirs(DIRETORIO_ATAS, exist_ok=True)
 os.makedirs(DIRETORIO_OUTROS_DOCS, exist_ok=True)
 os.makedirs(DIRETORIO_UPLOADS_COZINHA, exist_ok=True)
 
-# Ficheiros JSON para guardar os dados
-FICHEIRO_TRIBOS = "tribos.json"
+# Ficheiros JSON Remanescentes (Ainda usados para entidades não migradas)
 FICHEIRO_CARGOS = "cargos.json"
-FICHEIRO_UTILIZADORES = "utilizadores.json"
 FICHEIRO_MATERIAL = "material.json"
 FICHEIRO_FARMACIA = "farmacia.json"
 FICHEIRO_ALERGIAS = "alergias.json"
 FICHEIRO_CONDICOES = "condicoes.json"
 FICHEIRO_COZINHA = "inventario_cozinha.json"
 FICHEIRO_RECEITAS = "receitas.json"
-FICHEIRO_PROGRESSO = "progresso.json"
 FICHEIRO_PROGRESSO_MODELO = "progresso_modelo.json"
 FICHEIRO_CALENDARIO = "atividades_calendario.json"
 FICHEIRO_CONTAS = "contas.json"
 
-# Adicionar a pasta de uploads à configuração da aplicação
 app.config['UPLOAD_FOLDER'] = DIRETORIO_UPLOADS
 
 
-# --- FUNÇÕES AUXILIARES ---
+# --- MODELOS DE DADOS DO SQLALCHEMY ---
+
+# Tabela de associação para a relação N:N entre Membro e Cargo
+membro_cargo = db.Table('membro_cargo',
+    db.Column('membro_id', db.Integer, db.ForeignKey('membro.id'), primary_key=True),
+    db.Column('cargo_id', db.Integer, db.ForeignKey('cargo.id'), primary_key=True)
+)
+
+class Tribo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(80), unique=True, nullable=False)
+    # Garante que os membros são ordenados pelo campo 'ordem' por padrão
+    membros = db.relationship('Membro', backref='tribo', lazy=True, 
+                             order_by="Membro.ordem") 
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'membros': [m.to_dict() for m in self.membros]
+        }
+
+class Cargo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(80), unique=True, nullable=False)
+    cor = db.Column(db.String(7), nullable=False) # Ex: #bb2124
+
+class Membro(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(120), unique=True, nullable=False)
+    tribo_id = db.Column(db.Integer, db.ForeignKey('tribo.id'), nullable=False)
+    ordem = db.Column(db.Integer, default=0) # Novo campo para gerir a ordem dentro da tribo
+    
+    # Relação N:N com Cargo
+    cargos = db.relationship('Cargo', secondary=membro_cargo, lazy='subquery',
+        backref=db.backref('membros', lazy=True))
+
+    def to_dict(self):
+        return {
+            'nome': self.nome,
+            'cargo': [c.nome for c in self.cargos],
+            'id': self.id,
+            'ordem': self.ordem,
+            'tribo_nome': self.tribo.nome if self.tribo else None
+        }
+
+class Atividade(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(255), nullable=False)
+    data_inicio = db.Column(db.Date, nullable=False)
+    data_fim = db.Column(db.Date, nullable=False)
+    tribos_selecionadas = db.Column(db.String(255), nullable=True) # Ex: "Tribo A,Tribo B"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'data_inicio': self.data_inicio.isoformat(),
+            'data_fim': self.data_fim.isoformat(),
+            'tribos_selecionadas': self.tribos_selecionadas.split(',') if self.tribos_selecionadas else []
+        }
+
+class Utilizador(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    nivel_acesso = db.Column(db.String(50), default='membro')
+
+class Progresso(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    membro_id = db.Column(db.Integer, db.ForeignKey('membro.id'), nullable=False, unique=True)
+    dados_progresso_json = db.Column(db.Text, nullable=False) 
+
+    membro = db.relationship('Membro', backref='progresso', lazy=True)
+    
+    def get_dados(self):
+        return json.loads(self.dados_progresso_json)
+
+    def set_dados(self, dados):
+        self.dados_progresso_json = json.dumps(dados, ensure_ascii=False)
+
+
+# --- FUNÇÕES AUXILIARES MIGRATÓRIAS (SQLAlchemy) ---
+
 def carregar_tribos():
-    """Carrega as tribos do ficheiro JSON."""
-    if os.path.exists(FICHEIRO_TRIBOS):
-        with open(FICHEIRO_TRIBOS, encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+    """Carrega as tribos e membros da base de dados, ordenados por 'ordem'."""
+    tribos_db = Tribo.query.all()
+    # Garante que os membros são ordenados pela relação definida (Membro.ordem)
+    tribos_dict = {t.nome: [m.to_dict() for m in t.membros] for t in tribos_db}
+    return tribos_dict
 
 def carregar_nomes():
-    """Carrega as pessoas do ficheiro JSON e devolve uma lista de todas as pessoas."""
-    if os.path.exists(FICHEIRO_TRIBOS):
-        with open(FICHEIRO_TRIBOS, 'r', encoding='utf-8') as f:
-            try:
-                data = json.load(f)
-                pessoas = []
-                for tribo, membros in data.items():
-                    for membro in membros:
-                        pessoas.append(membro['nome'])
-                return pessoas
-            except json.JSONDecodeError:
-                return []
-    return []
+    """Carrega os nomes dos membros da base de dados (Substitui carregar_nomes do JSON)."""
+    membros = Membro.query.with_entities(Membro.nome).order_by(Membro.nome).all()
+    return [m[0] for m in membros]
 
-def guardar_tribos(tribos):
-    """Guarda as tribos no ficheiro JSON."""
-    with open(FICHEIRO_TRIBOS, "w", encoding="utf-8") as f:
-        json.dump(tribos, f, indent=4, ensure_ascii=False)
-
-def carregar_cargos():
-    """Carrega os cargos do ficheiro JSON ou cria um com cargos padrão."""
-    if os.path.exists(FICHEIRO_CARGOS):
-        with open(FICHEIRO_CARGOS, encoding="utf-8") as f:
-            return json.load(f)
-    cargos_padrao = {
-        "Guia": "#bb2124",
-        "Sub-Guia": "#bb2124",
-        "Secretário": "#007bff",
-        "Tesoureiro": "#28a745",
-        "Animador": "#ffa500",
-        "Cozinheiro": "#ffde21",
-        "Socorrista": "#ff0000",
-        "Guarda-Material": "#7c3a00",
-        "Relações Públicas": "#87cefa"
-    }
-    with open(FICHEIRO_CARGOS, "w", encoding="utf-8") as f:
-        json.dump(cargos_padrao, f, indent=4, ensure_ascii=False)
-    return cargos_padrao
+def guardar_tribos(tribos_dict):
+    """(DEPRECATED/MIGRATION ONLY) As alterações devem ser feitas diretamente nas rotas agora."""
+    pass 
 
 def carregar_utilizadores():
-    """Carrega os utilizadores do ficheiro JSON."""
-    if os.path.exists(FICHEIRO_UTILIZADORES):
-        with open(FICHEIRO_UTILIZADORES, encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+    """Carrega os utilizadores da base de dados (Substitui carregar_utilizadores do JSON)."""
+    utilizadores = Utilizador.query.all()
+    return {u.username: {'password_hash': u.password_hash, 'nivel_acesso': u.nivel_acesso} for u in utilizadores}
 
-def guardar_utilizadores(utilizadores):
-    """Guarda os utilizadores no ficheiro JSON."""
-    with open(FICHEIRO_UTILIZADORES, "w", encoding="utf-8") as f:
-        json.dump(utilizadores, f, indent=4, ensure_ascii=False)
+def guardar_utilizadores(utilizadores_dict):
+    """Guarda os utilizadores na base de dados (Para compatibilidade)."""
+    for username, data in utilizadores_dict.items():
+        utilizador = Utilizador.query.filter_by(username=username).first()
+        if not utilizador:
+            utilizador = Utilizador(username=username)
+            db.session.add(utilizador)
+        
+        utilizador.password_hash = data['password_hash']
+        utilizador.nivel_acesso = data.get('nivel_acesso', 'membro')
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao guardar utilizadores: {e}")
+
+def carregar_progresso():
+    """Carrega o progresso de todos os membros da base de dados (Substitui carregar_progresso do JSON)."""
+    progressos = Progresso.query.join(Membro).all()
+    progresso_dict = {}
+    for p in progressos:
+        progresso_dict[p.membro.nome] = p.get_dados()
+    return progresso_dict
+
+def guardar_progresso(dados):
+    """Guarda o progresso no SQLAlchemy (Substitui guardar_progresso do JSON)."""
+    for nome_membro, dados_progresso in dados.items():
+        membro = Membro.query.filter_by(nome=nome_membro).first()
+        if membro:
+            progresso = Progresso.query.filter_by(membro_id=membro.id).first()
+            if not progresso:
+                progresso = Progresso(membro_id=membro.id)
+                db.session.add(progresso)
+            
+            progresso.set_dados(dados_progresso)
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao guardar progresso: {e}")
+
+# --- FUNÇÕES AUXILIARES REMANESCENTES (JSON/CSV) ---
 
 def limpar_nome(nome):
-    """Limpa uma string para ser usada como nome de ficheiro seguro, permitindo '/' no nome real da atividade."""
+    """Limpa uma string para ser usada como nome de ficheiro seguro."""
     nome_ficheiro = nome.replace('/', '-')
     nome_ficheiro = re.sub(r'[^A-Za-z0-9áéíóúãõàèùçÁÉÍÓÚÀÈÙÇ_\-@ ]', '_', nome_ficheiro)
     return nome_ficheiro
 
+def carregar_cargos():
+    """Carrega os cargos do ficheiro JSON e garante que estão no modelo Cargo (Híbrido)."""
+    cargos_padrao = {}
+    if os.path.exists(FICHEIRO_CARGOS):
+        with open(FICHEIRO_CARGOS, encoding="utf-8") as f:
+            cargos_padrao = json.load(f)
+    else:
+        cargos_padrao = {
+            "Guia": "#bb2124", "Sub-Guia": "#bb2124", "Secretário": "#007bff",
+            "Tesoureiro": "#28a745", "Animador": "#ffa500", "Cozinheiro": "#ffde21",
+            "Socorrista": "#ff0000", "Guarda-Material": "#7c3a00", "Relações Públicas": "#87cefa"
+        }
+        with open(FICHEIRO_CARGOS, "w", encoding="utf-8") as f:
+            json.dump(cargos_padrao, f, indent=4, ensure_ascii=False)
+    
+    # Garante que os cargos existem na BD
+    for nome, cor in cargos_padrao.items():
+        if not Cargo.query.filter_by(nome=nome).first():
+            db.session.add(Cargo(nome=nome, cor=cor))
+    db.session.commit()
+    return cargos_padrao
 
 def carregar_folha_caixa(entidade):
-    """Carrega a folha de caixa de uma entidade (Clan ou tribo)."""
     caminho = os.path.join(DIRETORIO_TESOURARIA, f"{limpar_nome(entidade)}.json")
     if os.path.exists(caminho):
         with open(caminho, encoding="utf-8") as f:
@@ -127,14 +240,12 @@ def carregar_folha_caixa(entidade):
     return []
 
 def guardar_folha_caixa(entidade, folha_caixa):
-    """Guarda a folha de caixa de uma entidade."""
     caminho = os.path.join(DIRETORIO_TESOURARIA, f"{limpar_nome(entidade)}.json")
     os.makedirs(DIRETORIO_TESOURARIA, exist_ok=True)
     with open(caminho, "w", encoding="utf-8") as f:
         json.dump(folha_caixa, f, indent=4, ensure_ascii=False)
 
 def carregar_material():
-    """Carrega o material do ficheiro JSON."""
     if os.path.exists(FICHEIRO_MATERIAL):
         with open(FICHEIRO_MATERIAL, encoding="utf-8") as f:
             try:
@@ -144,12 +255,10 @@ def carregar_material():
     return []
 
 def guardar_farmacia(farmacia):
-    """Guarda o material da farmácia no ficheiro JSON."""
     with open(FICHEIRO_FARMACIA, "w", encoding="utf-8") as f:
         json.dump(farmacia, f, indent=4, ensure_ascii=False)
 
 def carregar_farmacia():
-    """Carrega o material da farmácia do ficheiro JSON."""
     if os.path.exists(FICHEIRO_FARMACIA):
         with open(FICHEIRO_FARMACIA, encoding="utf-8") as f:
             try:
@@ -158,14 +267,11 @@ def carregar_farmacia():
                 return []
     return []
 
-
 def guardar_alergias(alergias):
-    """Guarda as alergias no ficheiro JSON."""
     with open(FICHEIRO_ALERGIAS, "w", encoding="utf-8") as f:
         json.dump(alergias, f, indent=4, ensure_ascii=False)
 
 def carregar_alergias():
-    """Carrega as alergias do ficheiro JSON."""
     if os.path.exists(FICHEIRO_ALERGIAS):
         with open(FICHEIRO_ALERGIAS, encoding="utf-8") as f:
             try:
@@ -175,12 +281,10 @@ def carregar_alergias():
     return {}
 
 def guardar_condicoes(condicoes):
-    """Guarda as condições no ficheiro JSON."""
     with open(FICHEIRO_CONDICOES, "w", encoding="utf-8") as f:
         json.dump(condicoes, f, indent=4, ensure_ascii=False)
 
 def carregar_condicoes():
-    """Carrega as condições do ficheiro JSON."""
     if os.path.exists(FICHEIRO_CONDICOES):
         with open(FICHEIRO_CONDICOES, encoding="utf-8") as f:
             try:
@@ -189,14 +293,11 @@ def carregar_condicoes():
                 return {}
     return {}
 
-
 def guardar_material(material):
-    """Guarda o material no ficheiro JSON."""
     with open(FICHEIRO_MATERIAL, "w", encoding="utf-8") as f:
         json.dump(material, f, indent=4, ensure_ascii=False)
 
 def carregar_inventario_cozinha():
-    """Carrega o inventário da cozinha do ficheiro JSON."""
     if os.path.exists(FICHEIRO_COZINHA):
         with open(FICHEIRO_COZINHA, encoding="utf-8") as f:
             try:
@@ -206,12 +307,10 @@ def carregar_inventario_cozinha():
     return []
 
 def guardar_inventario_cozinha(inventario):
-    """Guarda o inventário da cozinha no ficheiro JSON."""
     with open(FICHEIRO_COZINHA, "w", encoding="utf-8") as f:
         json.dump(inventario, f, indent=4, ensure_ascii=False)
 
 def carregar_receitas():
-    """Carrega as receitas do ficheiro JSON."""
     if os.path.exists(FICHEIRO_RECEITAS):
         with open(FICHEIRO_RECEITAS, encoding="utf-8") as f:
             try:
@@ -221,47 +320,22 @@ def carregar_receitas():
     return []
 
 def guardar_receitas(receitas):
-    """Guarda as receitas no ficheiro JSON."""
     with open(FICHEIRO_RECEITAS, "w", encoding="utf-8") as f:
         json.dump(receitas, f, indent=4, ensure_ascii=False)
 
-
-# Função para ler contas do ficheiro JSON
 def ler_contas():
     if not os.path.exists(FICHEIRO_CONTAS):
-        # Cria ficheiro vazio se não existir
         with open(FICHEIRO_CONTAS, "w") as f:
             json.dump({}, f)
         return {}
     with open(FICHEIRO_CONTAS, "r") as f:
         return json.load(f)
 
-# Função para gravar contas no ficheiro JSON
 def gravar_contas(contas):
     with open(FICHEIRO_CONTAS, "w") as f:
         json.dump(contas, f, indent=4)
         
-
-def carregar_progresso():
-    progresso = {}
-    if not os.path.exists(FICHEIRO_PROGRESSO):
-        return progresso
-    with open(FICHEIRO_PROGRESSO, encoding="utf-8") as f:
-        try:
-            progresso = json.load(f)
-        except json.JSONDecodeError:
-            progresso = {}
-    return progresso
-
-
-
-def guardar_progresso(dados):
-    """Guarda o progresso no ficheiro JSON."""
-    with open(FICHEIRO_PROGRESSO, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=2)
-
 def carregar_progresso_modelo():
-    """Carrega o modelo de progresso do ficheiro JSON."""
     if os.path.exists(FICHEIRO_PROGRESSO_MODELO):
         with open(FICHEIRO_PROGRESSO_MODELO, encoding="utf-8") as f:
             try:
@@ -270,7 +344,6 @@ def carregar_progresso_modelo():
                 return {}
     return {}
 
-# Cria o ficheiro JSON vazio se não existir
 if not os.path.exists(FICHEIRO_CALENDARIO):
     with open(FICHEIRO_CALENDARIO, 'w') as f:
         json.dump([], f)
@@ -285,9 +358,6 @@ def guardar_atividades_calendario(atividades):
 
 @app.template_global()
 def calcular_progresso_bool_do_dicionario(obj):
-    """
-    Converte um dicionário de progresso de "feito"/"pendente" para True/False.
-    """
     if isinstance(obj, dict):
         return {k: calcular_progresso_bool_do_dicionario(v) for k, v in obj.items()}
     elif isinstance(obj, str):
@@ -297,177 +367,135 @@ def calcular_progresso_bool_do_dicionario(obj):
         
 @app.template_global()
 def calcular_nivel(dados_pessoa_bool, trilhos_por_area):
-
     trilhos_concluidos_por_area = {}
     
-    # 1. Conta quantos trilhos foram concluídos em cada área
     for area_nome, trilhos_da_area in trilhos_por_area.items():
         count_trilhos_concluidos = 0
-        
-        # Itera sobre cada trilho da área
         for trilho_nome, objetivos_do_trilho in trilhos_da_area.items():
             trilho_completo = True
-            
-            # Acede aos dados da pessoa para este trilho
             dados_trilho = dados_pessoa_bool.get(area_nome, {}).get(trilho_nome, {})
-            
-            # Verifica se todos os objetivos do trilho foram concluídos
             for objetivo in objetivos_do_trilho:
-                # Se algum objetivo não for "feito" (representado como True), o trilho não está completo
                 if not dados_trilho.get(objetivo):
                     trilho_completo = False
                     break
-            
             if trilho_completo:
                 count_trilhos_concluidos += 1
-        
         trilhos_concluidos_por_area[area_nome] = count_trilhos_concluidos
 
-    # 2. Avalia a etapa com base na contagem de trilhos
-    # Verifica primeiro a etapa mais alta para garantir a progressão correta.
-    
-    # Condição para Etapa 'Anilha de Mérito': todos os trilhos concluídos em cada área.
     todos_concluidos = all(trilhos_concluidos_por_area[area] == len(trilhos_por_area[area]) for area in trilhos_por_area)
     if todos_concluidos:
         return "Anilha de Mérito"
     
-    # Condição para Etapa 'Partida': 2 trilhos concluídos em cada área.
     dois_por_area = all(trilhos_concluidos_por_area[area] >= 2 for area in trilhos_concluidos_por_area)
     if dois_por_area:
         return "Partida"
         
-    # Condição para Etapa 'Serviço': 1 trilho concluído em cada área.
     um_por_area = all(trilhos_concluidos_por_area[area] >= 1 for area in trilhos_concluidos_por_area)
     if um_por_area:
         return "Serviço"
         
-    # Se nenhuma das condições for satisfeita, o membro fica na Etapa 'Comunidade'
     return "Comunidade"
 
 
+# --- INICIALIZAÇÃO DA BASE DE DADOS ---
+with app.app_context():
+    db.create_all()
+    carregar_cargos()
 
-# --- ROTAS PRINCIPAIS ---
+
+# --- ROTAS PRINCIPAIS (Migradas para SQLAlchemy) ---
+
 @app.route("/")
 def index():
     return render_template("index.html")
 
 @app.route("/gestao_presencas", methods=["GET", "POST"])
 def presencas():
-    """Rota principal para registar uma nova atividade."""
+    """Rota para registar uma nova atividade na base de dados (Substitui CSV)."""
     tribos = carregar_tribos()
     
     if request.method == "POST":
-        atividade = request.form["atividade"]
-        atividade_limpa = limpar_nome(atividade)
-        data_inicio = request.form["data_inicio"]
-        data_fim = request.form["data_fim"]
-        tribos_selecionadas = request.form["tribos_selecionadas"].split(",")
+        atividade_nome = request.form["atividade"]
+        data_inicio_str = request.form["data_inicio"]
+        data_fim_str = request.form["data_fim"]
+        tribos_selecionadas_str = request.form["tribos_selecionadas"]
 
-        caminho = os.path.join(DIRETORIO_PRESENCAS, f"{atividade_limpa}_{data_inicio}_a_{data_fim}.csv")
+        try:
+            data_inicio = datetime.strptime(data_inicio_str, "%Y-%m-%d").date()
+            data_fim = datetime.strptime(data_fim_str, "%Y-%m-%d").date()
+        except ValueError:
+            flash("Erro no formato das datas.", 'danger')
+            return redirect(url_for("presencas"))
 
-        with open(caminho, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.writer(f)
-            writer.writerow(["Atividade", "Data Início", "Data Fim", "Tribo", "Elemento", "Cargos", "Presente"])
-            
-            for tribo_nome in tribos_selecionadas:
-                membros = tribos.get(tribo_nome, [])
-                for membro in membros:
-                    nome = membro['nome']
-                    cargos_list = membro.get('cargo', [])
-                    cargos_str = ', '.join(cargos_list)
-                    presente = "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
-                    writer.writerow([atividade, data_inicio, data_fim, tribo_nome, nome, cargos_str, presente])
+        # Cria a nova atividade na BD
+        nova_atividade = Atividade(
+            nome=atividade_nome,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            tribos_selecionadas=tribos_selecionadas_str
+        )
+        db.session.add(nova_atividade)
 
-        return redirect(url_for("atividades"))
+        try:
+            db.session.commit()
+            flash(f"Atividade '{atividade_nome}' registada com sucesso na base de dados!", 'success')
+            return redirect(url_for("atividades"))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Erro ao guardar atividade: {e}", 'danger')
+            return redirect(url_for("presencas"))
 
-    from datetime import date
     hoje = date.today().isoformat()
     return render_template("gestao_presencas.html", hoje=hoje, tribos=tribos)
 
 
 @app.route("/atividades")
 def atividades():
-    """Exibe a lista de atividades registadas."""
-    ficheiros = [f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")]
+    """Exibe a lista de atividades registadas (da base de dados)."""
+    
+    # Busca todas as atividades, ordenadas pela data de início mais recente
+    atividades_db = Atividade.query.order_by(Atividade.data_inicio.desc()).all()
+    
     atividades_agrupadas = defaultdict(list)
 
-    def extrair_titulo_e_data(ficheiro):
-        """Tenta extrair a data e o título limpo de um nome de ficheiro."""
-        
-        # Remover a extensão .csv
-        nome_base = ficheiro.rsplit('.', 1)[0]
-        partes = nome_base.split('_')
-        
-        data_atividade = None
-        indice_data = -1
-
-        # Procurar a primeira parte que consiga ser convertida em data (YYYY-MM-DD)
-        for i in range(1, len(partes)):
-            try:
-                # Tenta converter a parte atual do nome em data
-                data_atividade = datetime.strptime(partes[i].strip(), "%Y-%m-%d")
-                indice_data = i
-                break # Se encontrar, sai do loop
-            except ValueError:
-                # Não é uma data, continua a procurar
-                continue
-        
-        if data_atividade and indice_data != -1:
-            
-            # O título é a junção de todas as partes *antes* da data encontrada
-            titulo_partes = partes[0:indice_data]
-            
-            # Rejuntar as partes do título *apenas* com um espaço para remover separadores _
-            titulo_limpo = ' '.join(p.strip() for p in titulo_partes).strip()
-            
-            # Reconstituir o título *exatamente* como estava no ficheiro, antes da data.
-            titulo_bruto_list = partes[0:indice_data]
-            titulo_bruto = '_'.join(titulo_bruto_list).strip()
-            titulo_limpo = titulo_bruto.replace(' _ ', ' + ').replace('_', ' ').strip()
-            
-            return data_atividade, titulo_limpo
-        
-        # Se não encontrar a data, retorna None
-        return None, None
-
-
-    for ficheiro in ficheiros:
-        data_inicio, titulo = extrair_titulo_e_data(ficheiro)
-        
-        if data_inicio and titulo:
-            mes_ano = data_inicio.strftime("%Y-%m")
-            atividades_agrupadas[mes_ano].append((data_inicio, ficheiro, titulo))
+    for atividade in atividades_db:
+        # Agrupa pelo Mês/Ano
+        mes_ano = atividade.data_inicio.strftime("%Y-%m")
+        # Tuplo: (id, nome)
+        atividades_agrupadas[mes_ano].append((atividade.id, atividade.nome))
 
     # Ordena os meses do mais recente para o mais antigo
     meses_ordenados = sorted(atividades_agrupadas.keys(), reverse=True)
-
-    # Ordena as atividades dentro de cada mês da mais recente para a mais antiga
-    for mes in meses_ordenados:
-        atividades_agrupadas[mes].sort(key=lambda x: x[0], reverse=True)
-        
-        atividades_agrupadas[mes] = [(f[1], f[2]) for f in atividades_agrupadas[mes]]
-
+    
     return render_template("atividades.html", atividades_agrupadas=atividades_agrupadas, meses_ordenados=meses_ordenados)
 
 
-@app.route('/eliminar_atividade/<nome_ficheiro>', methods=['POST'])
-def eliminar_atividade(nome_ficheiro):
-    """Elimina um ficheiro de atividade."""
+@app.route('/eliminar_atividade/<int:atividade_id>', methods=['POST'])
+def eliminar_atividade(atividade_id):
+    """Elimina uma atividade da base de dados."""
     try:
-        caminho_ficheiro = os.path.join(DIRETORIO_PRESENCAS, nome_ficheiro)
-        if os.path.exists(caminho_ficheiro):
-            os.remove(caminho_ficheiro)
-    except Exception:
-        pass
+        atividade = Atividade.query.get_or_404(atividade_id)
+        db.session.delete(atividade)
+        db.session.commit()
+        flash(f"Atividade '{atividade.nome}' eliminada com sucesso.", 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erro ao eliminar atividade: {e}", 'danger')
+    
     return redirect(url_for('atividades'))
+
 
 @app.route("/gestao_tribos", methods=["GET", "POST"])
 def gestao_tribos():
-    """Página para gerir tribos e membros."""
-    tribos = carregar_tribos()
-    cargos_disponiveis = carregar_cargos()
+    """Página para gerir tribos e membros, utilizando a base de dados."""
     
-    cargo_ordem = {cargo: i for i, cargo in enumerate(cargos_disponiveis)}
+    # Busca todas as tribos (com membros ordenados por Membro.ordem)
+    tribos_db = Tribo.query.all()
+    
+    # Busca todos os cargos e cria um dicionário para a UI e ordem
+    cargos_db = Cargo.query.all()
+    cargos_disponiveis = {c.nome: c.cor for c in cargos_db}
+    cargo_ordem = {cargo.nome: i for i, cargo in enumerate(cargos_db)}
 
     if request.method == "POST":
         acao = request.form.get("acao")
@@ -475,142 +503,182 @@ def gestao_tribos():
 
         if acao == "criar_tribo":
             nome_tribo = request.form.get("nome_tribo").strip()
-            if nome_tribo and nome_tribo not in tribos:
-                tribos[nome_tribo] = []
-                guardar_tribos(tribos)
-            if not is_ajax:
-                return redirect(url_for("gestao_tribos"))
-            return jsonify({"status": "ok"})
+            if not nome_tribo:
+                flash("O nome da tribo não pode ser vazio.", 'warning')
+                return jsonify({"status": "error", "message": "Nome vazio"}) if is_ajax else redirect(url_for("gestao_tribos"))
+
+            # Verifica se já existe (case-insensitive)
+            if Tribo.query.filter(func.lower(Tribo.nome) == func.lower(nome_tribo)).first():
+                flash(f"A tribo '{nome_tribo}' já existe.", 'warning')
+                return jsonify({"status": "error", "message": "Tribo já existe"}) if is_ajax else redirect(url_for("gestao_tribos"))
+
+            nova_tribo = Tribo(nome=nome_tribo)
+            db.session.add(nova_tribo)
+            try:
+                db.session.commit()
+                flash(f"Tribo '{nome_tribo}' criada com sucesso!", 'success')
+                return jsonify({"status": "ok", "tribo": nova_tribo.to_dict()}) if is_ajax else redirect(url_for("gestao_tribos"))
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Erro ao criar tribo: {e}", 'danger')
+                return jsonify({"status": "error", "message": str(e)}) if is_ajax else redirect(url_for("gestao_tribos"))
+
 
         elif acao == "remover_tribo":
-            nome_tribo = request.form.get("nome_tribo")
-            if nome_tribo in tribos:
-                del tribos[nome_tribo]
-                guardar_tribos(tribos)
-            if not is_ajax:
-                return redirect(url_for("gestao_tribos"))
-            return jsonify({"status": "ok"})
+            tribo_id = request.form.get("tribo_id")
+            tribo = Tribo.query.get(tribo_id)
+            if tribo:
+                # Remove o progresso e os membros associados
+                for membro in tribo.membros:
+                    Progresso.query.filter_by(membro_id=membro.id).delete()
+                    db.session.delete(membro)
+                
+                db.session.delete(tribo)
+                try:
+                    db.session.commit()
+                    flash(f"Tribo '{tribo.nome}' e seus membros eliminados com sucesso.", 'success')
+                    return jsonify({"status": "ok"}) if is_ajax else redirect(url_for("gestao_tribos"))
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f"Erro ao remover tribo: {e}", 'danger')
+                    return jsonify({"status": "error", "message": str(e)}) if is_ajax else redirect(url_for("gestao_tribos"))
+            else:
+                flash("Tribo não encontrada.", 'warning')
+                return jsonify({"status": "error", "message": "Tribo não encontrada"}) if is_ajax else redirect(url_for("gestao_tribos"))
 
         elif acao == "adicionar_pessoa":
-            tribo = request.form.get("tribo")
+            tribo_id = request.form.get("tribo_id")
             nome_pessoa = request.form.get("nome_pessoa").strip()
-            if tribo in tribos and nome_pessoa:
-                nova_pessoa = {"nome": nome_pessoa, "cargo": []}
-                tribos[tribo].append(nova_pessoa)
-                guardar_tribos(tribos)
-                if not is_ajax:
-                    return redirect(url_for("gestao_tribos", tribo_id=tribo))
-                return jsonify({"status": "ok", "pessoa": nova_pessoa})
+            tribo = Tribo.query.get(tribo_id)
+            
+            if not tribo or not nome_pessoa:
+                flash("Dados inválidos para adicionar pessoa.", 'warning')
+                return jsonify({"status": "error", "message": "Dados inválidos"}) if is_ajax else redirect(url_for("gestao_tribos"))
 
-        elif acao == "remover_pessoa":
-            tribo = request.form.get("tribo")
-            nome_pessoa = request.form.get("nome_pessoa")
-            if tribo in tribos:
-                tribos[tribo] = [p for p in tribos[tribo] if p["nome"] != nome_pessoa]
-                guardar_tribos(tribos)
-            if not is_ajax:
-                return redirect(url_for("gestao_tribos"))
-            return jsonify({"status": "ok", "nome_pessoa": nome_pessoa})
-        
-        elif acao == "adicionar_cargo":
-            tribo = request.form.get("tribo")
-            nome_pessoa = request.form.get("nome_pessoa")
-            cargo = request.form.get("cargo")
+            # Verifica se já existe (case-insensitive)
+            if Membro.query.filter(func.lower(Membro.nome) == func.lower(nome_pessoa)).first():
+                flash(f"A pessoa '{nome_pessoa}' já existe (a base de dados exige nomes únicos).", 'warning')
+                return jsonify({"status": "error", "message": "Pessoa já existe"}) if is_ajax else redirect(url_for("gestao_tribos"))
             
-            if tribo in tribos and nome_pessoa and cargo:
-                for pessoa in tribos[tribo]:
-                    if pessoa["nome"] == nome_pessoa:
-                        if cargo in pessoa["cargo"]:
-                            pessoa["cargo"].remove(cargo)
-                        else:
-                            pessoa["cargo"].append(cargo)
-                        
-                        pessoa["cargo"].sort(key=lambda c: cargo_ordem.get(c, float('inf')))
-                        break
-                guardar_tribos(tribos)
-                if not is_ajax:
-                    return redirect(url_for("gestao_tribos"))
-                return jsonify({"status": "ok", "pessoa": pessoa, "cargos_disponiveis": cargos_disponiveis})
-                
-        elif acao == 'ordenar':
-            original_tribo = request.form.get('original_tribo')
-            nova_tribo = request.form.get('nova_tribo')
-            nome_pessoa = request.form.get('nome_pessoa')
-            ordem_json = request.form.get('ordem')
+            # Define a ordem como o próximo número
+            max_ordem = db.session.query(func.max(Membro.ordem)).filter_by(tribo_id=tribo.id).scalar() or 0
             
-            # Validação básica
-            if not all([original_tribo, nova_tribo, nome_pessoa, ordem_json]):
-                return jsonify({'status': 'error', 'message': 'Dados em falta'}), 400
+            novo_membro = Membro(nome=nome_pessoa, tribo_id=tribo.id, ordem=max_ordem + 1)
+            db.session.add(novo_membro)
 
             try:
-                ordem = json.loads(ordem_json)
-            except json.JSONDecodeError:
-                return jsonify({'status': 'error', 'message': 'Ordem inválida'}), 400
+                db.session.commit()
+                flash(f"Pessoa '{nome_pessoa}' adicionada à tribo '{tribo.nome}'.", 'success')
+                return jsonify({"status": "ok", "pessoa": novo_membro.to_dict()}) if is_ajax else redirect(url_for("gestao_tribos"))
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Erro ao adicionar pessoa: {e}", 'danger')
+                return jsonify({"status": "error", "message": str(e)}) if is_ajax else redirect(url_for("gestao_tribos"))
 
-            # Encontrar a pessoa a mover na tribo original
-            pessoa_movida = None
-            if original_tribo in tribos:
-                for p in tribos[original_tribo]:
-                    if p['nome'] == nome_pessoa:
-                        pessoa_movida = p
-                        tribos[original_tribo].remove(p)
-                        break
-
-            if not pessoa_movida:
-                return jsonify({'status': 'error', 'message': 'Pessoa não encontrada na tribo original'}), 400
-
-            # Adicionar a pessoa à nova tribo na ordem correta
-            if nova_tribo not in tribos:
-                tribos[nova_tribo] = []
+        elif acao == "remover_pessoa":
+            membro_id = request.form.get("membro_id")
+            membro = Membro.query.get(membro_id)
             
-            nova_lista_ordenada = []
-            for nome in ordem:
-                if nome == nome_pessoa:
-                    nova_lista_ordenada.append(pessoa_movida)
+            if membro:
+                nome_membro = membro.nome
+                tribo_nome = membro.tribo.nome
+                
+                # Remove Progresso associado se existir
+                Progresso.query.filter_by(membro_id=membro.id).delete()
+                
+                db.session.delete(membro)
+                try:
+                    db.session.commit()
+                    flash(f"Pessoa '{nome_membro}' removida da tribo '{tribo_nome}'.", 'success')
+                    return jsonify({"status": "ok", "nome_pessoa": nome_membro}) if is_ajax else redirect(url_for("gestao_tribos"))
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f"Erro ao remover pessoa: {e}", 'danger')
+                    return jsonify({"status": "error", "message": str(e)}) if is_ajax else redirect(url_for("gestao_tribos"))
+            else:
+                flash("Pessoa não encontrada.", 'warning')
+                return jsonify({"status": "error", "message": "Pessoa não encontrada"}) if is_ajax else redirect(url_for("gestao_tribos"))
+        
+        elif acao == "adicionar_cargo":
+            membro_id = request.form.get("membro_id")
+            cargo_nome = request.form.get("cargo")
+            
+            membro = Membro.query.get(membro_id)
+            cargo = Cargo.query.filter_by(nome=cargo_nome).first()
+
+            if membro and cargo:
+                if cargo in membro.cargos:
+                    membro.cargos.remove(cargo)
+                    status = "removido"
                 else:
-                    # Encontrar a pessoa existente na tribo de destino
-                    for p_existente in tribos[nova_tribo]:
-                        if p_existente['nome'] == nome:
-                            nova_lista_ordenada.append(p_existente)
-                            break
-                            
-            # Remover duplicados e garantir que a pessoa movida é incluída
-            nomes_na_lista = {p['nome'] for p in nova_lista_ordenada}
-            if nome_pessoa not in nomes_na_lista:
-                nova_lista_ordenada.append(pessoa_movida)
-            
-            tribos[nova_tribo] = nova_lista_ordenada
-            
-            guardar_tribos(tribos)
-            return jsonify({'status': 'ok'})
+                    membro.cargos.append(cargo)
+                    status = "adicionado"
+                
+                # Reordenar cargos para manter a ordem predefinida
+                membro.cargos.sort(key=lambda c: cargo_ordem.get(c.nome, float('inf')))
 
-    return render_template("gestao_tribos.html", tribos=tribos, cargos_disponiveis=cargos_disponiveis)
+                try:
+                    db.session.commit()
+                    flash(f"Cargo '{cargo_nome}' {status} para {membro.nome}.", 'success')
+                    return jsonify({"status": "ok", "pessoa": membro.to_dict(), "cargos_disponiveis": cargos_disponiveis}) if is_ajax else redirect(url_for("gestao_tribos"))
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f"Erro ao atualizar cargo: {e}", 'danger')
+                    return jsonify({"status": "error", "message": str(e)}) if is_ajax else redirect(url_for("gestao_tribos"))
+            else:
+                flash("Membro ou cargo não encontrado.", 'warning')
+                return jsonify({"status": "error", "message": "Dados inválidos"}) if is_ajax else redirect(url_for("gestao_tribos"))
+                
+        # O drag and drop é tratado pela rota /reordenar_pessoas
+        elif acao == 'ordenar':
+            # Se a requisição for AJAX, retorna um erro ou um ok
+            if is_ajax:
+                 return jsonify({'status': 'ok'}) # Rota /reordenar_pessoas faz o trabalho pesado
+            return redirect(url_for("gestao_tribos")) 
+            
+
+    return render_template("gestao_tribos.html", tribos=tribos_db, cargos_disponiveis=cargos_disponiveis)
+
 
 @app.route("/reordenar_pessoas", methods=["POST"])
 def reordenar_pessoas():
-    """Rota para reordenar membros de uma tribo."""
+    """Rota para reordenar/mover membros entre tribos (Drag and Drop)."""
     data = request.get_json()
-    tribo = data.get("tribo")
-    nova_ordem_nomes = data.get("nova_ordem")
+    nova_tribo_nome = data.get("nova_tribo")
+    nova_ordem_ids = data.get("nova_ordem_ids") # Espera uma lista de IDs de membro
 
-    tribos = carregar_tribos()
-    if tribo in tribos and isinstance(nova_ordem_nomes, list):
-        pessoas_originais = tribos[tribo]
-        pessoas_mapa = {p["nome"]: p for p in pessoas_originais}
+    if not nova_tribo_nome or not isinstance(nova_ordem_ids, list):
+        return jsonify({"status": "erro", "message": "Dados em falta ou inválidos"}), 400
+
+    tribo_destino = Tribo.query.filter_by(nome=nova_tribo_nome).first()
+    if not tribo_destino:
+        return jsonify({"status": "erro", "message": "Tribo de destino não encontrada"}), 404
+
+    try:
+        # 1. Atualizar o tribo_id e a ordem para todos os membros na nova ordem
+        for index, membro_id_str in enumerate(nova_ordem_ids):
+            try:
+                membro_id = int(membro_id_str)
+            except ValueError:
+                continue
+
+            membro = Membro.query.get(membro_id)
+            if membro:
+                # Altera a tribo e atualiza a ordem
+                membro.tribo_id = tribo_destino.id
+                membro.ordem = index + 1 
         
-        nova_lista_pessoas = []
-        for nome in nova_ordem_nomes:
-            if nome in pessoas_mapa:
-                nova_lista_pessoas.append(pessoas_mapa[nome])
-        
-        tribos[tribo] = nova_lista_pessoas
-        guardar_tribos(tribos)
-        return jsonify({"status": "ok"})
-    return jsonify({"status": "erro"}), 400
+        db.session.commit()
+        return jsonify({"status": "ok", "message": f"Membros atualizados na tribo '{nova_tribo_nome}'"})
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao reordenar pessoas: {e}")
+        return jsonify({"status": "erro", "message": f"Erro ao atualizar base de dados: {str(e)}"}), 500
 
 @app.route("/atividade/<ficheiro>")
 def ver_atividade(ficheiro):
-    """Exibe os detalhes de uma atividade registada."""
+    """Exibe os detalhes de uma atividade registada (ainda usa o ficheiro CSV)."""
     cargos_disponiveis = carregar_cargos()
     caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
     dados = defaultdict(list)
@@ -650,116 +718,136 @@ def ver_atividade(ficheiro):
     )
 
 
+
 @app.route("/tesouraria", methods=["GET", "POST"])
 def tesouraria():
     """Página de gestão da tesouraria do clã e das tribos."""
-    tribos_disponiveis = list(carregar_tribos().keys())
     username = session.get('username')
     
-    # Se o utilizador for "Peter Benenson", ajusta as tribos acessíveis
-    if username == "Peter Benenson":
-        tribo_peter = "Peter Benenson"
-        if tribo_peter in tribos_disponiveis:
-            tribos_disponiveis = [tribo_peter]
-            #flash('Olá, Peter! Tem acesso restrito à tesouraria da sua tribo.', 'info')
-        else:
-            tribos_disponiveis = []  # Se a tribo não existir, ele não vê nada
-            #flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
+    # 1. Determina todas as tribos disponíveis na base de dados
+    todas_tribos = list(carregar_tribos().keys())
     
+    # 2. Determina as entidades (Clan + Tribos) que o utilizador tem permissão para ver/editar
+    entidades_permitidas = ["Clan"] # Todos, mesmo sem permissão explícita, veem o Clan
+    
+    # Regras de permissão
+    if username in ["Chefe", "Clan"]:
+        # "Chefe" e "Clan" (Assumindo Tesoureiro Global) têm acesso total a todas as tribos
+        entidades_permitidas.extend(todas_tribos)
+
+    elif username == "Peter Benenson":
+        # Tesoureiro da Tribo Peter Benenson (vê Clan + a sua tribo)
+        if "Peter Benenson" in todas_tribos:
+            entidades_permitidas.append("Peter Benenson")
+            # flash('Olá, Peter! Tem acesso restrito à tesouraria da sua tribo.', 'info')
+        
     elif username == "Henri Dunant":
-        tribo_henri = "Henri Dunant"
-        if tribo_henri in tribos_disponiveis:
-            tribos_disponiveis = [tribo_henri]
-            #flash('Olá, Henri! Tem acesso restrito à tesouraria da sua tribo.', 'info')
-        else:
-            tribos_disponiveis = []  # Se a tribo não existir, ele não vê nada
-            #flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
+        # Tesoureiro da Tribo Henri Dunant (vê Clan + a sua tribo)
+        if "Henri Dunant" in todas_tribos:
+            entidades_permitidas.append("Henri Dunant")
+            # flash('Olá, Henri! Tem acesso restrito à tesouraria da sua tribo.', 'info')
 
     elif username == "Rainha D. Leonor":
-        tribo_rainha = "Rainha D. Leonor"
-        if tribo_rainha in tribos_disponiveis:
-            tribos_disponiveis = [tribo_rainha]
-            #flash('Olá, Rainha D. Leonor! Tem acesso restrito à tesouraria da sua tribo.', 'info')
-        else:
-            tribos_disponiveis = []  # Se a tribo não existir, ele não vê nada
-            #flash('A sua tribo de tesouraria não foi encontrada. Contacte um administrador.', 'danger')
+        # Tesoureiro da Tribo Rainha D. Leonor (vê Clan + a sua tribo)
+        if "Rainha D. Leonor" in todas_tribos:
+            entidades_permitidas.append("Rainha D. Leonor")
+            # flash('Olá, Rainha D. Leonor! Tem acesso restrito à tesouraria da sua tribo.', 'info')
 
-    elif username == "Clan":
-        tribos_disponiveis = []  # Remove todas as tribos, deixando apenas o Clan
-        #flash('Olá, Clan! Tem acesso restrito à tesouraria do Clan.', 'info')
+    # Lista de tribos (apenas tribos, sem "Clan") para ser passada ao template
+    tribos_disponiveis_template = [e for e in entidades_permitidas if e != "Clan"]
 
-    entidade_ativa = "Clan"
+    # --- Tratamento de Pedidos POST (Adicionar/Remover) ---
     if request.method == "POST":
         acao = request.form.get('acao')
         entidade = request.form.get('entidade')
         
-        # Garante que 'Peter' só pode editar a sua própria tribo
-        if username == "Peter" and entidade != "Peter Benenson":
-            #flash("Não tem permissão para alterar esta folha de caixa.", "danger")
+        # VERIFICAÇÃO DE SEGURANÇA: Garante que o utilizador tem permissão para modificar esta entidade
+        if entidade not in entidades_permitidas:
+            # flash("Não tem permissão para alterar esta folha de caixa.", "danger")
             return redirect(url_for('tesouraria'))
             
-        folha_caixa = carregar_folha_caixa(entidade)
-        
-        if acao == 'adicionar':
-            nova_transacao = {
-                'data': request.form.get('data'),
-                'descricao': request.form.get('descricao'),
-                'tipo': request.form.get('tipo'),
-                'valor': float(request.form.get('valor')),
-                'comprovativo': None
-            }
+        try:
+            folha_caixa = carregar_folha_caixa(entidade)
             
-            if 'comprovativo' in request.files:
-                file = request.files['comprovativo']
-                if file.filename != '':
-                    filename = secure_filename(file.filename)
-                    caminho_ficheiro = os.path.join(DIRETORIO_UPLOADS, filename)
-                    file.save(caminho_ficheiro)
-                    nova_transacao['comprovativo'] = filename
-            
-            folha_caixa.append(nova_transacao)
-        
-        elif acao == 'remover':
-            index = int(request.form.get('index'))
-            if 0 <= index < len(folha_caixa):
-                transacao_a_remover = folha_caixa[index]
-                if 'comprovativo' in transacao_a_remover and transacao_a_remover['comprovativo']:
-                    caminho_ficheiro = os.path.join(DIRETORIO_UPLOADS, transacao_a_remover['comprovativo'])
-                    try:
-                        os.remove(caminho_ficheiro)
-                    except OSError as e:
-                        print(f"Erro ao tentar remover o ficheiro: {e}")
+            if acao == 'adicionar':
+                valor_str = request.form.get('valor')
+                # Converte para float com fallback seguro
+                valor = float(valor_str) if valor_str else 0.0 
                 
-                folha_caixa.pop(index)
-        
-        guardar_folha_caixa(entidade, folha_caixa)
-        
+                nova_transacao = {
+                    'data': request.form.get('data'),
+                    'descricao': request.form.get('descricao'),
+                    'tipo': request.form.get('tipo'),
+                    'valor': valor,
+                    'comprovativo': None
+                }
+                
+                if 'comprovativo' in request.files:
+                    file = request.files['comprovativo']
+                    if file.filename != '':
+                        filename = secure_filename(file.filename)
+                        caminho_ficheiro = os.path.join(DIRETORIO_UPLOADS, filename)
+                        file.save(caminho_ficheiro)
+                        nova_transacao['comprovativo'] = filename
+                
+                folha_caixa.append(nova_transacao)
+                # flash(f"Transação adicionada à folha de caixa de {entidade}.", "success")
+            
+            elif acao == 'remover':
+                index_str = request.form.get('index')
+                index = int(index_str) if index_str else -1
+                
+                if 0 <= index < len(folha_caixa):
+                    transacao_a_remover = folha_caixa[index]
+                    
+                    # Remove o ficheiro comprovativo associado, se existir
+                    if 'comprovativo' in transacao_a_remover and transacao_a_remover['comprovativo']:
+                        caminho_ficheiro = os.path.join(DIRETORIO_UPLOADS, transacao_a_remover['comprovativo'])
+                        try:
+                            os.remove(caminho_ficheiro)
+                        except OSError as e:
+                            print(f"Erro ao tentar remover o ficheiro {caminho_ficheiro}: {e}")
+                    
+                    folha_caixa.pop(index)
+                    # flash(f"Transação removida da folha de caixa de {entidade}.", "success")
+            
+            guardar_folha_caixa(entidade, folha_caixa)
+            
+        except ValueError:
+            # flash("O valor da transação não é um número válido.", "danger")
+            return redirect(url_for('tesouraria', entidade_ativa=entidade))
+        except Exception as e:
+            print(f"Erro ao processar a ação: {e}")
+            # flash(f"Ocorreu um erro ao processar a transação: {e}", "danger")
+
         return redirect(url_for('tesouraria', entidade_ativa=entidade))
 
-    # Garante que só carrega os dados das entidades permitidas
-    folhas_caixa = {
-        "Clan": sorted(carregar_folha_caixa("Clan"), key=lambda x: x['data'], reverse=True),
-    }
+    # --- Tratamento de Pedidos GET (Carregar Dados) ---
+    
+    # Carrega os dados APENAS para as entidades que o utilizador pode ver
+    folhas_caixa = {}
+    for entidade in entidades_permitidas:
+        # Carrega e ordena as transações pela data (mais recente primeiro)
+        folhas_caixa[entidade] = sorted(carregar_folha_caixa(entidade), 
+                                        key=lambda x: x.get('data', '0000-00-00'), 
+                                        reverse=True)
+                                        
+    # Determina a entidade ativa a ser mostrada (da query string ou default)
+    entidade_ativa_param = request.args.get('entidade_ativa')
+    if entidade_ativa_param and entidade_ativa_param in entidades_permitidas:
+        entidade_ativa = entidade_ativa_param
+    elif "Clan" in entidades_permitidas:
+        entidade_ativa = "Clan"
+    elif tribos_disponiveis_template:
+        entidade_ativa = tribos_disponiveis_template[0]
+    else:
+        entidade_ativa = "Clan" # Default se não houver permissão para nada
 
-    # Se o utilizador é "Clan", o código abaixo é executado, caso contrário, o código abaixo não é executado e o tribos_disponiveis está vazio
-    if username == "Peter Benenson":
-        tribos_disponiveis = ["Peter Benenson"]
-    elif username == "Henri Dunant":
-        tribos_disponiveis = ["Henri Dunant"]
-    elif username == "Rainha D. Leonor":
-        tribos_disponiveis = ["Rainha D. Leonor"]
-    elif username == "Clan":
-        tribos_disponiveis = list(carregar_tribos().keys())
 
-    for tribo in tribos_disponiveis:
-        folhas_caixa[tribo] = sorted(carregar_folha_caixa(tribo), key=lambda x: x['data'], reverse=True)
-
-    entidade_ativa = request.args.get('entidade_ativa') or "Clan"
-        
     return render_template("tesouraria.html", 
-                        tribos=tribos_disponiveis, 
-                        folhas_caixa=folhas_caixa,
-                        entidade_ativa=entidade_ativa)
+                           tribos=tribos_disponiveis_template, # Lista de tribos para os tabs/dropdown
+                           folhas_caixa=folhas_caixa,          # Dados de todas as entidades permitidas
+                           entidade_ativa=entidade_ativa)
 
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
@@ -816,16 +904,18 @@ def assiduidade():
             if data_inicio <= data_atividade <= data_fim:
                 atividades_do_ano += 1
                 caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
+                # Adicionado encoding para lidar com ficheiros CSV gerados por Excel
                 with open(caminho, newline="", encoding="utf-8-sig") as f:
                     reader = csv.DictReader(f)
                     for row in reader:
-                        tribo = row['Tribo']
-                        elemento = row['Elemento']
-                        presente = row['Presente']
+                        tribo = row.get('Tribo')
+                        elemento = row.get('Elemento')
+                        presente = row.get('Presente')
                         
-                        assiduidade_por_tribo[tribo][elemento]['total'] += 1
-                        if presente == "Sim":
-                            assiduidade_por_tribo[tribo][elemento]['presente'] += 1
+                        if tribo and elemento: # Garante que as chaves existem
+                            assiduidade_por_tribo[tribo][elemento]['total'] += 1
+                            if presente == "Sim":
+                                assiduidade_por_tribo[tribo][elemento]['presente'] += 1
         except Exception as e:
             print(f"Erro ao processar o ficheiro {ficheiro}: {e}")
 
@@ -899,13 +989,14 @@ def login():
         password = request.form.get("password")
 
         # Permite o login do 'Chefe' e 'Clan'
-        if username in ['Chefe', 'Clan']:
+        if username in ['Chefe', 'Clan', 'Peter Benenson', 'Henri Dunant', 'Rainha D. Leonor']:
             utilizadores = carregar_utilizadores()
             stored_password_hash = utilizadores.get(username)
             
+            # Nota: O uso de MockBcrypt simula a verificação real da password.
             if stored_password_hash and bcrypt.check_password_hash(stored_password_hash, password):
                 session['username'] = username
-                #flash('Login bem-sucedido!', 'success')
+                # flash('Login bem-sucedido!', 'success')
                 return redirect(url_for('index'))
             else:
                 flash('Nome de utilizador ou palavra-passe inválidos.', 'danger')
@@ -919,12 +1010,13 @@ def login():
 @app.route("/logout")
 def logout():
     session.clear()
-    #flash('Sessão terminada com sucesso.', 'info')
+    # flash('Sessão terminada com sucesso.', 'info')
     return redirect(url_for('index'))
 
 @app.route("/mudar_password", methods=["GET", "POST"])
 def mudar_password():
-    if session.get('username') not in ['Chefe', 'Clan']:
+    # Permite que todos os utilizadores com acesso façam a alteração.
+    if session.get('username') not in carregar_utilizadores().keys():
         flash("Não tem permissão para aceder a esta página.", "info")
         return redirect(url_for('login'))
 
@@ -973,7 +1065,7 @@ def admin_register():
         password = request.form.get("password")
         confirm_password = request.form.get("confirm_password")
         
-        if not username or not password or not confirm_password:
+        if not all([username, password, confirm_password]):
             flash('Por favor, preencha todos os campos.', 'danger')
             return render_template("admin_register.html")
         
@@ -998,6 +1090,8 @@ def admin_register():
 def material():
     """Página para gerir o material da farmácia."""
     material_itens = carregar_material()
+    # Assume que todos os utilizadores autenticados podem aceder a esta rota, 
+    # mas a edição deve ser restrita se necessário.
     tribos_disponiveis = list(carregar_tribos().keys())
 
     if request.method == "POST":
@@ -1011,13 +1105,13 @@ def material():
             observacoes = request.form.get("observacoes", "")
 
             if not all([nome_item, quantidade_str, tribo_clan]):
-                #flash("Por favor, preencha todos os campos obrigatórios.", "danger")
+                # flash("Por favor, preencha todos os campos obrigatórios.", "danger")
                 return redirect(url_for('material'))
             
             try:
                 quantidade = int(quantidade_str)
             except (ValueError, TypeError):
-                #flash("A quantidade deve ser um número válido.", "danger")
+                # flash("A quantidade deve ser um número válido.", "danger")
                 return redirect(url_for('material'))
             
             localizacao_normalizada = localizacao.strip().lower()
@@ -1043,7 +1137,7 @@ def material():
                 material_itens.append(novo_item)
 
             guardar_material(material_itens)
-            #flash("Item adicionado com sucesso.", "success")
+            # flash("Item adicionado com sucesso.", "success")
 
             return redirect(url_for('material',
                                     filtro_nome=request.args.get('filtro_nome', ''),
@@ -1055,6 +1149,7 @@ def material():
             nome_item = request.form.get("nome_item")
             tribo_clan = request.form.get("tribo_clan")
 
+            # Cria uma nova lista excluindo o item a remover
             material_itens = [
                 item for item in material_itens
                 if not (item['nome'] == nome_item and item['tribo_clan'] == tribo_clan)
@@ -1123,6 +1218,9 @@ def farmacia():
                 pessoas_disponiveis.append(pessoa["nome"])
             else:
                 pessoas_disponiveis.append(pessoa)
+    
+    # Remove duplicados e ordena
+    pessoas_disponiveis = sorted(list(set(pessoas_disponiveis)))
 
     if request.method == "POST":
         acao = request.form.get("acao")
@@ -1136,13 +1234,16 @@ def farmacia():
             observacoes = request.form.get("observacoes", "")
 
             if not all([nome_item, quantidade_str, tribo_clan]):
-                #flash("Por favor, preencha todos os campos obrigatórios.", "danger")
+                flash("Por favor, preencha todos os campos obrigatórios.", "danger")
                 return redirect(url_for('farmacia'))
 
             try:
                 quantidade = int(quantidade_str)
+                if quantidade <= 0:
+                    flash("A quantidade deve ser um número positivo.", "danger")
+                    return redirect(url_for('farmacia'))
             except (ValueError, TypeError):
-                #flash("A quantidade deve ser um número válido.", "danger")
+                flash("A quantidade deve ser um número válido.", "danger")
                 return redirect(url_for('farmacia'))
 
             localizacao_normalizada = localizacao.strip().lower() if localizacao else ""
@@ -1158,50 +1259,70 @@ def farmacia():
 
             if item_existente:
                 item_existente['quantidade'] += quantidade
+                flash(f"Quantidade de '{nome_item}' atualizada.", "success")
             else:
                 novo_item = {
-                    "nome": nome_item,
+                    "nome": nome_item.strip(),
                     "quantidade": quantidade,
-                    "localizacao": localizacao,
+                    "localizacao": localizacao.strip(),
                     "tribo_clan": tribo_clan,
-                    "observacoes": observacoes
+                    "observacoes": observacoes.strip()
                 }
                 farmacia_itens.append(novo_item)
+                flash(f"Novo item '{nome_item}' adicionado.", "success")
 
             guardar_farmacia(farmacia_itens)
-            #flash("Item adicionado com sucesso.", "success")
             return redirect(url_for('farmacia'))
 
         # ---------- REMOVER ITEM ----------
         elif acao == "remover_item":
+            # Esta lógica assume que a remoção é feita por JS/AJAX, usando jsonify.
             nome_item = request.form.get("nome_item")
             tribo_clan = request.form.get("tribo_clan")
-            farmacia_itens = [item for item in farmacia_itens if not (item['nome'] == nome_item and item['tribo_clan'] == tribo_clan)]
+
+            # Removido item com base no nome e tribo
+            # O nome do item no formulário POST deve ser o nome EXATO do item no inventário
+            farmacia_itens_antes = len(farmacia_itens)
+            
+            # Novo filtro para remover itens, normalizando o nome para garantir correspondência robusta
+            farmacia_itens = [
+                item for item in farmacia_itens 
+                if not (item['nome'].strip().lower() == nome_item.strip().lower() and item['tribo_clan'] == tribo_clan)
+            ]
+
             guardar_farmacia(farmacia_itens)
-            return jsonify({'status': 'success', 'message': 'Item removido com sucesso!'})
+            
+            if len(farmacia_itens) < farmacia_itens_antes:
+                return jsonify({'status': 'success', 'message': f'Item "{nome_item}" removido com sucesso!'})
+            else:
+                return jsonify({'status': 'error', 'message': f'Item "{nome_item}" não encontrado ou dados insuficientes.'}), 400
+
 
         # ---------- GUARDAR INFORMAÇÕES DE SAÚDE ----------
         elif acao == "guardar_saude":
+            # Itera sobre todas as pessoas disponíveis para verificar os formulários
             for pessoa in pessoas_disponiveis:
                 alergia_raw = request.form.get(f"alergia-{pessoa}", "").strip()
                 condicao_raw = request.form.get(f"condicao-{pessoa}", "").strip()
-
+                
+                # Se for fornecido, guarda as alergias, separando por vírgula se houver várias linhas
                 if alergia_raw:
-                    alergias[pessoa] = ",".join([linha.strip() for linha in alergia_raw.splitlines() if linha.strip()])
+                    alergias[pessoa] = ", ".join([linha.strip() for linha in alergia_raw.splitlines() if linha.strip()])
                 else:
-                    alergias.pop(pessoa, None)
+                    alergias.pop(pessoa, None) # Remove se estiver vazio
 
+                # Se for fornecido, guarda as condições
                 if condicao_raw:
-                    condicoes[pessoa] = ",".join([linha.strip() for linha in condicao_raw.splitlines() if linha.strip()])
+                    condicoes[pessoa] = ", ".join([linha.strip() for linha in condicao_raw.splitlines() if linha.strip()])
                 else:
-                    condicoes.pop(pessoa, None)
+                    condicoes.pop(pessoa, None) # Remove se estiver vazio
 
             guardar_alergias(alergias)
             guardar_condicoes(condicoes)
-            #flash("Informações de saúde atualizadas com sucesso.", "success")
+            flash("Informações de saúde atualizadas com sucesso.", "success")
             return redirect(url_for("farmacia"))
 
-    # ---------- FILTROS ----------
+    # ---------- FILTROS (LÓGICA GET) ----------
     filtro_nome = request.args.get('filtro_nome', '').strip().lower()
     filtro_quantidade_str = request.args.get('filtro_quantidade', '').strip()
     filtro_localizacao = request.args.get('filtro_localizacao', '').strip().lower()
@@ -1212,16 +1333,22 @@ def farmacia():
     opcoes_localizacao = sorted(list(set(item['localizacao'] for item in farmacia_itens)))
 
     farmacia_filtrado = farmacia_itens
+    
     if filtro_nome:
         farmacia_filtrado = [item for item in farmacia_filtrado if filtro_nome in item['nome'].lower()]
+        
     if filtro_quantidade_str:
         try:
             filtro_quantidade = int(filtro_quantidade_str)
             farmacia_filtrado = [item for item in farmacia_filtrado if item['quantidade'] == filtro_quantidade]
         except (ValueError, TypeError):
-            pass
+            # Se o filtro não for um número válido, ignora o filtro de quantidade
+            pass 
+            
     if filtro_localizacao:
-        farmacia_filtrado = [item for item in farmacia_filtrado if filtro_localizacao in item['localizacao'].lower()]
+        # Usa .get('localizacao', '').lower() para lidar com itens que possam não ter o campo
+        farmacia_filtrado = [item for item in farmacia_filtrado if filtro_localizacao in item.get('localizacao', '').lower()]
+        
     if filtro_tribo_clan:
         farmacia_filtrado = [item for item in farmacia_filtrado if item['tribo_clan'] == filtro_tribo_clan]
 
@@ -1240,10 +1367,9 @@ def farmacia():
         opcoes_quantidade=opcoes_quantidade,
         opcoes_localizacao=opcoes_localizacao,
         alergias=alergias,
-        condicoes=condicoes
+        condicoes=condicoes,
+        messages=session.pop('messages', []) # Passa mensagens flash para o template
     )
-
-
 
 
 @app.route("/cozinha", methods=["GET", "POST"])
@@ -1252,7 +1378,7 @@ def cozinha():
     
     inventario = carregar_inventario_cozinha()
     receitas = carregar_receitas()
-    tribos_disponiveis = list(carregar_tribos().keys()) if 'carregar_tribos' in globals() else []
+    tribos_disponiveis = list(carregar_tribos().keys()) 
 
     opcoes_unidade = ["unidades", "kg", "g", "l", "ml", "pacote", "rolo", "a gosto"]
     opcoes_categoria = ["Cereais", "Laticínios", "Carne", "Peixe", "Frutas", "Vegetais", "Especiarias", "Bebidas", "Outros"]
@@ -1264,11 +1390,11 @@ def cozinha():
         # --- ARQUIVAR NOVA RECEITA ---
         if acao == "adicionar_receita":
             nome_receita = request.form.get("nome_receita")
-            ingredientes_raw = request.form.get("ingredientes_raw")
-            instrucoes = request.form.get("instrucoes")
-            tempo_preparacao = request.form.get("tempo_preparacao")
-            dificuldade = request.form.get("dificuldade")
-            porcoes_base = request.form.get("porcoes_base")
+            ingredientes_raw = request.form.get("ingredientes_raw", "")
+            instrucoes = request.form.get("instrucoes", "")
+            tempo_preparacao = request.form.get("tempo_preparacao", "")
+            dificuldade = request.form.get("dificuldade", "")
+            porcoes_base = request.form.get("porcoes_base", "")
             
             # Validação básica
             if not nome_receita:
@@ -1277,16 +1403,15 @@ def cozinha():
 
             link_ficheiro = None
             
-            # Lógica para ficheiro/comprovativo de receita (assume 'os.path', 'DIRETORIO_RECEITAS', 'secure_filename' e 'url_for')
+            # Lógica para ficheiro/comprovativo de receita
             if 'comprovativo_receita' in request.files:
                 file = request.files['comprovativo_receita']
                 if file.filename != '':
-                    if not os.path.exists(DIRETORIO_RECEITAS):
-                        os.makedirs(DIRETORIO_RECEITAS)
-                        
+                    # A pasta já foi criada na inicialização da app
                     filename = secure_filename(file.filename)
                     filepath = os.path.join(DIRETORIO_RECEITAS, filename)
                     file.save(filepath)
+                    # A rota 'serve_receita' deve ser usada para servir este arquivo
                     link_ficheiro = url_for('serve_receita', filename=filename)
 
             # Se houver ficheiro, a receita é baseada em ficheiro
@@ -1311,10 +1436,10 @@ def cozinha():
                 nova_receita = {
                     "nome": nome_receita.strip(),
                     "ingredientes": ingredientes_processados,
-                    "instrucoes": instrucoes,
-                    "tempo_preparacao": tempo_preparacao,
-                    "dificuldade": dificuldade,
-                    "porcoes_base": porcoes_base
+                    "instrucoes": instrucoes.strip(),
+                    "tempo_preparacao": tempo_preparacao.strip(),
+                    "dificuldade": dificuldade.strip(),
+                    "porcoes_base": porcoes_base.strip()
                 }
             
             # Adicionar e guardar
@@ -1326,12 +1451,59 @@ def cozinha():
             
         # --- GESTÃO DE STOCK: ADICIONAR/ATUALIZAR ---
         if acao == "adicionar_item_cozinha":
+            # O código original desta secção estava incompleto. 
+            # Assumimos que o formulário POST de adição de item de cozinha
+            # traz nome, quantidade, unidade, categoria, etc., e atualiza o inventário.
+            
+            # Lógica de exemplo para ADICIONAR/ATUALIZAR um item do inventário
+            nome_item = request.form.get("nome_item_estoque", "").strip()
+            quantidade_str = request.form.get("quantidade_estoque", "").strip()
+            unidade = request.form.get("unidade_estoque", "").strip()
+            categoria = request.form.get("categoria_estoque", "").strip()
+            
+            if not all([nome_item, quantidade_str, unidade, categoria]):
+                flash("Preencha todos os campos do item de estoque.", "danger")
+                return redirect(url_for('cozinha'))
+
+            try:
+                quantidade = float(quantidade_str)
+            except ValueError:
+                flash("Quantidade do item de estoque deve ser um número.", "danger")
+                return redirect(url_for('cozinha'))
+
+            # Normalizar chaves para pesquisa
+            nome_normalizado = nome_item.lower()
+            unidade_normalizada = unidade.lower()
+
+            item_existente = next((
+                item for item in inventario 
+                if item['nome'].lower() == nome_normalizado and item['unidade'].lower() == unidade_normalizada
+            ), None)
+
+            if item_existente:
+                # Se for o mesmo item (nome+unidade), apenas atualiza
+                item_existente['quantidade'] = quantidade
+                item_existente['categoria'] = categoria # Atualiza a categoria
+                flash(f"Estoque de '{nome_item}' atualizado.", "success")
+            else:
+                # Adiciona novo item
+                novo_item = {
+                    "nome": nome_item, 
+                    "quantidade": quantidade, 
+                    "unidade": unidade, 
+                    "categoria": categoria,
+                    "comprovativo": None # Campo comprovativo
+                }
+                inventario.append(novo_item)
+                flash(f"Novo item '{nome_item}' adicionado ao estoque.", "success")
+            
             guardar_inventario_cozinha(inventario)
             return redirect(url_for('cozinha'))
 
         # Se a ação não for reconhecida, redireciona sem erro grave.
         return redirect(url_for('cozinha'))
 
+    # ---------- FILTROS (LÓGICA GET) ----------
     filtro_categoria = request.args.get('categoria', 'Todos') 
     
     inventario_ordenado = sorted(inventario, key=lambda x: x['nome'])
@@ -1343,16 +1515,20 @@ def cozinha():
         # Filtra pelo nome da categoria que é passado no URL
         inventario_filtrado = [item for item in inventario_ordenado if item.get('categoria') == filtro_categoria]
 
+    # Ordena receitas por nome
     receitas_ordenadas = sorted(receitas, key=lambda x: x['nome'])
     
     return render_template("cozinha.html",
-                           inventario=inventario_filtrado, # Enviar a lista FILTRADA
-                           receitas=receitas_ordenadas,
-                           opcoes_unidade=opcoes_unidade,
-                           opcoes_categoria=opcoes_categoria,
-                           opcoes_dificuldade=opcoes_dificuldade,
-                           tribos_disponiveis=tribos_disponiveis,
-                           filtro_categoria_atual=filtro_categoria) # Enviar o filtro atual
+                            inventario=inventario_filtrado, # Enviar a lista FILTRADA
+                            receitas=receitas_ordenadas,
+                            opcoes_unidade=opcoes_unidade,
+                            opcoes_categoria=opcoes_categoria,
+                            opcoes_dificuldade=opcoes_dificuldade,
+                            tribos_disponiveis=tribos_disponiveis,
+                            filtro_categoria_atual=filtro_categoria, # Enviar o filtro atual
+                            messages=session.pop('messages', []))
+
+# --- ROTAS DE SERVIÇO DE ARQUIVOS (UPLOADS) ---
 
 @app.route('/uploads/cozinha/<path:filename>')
 def serve_upload_cozinha(filename):
@@ -1363,21 +1539,26 @@ def serve_upload_cozinha(filename):
 
 @app.route('/receitas/<path:filename>')
 def serve_receita(filename):
+    """Serve os ficheiros de receitas."""
     return send_from_directory(DIRETORIO_RECEITAS, filename)
 
+# --- ROTAS DE DETALHE E ELIMINAÇÃO ---
 
 @app.route("/cozinha/receita/<string:nome_receita>", methods=["GET"])
 def ver_receita(nome_receita):
     """Exibe os detalhes de uma receita específica com a opção de alterar porções."""
     receitas = carregar_receitas()
     
+    # Busca a receita pelo nome exato. É melhor usar um ID único em um projeto real.
     receita = next((r for r in receitas if r['nome'] == nome_receita), None)
 
     if not receita:
         flash("Receita não encontrada.", "danger")
         return redirect(url_for('cozinha'))
         
-    return render_template("ver_receita.html", receita=receita)
+    return render_template("ver_receita.html", 
+                           receita=receita, 
+                           messages=session.pop('messages', []))
 
 
 @app.route("/eliminar_receita", methods=["POST"])
@@ -1392,7 +1573,9 @@ def eliminar_receita():
 
     receitas = carregar_receitas()
 
+    # 1. Lógica para remover o ficheiro, se existir
     if link_ficheiro:
+        # Usa os.path.basename para extrair o nome do arquivo da URL (ex: '/receitas/bolo.pdf' -> 'bolo.pdf')
         caminho_ficheiro = os.path.join(DIRETORIO_RECEITAS, os.path.basename(link_ficheiro))
         if os.path.exists(caminho_ficheiro):
             try:
@@ -1400,10 +1583,26 @@ def eliminar_receita():
             except OSError as e:
                 flash(f"Erro ao eliminar o ficheiro: {e}", "warning")
 
-    receitas = [r for r in receitas if not (r['nome'] == nome_receita and r.get('link_ficheiro', '') == (link_ficheiro if link_ficheiro else ''))]
+    # 2. Eliminar a receita do JSON
+    # Filtrar receitas: manter as que não correspondem ao nome E ao link_ficheiro (se fornecido)
+    receitas_antes = len(receitas)
+    
+    # Normaliza a comparação do link para evitar erros se o campo 'link_ficheiro' não existir no JSON
+    receitas = [
+        r for r in receitas 
+        if not (
+            r['nome'] == nome_receita and 
+            r.get('link_ficheiro', '') == (link_ficheiro if link_ficheiro else '')
+        )
+    ]
+    
     guardar_receitas(receitas)
+    
+    if len(receitas) < receitas_antes:
+        flash(f"Receita '{nome_receita}' eliminada com sucesso.", "success")
+    else:
+        flash(f"Erro: Receita '{nome_receita}' não encontrada para eliminação.", "danger")
 
-    flash(f"Receita '{nome_receita}' eliminada com sucesso.", "success")
     return redirect(url_for('cozinha'))
 
 @app.route("/eliminar_item_inventario", methods=["POST"])
@@ -1414,7 +1613,7 @@ def eliminar_item_inventario():
     nome_item_raw = request.form.get("nome_item", "").strip()
     unidade_item_raw = request.form.get("unidade_item", "").strip()
     
-    # Normalizar para comparação com o JSON (tal como na lógica de remoção em /cozinha)
+    # Normalizar para comparação com o JSON
     nome_item_normalizado = nome_item_raw.lower()
     unidade_item_normalizada = unidade_item_raw.lower()
 
@@ -1427,20 +1626,24 @@ def eliminar_item_inventario():
 
     # 2. Encontrar o item a remover
     item_a_remover = next((i for i in inventario 
-                             if i['nome'].strip().lower() == nome_item_normalizado and 
-                                i['unidade'].strip().lower() == unidade_item_normalizada), None)
+                            # Normaliza a comparação de nome e unidade
+                           if i.get('nome', '').strip().lower() == nome_item_normalizado and 
+                              i.get('unidade', '').strip().lower() == unidade_item_normalizada), None)
 
     if item_a_remover:
         item_removido = item_a_remover.get('nome') # Guarda o nome original para a mensagem Flash
-        caminho_comprovativo = item_a_remover.get('comprovativo')
+        caminho_comprovativo = item_a_remover.get('comprovativo') # 'comprovativo' deve ser a URL
 
         # 3. Lógica para remover o ficheiro do comprovativo, se existir
         if caminho_comprovativo:
             try:
                 filename = os.path.basename(caminho_comprovativo)
-                filepath = os.path.join(DIRETORIO_UPLOADS_COZINHA, filename)
+                # Assume que o caminho do arquivo é baseado no DIRETORIO_UPLOADS_COZINHA
+                filepath = os.path.join(DIRETORIO_UPLOADS_COZINHA, filename) 
+                
                 if os.path.exists(filepath):
                     os.remove(filepath)
+                # Se não existir, não é um erro grave, apenas uma limpeza falhada.
             except Exception as e:
                 # Não bloqueia a remoção do registo, mas alerta para o erro do ficheiro
                 print(f"Erro ao eliminar o comprovativo de stock ({caminho_comprovativo}): {e}")
@@ -1448,16 +1651,18 @@ def eliminar_item_inventario():
 
         # 4. Atualizar inventário (criando uma nova lista sem o item correspondente)
         inventario = [i for i in inventario 
-                      if not (i['nome'].strip().lower() == nome_item_normalizado and 
-                              i['unidade'].strip().lower() == unidade_item_normalizada)]
+                      if not (i.get('nome', '').strip().lower() == nome_item_normalizado and 
+                              i.get('unidade', '').strip().lower() == unidade_item_normalizada)]
+                              
         guardar_inventario_cozinha(inventario)
         
-        #flash(f"Item '{item_removido}' (Unidade: {unidade_item_raw}) eliminado com sucesso do inventário.", "success")
+        flash(f"Item '{item_removido}' (Unidade: {unidade_item_raw}) eliminado com sucesso do inventário.", "success")
     else:
         flash(f"Item '{nome_item_raw}' (Unidade: {unidade_item_raw}) não encontrado no inventário.", "danger")
 
     return redirect(url_for('cozinha'))
 
+# --- ROTAS DE PROGRESSO ---
 
 @app.route("/progresso")
 def progresso():
@@ -1469,7 +1674,7 @@ def progresso():
     print("Conteúdo de progresso_modelo.json carregado:", progresso_modelo)
 
     areas = []
-    trilhos = {}
+    trilhos = {} # {area: [trilho1, trilho2, ...]}
 
     if progresso_modelo:
         areas = list(progresso_modelo.keys())
@@ -1484,52 +1689,79 @@ def progresso():
 
     dados_para_tabela = {}
     for nome_pessoa in pessoas:
-        dados_pessoa = progresso_por_pessoa.get(nome_pessoa, progresso_modelo)
+        # Se a pessoa ainda não tiver dados de progresso, inicializa com o modelo.
+        # Usa deepcopy para garantir que alterações não afetem o modelo ou outras pessoas.
+        if nome_pessoa not in progresso_por_pessoa:
+            progresso_por_pessoa[nome_pessoa] = copy.deepcopy(progresso_modelo)
+            
+        dados_pessoa = progresso_por_pessoa[nome_pessoa]
+        
+        # Calcula o nível da pessoa
+        dados_pessoa_bool = calcular_progresso_bool_do_dicionario(dados_pessoa)
+        nivel_atual = calcular_nivel(dados_pessoa_bool, progresso_modelo)
+        
+        # Adiciona o nível calculado aos dados da pessoa para ser usado no template
+        dados_pessoa['nivel'] = nivel_atual
         dados_para_tabela[nome_pessoa] = dados_pessoa
+        
+    # Salva o progresso inicializado se for a primeira vez
+    guardar_progresso(progresso_por_pessoa)
     
     return render_template(
         "progresso.html",
         progresso=dados_para_tabela,
         areas=areas,
         trilhos=trilhos,
-        progresso_modelo=progresso_modelo
+        progresso_modelo=progresso_modelo,
+        messages=session.pop('messages', [])
     )
 
 @app.route("/atualizar_objetivo", methods=["POST"])
 def atualizar_objetivo():
-    # Adicionando a verificação de permissão
+    """Atualiza o estado de um objetivo de progresso (usado via AJAX)."""
+    
+    # Simulação de autenticação: Defina 'Chefe' na sessão para testar.
+    # Ex: session['username'] = 'Chefe'
     if session.get('username') != 'Chefe':
         return jsonify({"status": "error", "message": "Apenas o Chefe pode alterar o progresso."}), 403
 
     data = request.get_json()
-    nome = data["nome"]
-    area = data["area"]
-    trilho = data["trilho"]
-    objetivo = data["objetivo"]
-    novo_estado = data["estado"]  # Recebe o novo estado do front-end
+    nome = data.get("nome")
+    area = data.get("area")
+    trilho = data.get("trilho")
+    objetivo = data.get("objetivo")
+    novo_estado = data.get("estado") 
+
+    if not all([nome, area, trilho, objetivo, novo_estado]):
+        return jsonify({"status": "error", "message": "Dados incompletos."}), 400
 
     progresso_raw = carregar_progresso()
     progresso_modelo = carregar_progresso_modelo()
 
-    # Garante que cada pessoa tem a sua própria cópia do modelo
+    # Garante que a pessoa existe e tem a sua própria cópia do modelo
     if nome not in progresso_raw:
         progresso_raw[nome] = copy.deepcopy(progresso_modelo)
     
-    # Atualizar o estado do objetivo específico
-    progresso_raw[nome][area][trilho][objetivo] = novo_estado
+    try:
+        # Atualizar o estado do objetivo específico
+        progresso_raw[nome][area][trilho][objetivo] = novo_estado
 
-    # Guardar alteração
-    guardar_progresso(progresso_raw)
+        # Guardar alteração
+        guardar_progresso(progresso_raw)
 
-    # Calcular o nível atualizado
-    dados_pessoa_bool = calcular_progresso_bool_do_dicionario(progresso_raw[nome])
-    nivel = calcular_nivel(dados_pessoa_bool, progresso_modelo)
+        # Calcular o nível atualizado
+        dados_pessoa_bool = calcular_progresso_bool_do_dicionario(progresso_raw[nome])
+        nivel = calcular_nivel(dados_pessoa_bool, progresso_modelo)
 
-    return jsonify({
-        "status": "ok",
-        "novo_estado": novo_estado,
-        "nivel": nivel
-    })
+        return jsonify({
+            "status": "ok",
+            "novo_estado": novo_estado,
+            "nivel": nivel
+        })
+    except KeyError:
+        return jsonify({"status": "error", "message": "Estrutura de progresso inválida (Area, Trilho ou Objetivo não encontrado)."}), 400
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Erro interno: {e}"}), 500
 
 
 @app.route("/secretaria", methods=["GET", "POST"])
@@ -1620,7 +1852,7 @@ def secretaria():
                 'data': data_doc
             })
         except (ValueError, IndexError):
-             # Lida com ficheiros que não seguem o padrão
+              # Lida com ficheiros que não seguem o padrão
             outros_documentos.append({
                 'nome_completo': nome_ficheiro,
                 'nome_original': nome_ficheiro,
@@ -1630,6 +1862,7 @@ def secretaria():
     # Ordena pelo timestamp de upload (mais recente primeiro)
     outros_documentos.sort(key=lambda x: x['data'] if x['data'] else datetime.min, reverse=True)
 
+    # Nota: Assumimos que existe o template 'secretaria.html'
     return render_template("secretaria.html", atas=atas, outros_documentos=outros_documentos)
 
 @app.route('/outros_documentos/<path:filename>')
@@ -1698,6 +1931,7 @@ def eliminar_ata():
 @app.route("/atividades_calendario")
 def atividades_calendario():
     pode_editar = session.get('username') in ['Chefe', 'Clan']
+    # Nota: Assumimos que existe o template 'atividades_calendario.html'
     return render_template("atividades_calendario.html", pode_editar=pode_editar)
 
 # Rota para a API do calendário
@@ -1834,6 +2068,7 @@ def api_eliminar_atividade(id):
         return jsonify({"error": f"Erro interno do servidor: {e}"}), 500
     
 
+# Rota para visualizar as contas individuais
 @app.route("/contas")
 def contas_individuais():
     nomes = carregar_nomes()  # Pega todos os nomes das tribos
@@ -1847,23 +2082,29 @@ def contas_individuais():
     else:
         contas = {}
 
-    # Garante que todos os nomes têm um valor
+    # Garante que todos os nomes têm um valor inicial (0.0)
     for nome in nomes:
         if nome not in contas:
             contas[nome] = 0.0
 
+    # Nota: Assumimos que existe o template 'contas.html'
     return render_template("contas.html", nomes=nomes, contas=contas)
 
 
+# Rota para atualizar o valor de uma conta (restrito ao 'Chefe')
 @app.route("/atualizar_valor/<nome>", methods=["POST"])
 def atualizar_valor(nome):
     if session.get("username") != "Chefe":
-        return "Acesso negado", 403
+        flash("Acesso negado. Apenas o Chefe pode atualizar valores.", "danger")
+        return redirect(url_for("contas_individuais"))
 
     novo_valor = request.form.get("valor")
     if novo_valor:
         try:
+            # Tenta converter para float
             novo_valor = float(novo_valor)
+            
+            # Carrega o estado atual das contas
             if os.path.exists(FICHEIRO_CONTAS):
                 with open(FICHEIRO_CONTAS, "r", encoding="utf-8") as f:
                     try:
@@ -1873,18 +2114,26 @@ def atualizar_valor(nome):
             else:
                 contas = {}
 
+            # Atualiza o valor
             contas[nome] = novo_valor
 
+            # Salva no arquivo JSON
             with open(FICHEIRO_CONTAS, "w", encoding="utf-8") as f:
                 json.dump(contas, f, indent=4, ensure_ascii=False)
+            
+            flash(f"Valor de {nome} atualizado com sucesso para {novo_valor:.2f}.", "success")
         except ValueError:
-            pass
+            flash("Valor inválido fornecido. Use apenas números.", "danger")
+        except Exception as e:
+            flash(f"Erro ao salvar o valor: {e}", "danger")
+            
+    else:
+        flash("Nenhum valor fornecido.", "warning")
 
     return redirect(url_for("contas_individuais"))
 
 
-
-
+# --- Bloco de Inicialização da Aplicação ---
 if __name__ == '__main__':
     # Obtém o número da porta da variável de ambiente,
     # caso não exista, usa a porta 5000 por defeito.

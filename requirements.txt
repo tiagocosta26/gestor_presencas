@@ -2,3 +2,5 @@ Flask
 gunicorn
 Flask-Bcrypt
 icalendar
+flask_sqlalchemy
+psycopg2-binary
