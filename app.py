@@ -15,6 +15,8 @@ from sqlalchemy import func
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
+#teste
+
 # --- CONFIGURAÇÃO DO FLASK-SQLALCHEMY ---
 # Usa um ficheiro SQLite como base de dados.
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app_dados.db'
