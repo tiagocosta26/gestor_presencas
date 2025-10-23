@@ -83,12 +83,6 @@ print("URI da base de dados a ser usada:", app.config['SQLALCHEMY_DATABASE_URI']
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-with app.app_context():
-    try:
-        db.create_all()
-        print("✅ Tabelas verificadas/criadas com sucesso.")
-    except Exception as e:
-        print(f"⚠️ Erro ao criar tabelas: {e}")
 
 # Diretórios para ficheiros
 DIRETORIO_PRESENCAS = "registos"
@@ -485,20 +479,14 @@ def calcular_nivel(dados_pessoa_bool, trilhos_por_area):
 
 def init_db():
     """Cria todas as tabelas e inicializa utilizadores padrão, se necessário."""
-    # ✅ Certifica-te de que os modelos já foram importados antes de chamar create_all()
     db.create_all()
-
-    # --- Cria modelo de progresso (se não existir) ---
-    if not ProgressoModelo.query.first():
-        db.session.add(ProgressoModelo(modelo={}))
-        db.session.commit()
 
     # --- Garante utilizadores padrão ---
     utilizadores_a_eliminar = ['Chefe', 'Clan']
     for username in utilizadores_a_eliminar:
-        utilizador_existente = Utilizador.query.filter_by(username=username).first()
-        if utilizador_existente:
-            db.session.delete(utilizador_existente)
+        u = Utilizador.query.filter_by(username=username).first()
+        if u:
+            db.session.delete(u)
     db.session.commit()
 
     hashed_chefe = bcrypt.generate_password_hash('Chefe').decode('utf-8')
@@ -510,6 +498,16 @@ def init_db():
     db.session.commit()
     print("✅ Base de dados e utilizadores padrão inicializados.")
 
+# --- Garantir criação da base de dados e init mesmo fora do __main__ ---
+with app.app_context():
+    try:
+        db.create_all()
+        init_db()
+        print("✅ Base de dados pronta para uso.")
+    except Exception as e:
+        import traceback
+        print("❌ Erro ao criar/atualizar a base de dados:")
+        traceback.print_exc()
 # --- ROTAS ---
 
 @app.route("/")
@@ -1748,9 +1746,5 @@ def atualizar_valor(nome):
     return redirect(url_for("contas_individuais"))
 
 if __name__ == '__main__':
-    with app.app_context():
-        init_db()  # ✅ Garante que db.create_all() corre dentro do contexto da app
-        print("✅ Tabelas criadas e base de dados pronta.")
-
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
