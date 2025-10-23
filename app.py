@@ -1742,6 +1742,8 @@ def atualizar_valor(nome):
     return redirect(url_for("contas_individuais"))
 
 if __name__ == '__main__':
-    init_db()
+    with app.app_context():
+        init_db()  # garante que o db.create_all() tem contexto Flask
+        print("✅ Base de dados inicializada com sucesso.")
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
