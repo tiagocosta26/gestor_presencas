@@ -25,7 +25,7 @@ import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
 
 print("DEBUG DATABASE_URL:", os.environ.get('EXTERNAL_DATABASE_URL'))
-
+"""
 # Configurar Cloudinary
 cloudinary.config(
     cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
@@ -33,9 +33,10 @@ cloudinary.config(
     api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
     secure=True
 )
-
+"""
+"""
 def upload_para_cloudinary(file, pasta="clan"):
-    """
+    
     Faz upload de um ficheiro para o Cloudinary
     
     Args:
@@ -44,7 +45,7 @@ def upload_para_cloudinary(file, pasta="clan"):
     
     Returns:
         URL pública do ficheiro ou None se falhar
-    """
+    
     try:
         # Upload para Cloudinary
         resultado = cloudinary.uploader.upload(
@@ -56,6 +57,7 @@ def upload_para_cloudinary(file, pasta="clan"):
     except Exception as e:
         print(f"Erro ao fazer upload para Cloudinary: {e}")
         return None
+"""
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -899,10 +901,11 @@ def tesouraria():
             if 'comprovativo' in request.files:
                 file = request.files['comprovativo']
                 if file.filename != '':
-                    # Upload para Cloudinary
-                    comprovativo_url = upload_para_cloudinary(file, pasta="comprovativos")
-                    # comprovativo_url é agora uma URL completa, ex:
-                    # https://res.cloudinary.com/seu-cloud/image/upload/v123/clan/comprovativos/xyz.pdf
+                    ext = file.filename.rsplit('.', 1)[1].lower()
+                    unique_filename = f"{limpar_nome(entidade)}_{data_str}_{str(uuid.uuid4())[:8]}.{ext}"
+                    caminho_ficheiro = os.path.join(DIRETORIO_UPLOADS, unique_filename)
+                    file.save(caminho_ficheiro)  # ❌ Guarda localmente (apaga no Render)
+                    comprovativo_url = unique_filename
             nova_transacao = FolhaCaixa(
                 entidade_nome=entidade,
                 data=datetime.strptime(data_str, '%Y-%m-%d').date(),
@@ -1291,8 +1294,10 @@ def cozinha():
             if 'comprovativo_receita' in request.files:
                 file = request.files['comprovativo_receita']
                 if file.filename != '':
-                    # Upload para Cloudinary
-                    link_ficheiro = upload_para_cloudinary(file, pasta="receitas")
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(DIRETORIO_RECEITAS, filename)
+                    file.save(filepath)  # ❌ Guarda localmente
+                    link_ficheiro = url_for('serve_receita', filename=filename)
             if link_ficheiro:
                 nova_receita = Receita(nome=nome_receita.strip(), link_ficheiro=link_ficheiro)
             else:
