@@ -59,14 +59,14 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'uma_chave_segura_para_a
 
 # --- CONFIGURAÇÃO DE BASE DE DADOS ---
 # --- CONFIGURAÇÃO DE BASE DE DADOS ---
-database_url = os.environ.get('DATABASE_URL')
+database_url = os.environ.get('EXTERNAL_DATABASE_URL')
 
 if database_url:
     # Produção: PostgreSQL
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    print("✅ Usando PostgreSQL")
+    print("✅ Usando PostgreSQL externo")
 else:
     # Desenvolvimento: SQLite
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///clan_local.db'
