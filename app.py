@@ -24,6 +24,8 @@ import cloudinary
 import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
 
+print("DEBUG DATABASE_URL:", os.environ.get('EXTERNAL_DATABASE_URL'))
+
 # Configurar Cloudinary
 cloudinary.config(
     cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
