@@ -469,43 +469,31 @@ def calcular_nivel(dados_pessoa_bool, trilhos_por_area):
 # --- INICIALIZAÇÃO ---
 
 def init_db():
-    with app.app_context():
-        db.create_all()
-        
-        # 🌟 CORREÇÃO TEMPORÁRIA: Forçar a existência e a senha padrão
-        # Se os utilizadores existirem, podemos removê-los e adicioná-los novamente 
-        # para garantir que a password_hash é sempre a esperada para testes.
-        
-        # Tentativa de inicializar ProgressoModelo (se o modelo existir)
-        try:
-            # Assumindo que ProgressoModelo está definido noutro local ou será
-            # definido a seguir.
-            if not ProgressoModelo.query.first():
-                db.session.add(ProgressoModelo(modelo={}))
-        except NameError:
-             # Ignora se ProgressoModelo não estiver definido
-             pass
-             
-        # 1. Elimina os utilizadores se existirem
-        utilizadores_a_eliminar = ['Chefe', 'Clan']
-        for username in utilizadores_a_eliminar:
-            utilizador_existente = Utilizador.query.filter_by(username=username).first()
-            if utilizador_existente:
-                db.session.delete(utilizador_existente)
-        
-        db.session.commit() # Commit das eliminações
+    """Cria todas as tabelas e inicializa utilizadores padrão, se necessário."""
+    # ✅ Certifica-te de que os modelos já foram importados antes de chamar create_all()
+    db.create_all()
 
-        # 2. Cria os utilizadores com as senhas desejadas
-        
-        # 🚨 A senha para Chefe é 'senha_padrao'
-        hashed_chefe = bcrypt.generate_password_hash('Chefe').decode('utf-8')
-        db.session.add(Utilizador(username='Chefe', password_hash=hashed_chefe))
-        
-        # 🚨 A senha para Clan é 'Clan' (conforme solicitado)
-        hashed_clan = bcrypt.generate_password_hash('Clan').decode('utf-8')
-        db.session.add(Utilizador(username='Clan', password_hash=hashed_clan))
-        
+    # --- Cria modelo de progresso (se não existir) ---
+    if not ProgressoModelo.query.first():
+        db.session.add(ProgressoModelo(modelo={}))
         db.session.commit()
+
+    # --- Garante utilizadores padrão ---
+    utilizadores_a_eliminar = ['Chefe', 'Clan']
+    for username in utilizadores_a_eliminar:
+        utilizador_existente = Utilizador.query.filter_by(username=username).first()
+        if utilizador_existente:
+            db.session.delete(utilizador_existente)
+    db.session.commit()
+
+    hashed_chefe = bcrypt.generate_password_hash('Chefe').decode('utf-8')
+    db.session.add(Utilizador(username='Chefe', password_hash=hashed_chefe))
+
+    hashed_clan = bcrypt.generate_password_hash('Clan').decode('utf-8')
+    db.session.add(Utilizador(username='Clan', password_hash=hashed_clan))
+
+    db.session.commit()
+    print("✅ Base de dados e utilizadores padrão inicializados.")
 
 # --- ROTAS ---
 
@@ -1743,7 +1731,8 @@ def atualizar_valor(nome):
 
 if __name__ == '__main__':
     with app.app_context():
-        init_db()  # garante que o db.create_all() tem contexto Flask
-        print("✅ Base de dados inicializada com sucesso.")
+        init_db()  # ✅ Garante que db.create_all() corre dentro do contexto da app
+        print("✅ Tabelas criadas e base de dados pronta.")
+
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
