@@ -75,6 +75,13 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+with app.app_context():
+    try:
+        db.create_all()
+        print("✅ Tabelas verificadas/criadas com sucesso.")
+    except Exception as e:
+        print(f"⚠️ Erro ao criar tabelas: {e}")
+
 # Diretórios para ficheiros
 DIRETORIO_PRESENCAS = "registos"
 DIRETORIO_TESOURARIA = "tesouraria"
