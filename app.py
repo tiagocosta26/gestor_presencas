@@ -11,6 +11,8 @@ import uuid
 from icalendar import Calendar, Event
 from flask import make_response
 
+#MEGA ALTERAÇÂOOOOOOOOOOO
+
 # --- IMPORTAÇÕES DE BASE DE DADOS ---
 from flask_sqlalchemy import SQLAlchemy 
 from sqlalchemy import JSON 
