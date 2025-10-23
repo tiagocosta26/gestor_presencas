@@ -74,6 +74,8 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///clan_local.db'
     print("⚠️  Usando SQLite (teste local)")
 
+print("URI da base de dados a ser usada:", app.config['SQLALCHEMY_DATABASE_URI'])
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
