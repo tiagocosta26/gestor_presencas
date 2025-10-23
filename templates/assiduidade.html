@@ -35,8 +35,8 @@
         <div class="col-md-6 offset-md-3">
             <form action="{{ url_for('assiduidade') }}" method="post">
                 <div class="input-group">
-                    <label for="ano_escotista" class="input-group-text">Ano Escutista</label>
-                    <select class="form-select" name="ano_escotista" id="ano_escotista" onchange="this.form.submit()">
+                    <label for="ano_escutista" class="input-group-text">Ano Escutista</label>
+                    <select class="form-select" name="ano_escutista" id="ano_escutista" onchange="this.form.submit()">
                         {% for ano in anos_disponiveis %}
                             <option value="{{ ano }}" {% if ano == ano_selecionado %}selected{% endif %}>
                                 {{ ano }}  {# <-- CORRIGIDO: Removido o "-{{ ano|int + 1 }}" que adicionava o "-1" #}

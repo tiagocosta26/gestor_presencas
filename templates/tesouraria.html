@@ -9,10 +9,13 @@
 <div class="card my-4 shadow-lg">
     <div class="card-header">
         <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+            {# 1. Tab Clan (Explicitamente em primeiro) #}
             <li class="nav-item">
                 <button class="nav-link {% if entidade_ativa == 'Clan' %}active{% endif %}" id="clan-tab" data-bs-toggle="tab" data-bs-target="#clan" type="button" role="tab" aria-controls="clan" aria-selected="{% if entidade_ativa == 'Clan' %}true{% else %}false{% endif %}">Clan</button>
             </li>
-            {% for tribo in tribos %}
+            
+            {# 2. Tabs das Tribos (Filtra 'Clan' para evitar duplicação) #}
+            {% for tribo in tribos if tribo != 'Clan' %}
             <li class="nav-item">
                 <button class="nav-link {% if entidade_ativa == tribo %}active{% endif %}" id="{{ tribo|replace(' ', '_') }}-tab" data-bs-toggle="tab" data-bs-target="#{{ tribo|replace(' ', '_') }}" type="button" role="tab" aria-controls="{{ tribo|replace(' ', '_') }}" aria-selected="{% if entidade_ativa == tribo %}true{% else %}false{% endif %}">{{ tribo }}</button>
             </li>
@@ -21,13 +24,19 @@
     </div>
     <div class="card-body">
         <div class="tab-content" id="myTabContent">
+            
+            {# 3. Conteúdo Clan (Explicitamente em primeiro) #}
             <div class="tab-pane fade {% if entidade_ativa == 'Clan' %}show active{% endif %}" id="clan" role="tabpanel" aria-labelledby="clan-tab">
                 <h3 class="card-title mb-3">Folha de Caixa Clan</h3>
+                {# Passamos explicitamente a variável tribo=Clan, mas o partial folha_caixa.html usa 'Clan' como default #}
                 {% include 'partials/folha_caixa.html' with context %}
             </div>
-            {% for tribo in tribos %}
+            
+            {# 4. Conteúdo das Tribos (Filtra 'Clan' para evitar duplicação) #}
+            {% for tribo in tribos if tribo != 'Clan' %}
             <div class="tab-pane fade {% if entidade_ativa == tribo %}show active{% endif %}" id="{{ tribo|replace(' ', '_') }}" role="tabpanel" aria-labelledby="{{ tribo|replace(' ', '_') }}-tab">
                 <h3 class="card-title mb-3">Folha de Caixa Tribo {{ tribo }}</h3>
+                {# Aqui, 'tribo' está definida no contexto do loop e é usada em folha_caixa.html #}
                 {% include 'partials/folha_caixa.html' with context %}
             </div>
             {% endfor %}

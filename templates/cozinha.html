@@ -123,24 +123,24 @@
                         <input type="hidden" name="acao" value="adicionar_item_cozinha">
                         <div class="row g-3">
                             <div class="col-12">
-                                <label for="nome_item_cozinha" class="form-label">Nome do Item</label>
-                                <input type="text" class="form-control" id="nome_item_cozinha" name="nome_item_cozinha" required>
+                                <label for="nome_item" class="form-label">Nome do Item</label>
+                                <input type="text" class="form-control" id="nome_item" name="nome_item" required>
                             </div>
                             <div class="col-md-5">
-                                <label for="quantidade_cozinha" class="form-label">Quantidade</label>
-                                <input type="text" class="form-control" id="quantidade_cozinha" name="quantidade_cozinha" required> 
+                                <label for="quantidade_item" class="form-label">Quantidade</label>
+                                <input type="text" class="form-control" id="quantidade_item" name="quantidade_item" required> 
                             </div>
                             <div class="col-md-7">
-                                <label for="unidade_cozinha" class="form-label">Unidade</label>
-                                <select class="form-select" id="unidade_cozinha" name="unidade_cozinha" required>
+                                <label for="unidade_item" class="form-label">Unidade</label>
+                                <select class="form-select" id="unidade_item" name="unidade_item" required>
                                     {% for unidade in opcoes_unidade %}
                                     <option value="{{ unidade }}">{{ unidade }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-12">
-                                <label for="categoria_cozinha" class="form-label">Categoria</label>
-                                <select class="form-select" id="categoria_cozinha" name="categoria_cozinha" required>
+                                <label for="categoria_item" class="form-label">Categoria</label>
+                                <select class="form-select" id="categoria_item" name="categoria_item" required>
                                     {% for categoria in opcoes_categoria %}
                                     <option value="{{ categoria }}">{{ categoria }}</option>
                                     {% endfor %}

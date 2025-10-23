@@ -4,3 +4,6 @@ Flask-Bcrypt
 icalendar
 flask_sqlalchemy
 psycopg2-binary
+Werkzeug
+python-dotenv
+cloudinary

@@ -249,14 +249,14 @@
                         <!-- Linha alterada: antes do comprovativo -->
                         <li><strong>Valor:</strong> 
                             <span class="{% if t.tipo == 'Entrada' %}text-success{% else %}text-danger{% endif %}">
-                                {{ '%.2f'|format(saldo) }}€
+                                {{ '%.2f'|format(t.valor) }}€
                             </span>
                         </li>
 
                         <li><strong>Comprovativo:</strong> 
                             <span>
                                 {% if t.comprovativo %}
-                                <a href="{{ url_for('uploaded_file', filename=t.comprovativo) }}" target="_blank" rel="noopener noreferrer">Ver Ficheiro</a>
+                                <a href="{{ comprovativo }}" target="_blank">Ver Comprovativo</a>
                                 {% else %}
                                 -
                                 {% endif %}
@@ -268,7 +268,7 @@
                             <form action="{{ url_for('tesouraria') }}" method="post" class="d-block w-100">
                                 <input type="hidden" name="acao" value="remover">
                                 <input type="hidden" name="entidade" value="{{ entidade }}">
-                                <input type="hidden" name="index" value="{{ loop.index0 }}">
+                                <input type="hidden" name="id_transacao" value="{{ t.id }}">
                                 <button type="submit" class="btn btn-sm btn-danger w-100" style="max-width: 150px;">Remover</button>
                             </form>
                         </li>
@@ -295,7 +295,7 @@
                 <form action="{{ url_for('tesouraria') }}" method="post" style="display:inline;">
                     <input type="hidden" name="acao" value="remover">
                     <input type="hidden" name="entidade" value="{{ entidade }}">
-                    <input type="hidden" name="index" value="{{ loop.index0 }}">
+                    <input type="hidden" name="id_transacao" value="{{ t.id }}">
                     <button type="submit" class="btn btn-sm btn-danger">Remover</button>
                 </form>
             </td>
