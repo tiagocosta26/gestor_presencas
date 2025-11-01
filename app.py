@@ -549,6 +549,105 @@ def migrate_progresso_table():
             pass
 
 
+def criar_modelo_padrao():
+    """
+    Cria um modelo de progresso padrão com áreas, trilhos e objetivos.
+    """
+    modelo = {
+            "Físico": {
+                "Desempenho": {
+                "Exercício": "não"
+                },
+                "Auto-Conhecimento": {
+                "Relação com o corpo": "não",
+                "Diferenças fisiológicas": "não"
+                },
+                "Bem-estar físico": {
+                "Equilíbrio": "não",
+                "Higiene": "não",
+                "Comportamentos de risco": "não"
+                }
+            },
+            "Afetivo": {
+                "Relacionamento e sensibilidade": {
+                "Afetos": "não",
+                "Respeito": "não",
+                "Sexualidade e relação amorosa": "não"
+                },
+                "Emocional": {
+                "Emoções": "não"
+                },
+                "Autoestima": {
+                "Personalidade": "não",
+                "Confiança": "não"
+                }
+            },
+            "Caráter": {
+                "Autonomia": {
+                "Valores": "não",
+                "Decisão": "não",
+                "Aperfeiçoamento": "não"
+                },
+                "Responsabilidade": {
+                "Compromisso": "não",
+                "Perseverança": "não",
+                "Responsabilidade": "não"
+                },
+                "Coerência": {
+                "Consistência": "não",
+                "Coerência": "não"
+                }
+            },
+            "Espiritual": {
+                "Descoberta": {
+                "Pai/Felicidade": "não",
+                "Filho/Amor": "não",
+                "Espírito Santo/Igreja": "não"
+                },
+                "Aprofundamento": {
+                "Oração": "não",
+                "Transformação": "não",
+                "Identidade": "não"
+                },
+                "Serviço": {
+                "Unidade": "não",
+                "Missão": "não"
+                }
+            },
+            "Intelectual": {
+                "Procura do Conhecimento": {
+                "Aprendizagem": "não",
+                "Filtrar": "não",
+                "Rumo": "não"
+                },
+                "Resolução de Problemas": {
+                "Adaptação": "não",
+                "Estratégia": "não"
+                },
+                "Criatividade e Expressão": {
+                "Criatividade": "não",
+                "Expressividade": "não"
+                }
+            },
+            "Social": {
+                "Exercer ativamente a cidadania": {
+                "Cidadania": "não",
+                "Participação": "não",
+                "Democracia": "não"
+                },
+                "Solidariedade e Tolerância": {
+                "Serviço": "não",
+                "Tolerância": "não"
+                },
+                "Interação e Cooperação": {
+                "Espírito de Equipa": "não",
+                "Liderança": "não"
+                }
+            }
+            }
+    return modelo
+
+
 def init_db():
     """Cria todas as tabelas e inicializa dados padrão, se necessário."""
     db.create_all()
