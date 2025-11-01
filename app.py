@@ -1025,21 +1025,33 @@ def debug_atividades_presenca():
         return jsonify({"error": str(e), "traceback": erro}), 500
 
 
-@app.route('/eliminar_atividade/<int:atividade_id>', methods=['POST'])
-def eliminar_atividade(atividade_id):
+@app.route('/eliminar_atividade/<nome_ficheiro>', methods=['POST'])
+def eliminar_atividade(nome_ficheiro):
     """Elimina uma atividade de presença."""
     if session.get('username') not in ['Chefe', 'Clan']:
         flash("Não tem permissão para eliminar atividades.", "danger")
         return redirect(url_for('atividades'))
     
     try:
+        print(f"\n🗑️ Tentando eliminar atividade: {nome_ficheiro}")
+        
+        # Tentar converter para int (agora é ID em vez de nome de ficheiro)
+        try:
+            atividade_id = int(nome_ficheiro)
+        except (ValueError, TypeError):
+            print(f"❌ ID inválido: {nome_ficheiro}")
+            flash("ID de atividade inválido.", "danger")
+            return redirect(url_for('atividades'))
+        
         atividade = AtividadePresenca.query.get(atividade_id)
         if atividade:
+            nome = atividade.nome
             db.session.delete(atividade)
             db.session.commit()
-            print(f"✅ Atividade '{atividade.nome}' eliminada")
-            flash(f"Atividade eliminada com sucesso.", "success")
+            print(f"✅ Atividade '{nome}' (ID: {atividade_id}) eliminada")
+            flash(f"Atividade '{nome}' eliminada com sucesso.", "success")
         else:
+            print(f"❌ Atividade não encontrada com ID: {atividade_id}")
             flash("Atividade não encontrada.", "danger")
     except Exception as e:
         db.session.rollback()
@@ -1051,14 +1063,27 @@ def eliminar_atividade(atividade_id):
     return redirect(url_for('atividades'))
 
 
-@app.route("/atividade/<int:atividade_id>")
-def ver_atividade(atividade_id):
+@app.route("/atividade/<ficheiro>")
+def ver_atividade(ficheiro):
     """Vê detalhes de uma atividade."""
     try:
+        print(f"\n👁️ Carregando atividade: {ficheiro}")
+        
+        # Tentar converter para int (agora é ID em vez de nome de ficheiro)
+        try:
+            atividade_id = int(ficheiro)
+        except (ValueError, TypeError):
+            print(f"❌ ID inválido: {ficheiro}")
+            flash("ID de atividade inválido.", "danger")
+            return redirect(url_for("atividades"))
+        
         atividade = AtividadePresenca.query.get(atividade_id)
         if not atividade:
+            print(f"❌ Atividade não encontrada com ID: {atividade_id}")
             flash("Atividade não encontrada.", "danger")
             return redirect(url_for("atividades"))
+        
+        print(f"✅ Atividade encontrada: {atividade.nome}")
         
         cargos_disponiveis = carregar_cargos()
         
@@ -1078,12 +1103,15 @@ def ver_atividade(atividade_id):
                         'presente': presente,
                         'cargos': cargos_list
                     })
+                    print(f"   ✅ {pessoa_nome} ({tribo_nome}): {presente}")
         
         data_display = (
             atividade.data_inicio.isoformat() 
             if atividade.data_inicio == atividade.data_fim 
             else f"{atividade.data_inicio.isoformat()} - {atividade.data_fim.isoformat()}"
         )
+        
+        print(f"✅ Renderizando template com {len(dados)} tribos\n")
         
         return render_template(
             "ver_atividade.html", 
@@ -1093,7 +1121,9 @@ def ver_atividade(atividade_id):
             cargos_disponiveis=cargos_disponiveis
         )
     except Exception as e:
+        import traceback
         print(f"❌ Erro ao carregar atividade: {e}")
+        traceback.print_exc()
         flash("Erro ao carregar atividade.", "danger")
         return redirect(url_for("atividades"))
 
