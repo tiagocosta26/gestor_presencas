@@ -550,10 +550,44 @@ def migrate_progresso_table():
 
 
 def init_db():
-    """Cria todas as tabelas e inicializa utilizadores padrão, se necessário."""
+    """Cria todas as tabelas e inicializa dados padrão, se necessário."""
     db.create_all()
 
+    # ✅ NOVO: Inicializar dados padrão (tribos, cargos)
     init_default_data()
+
+    # ✅ NOVO: Verificar e criar modelo de progresso
+    try:
+        print("🔄 Verificando modelo de progresso...")
+        
+        # 1. Criar modelo se não existir
+        if ProgressoModelo.query.count() == 0:
+            print("  → Criando modelo de progresso...")
+            modelo_padrao = criar_modelo_padrao()
+            novo_modelo = ProgressoModelo(modelo=modelo_padrao)
+            db.session.add(novo_modelo)
+            db.session.commit()
+            print("  ✅ Modelo criado")
+        
+        # 2. Preencher progresso de todas as pessoas
+        modelo = ProgressoModelo.query.first()
+        modelo_conteudo = modelo.modelo if modelo else criar_modelo_padrao()
+        
+        pessoas = Pessoa.query.all()
+        for pessoa in pessoas:
+            progresso = Progresso.query.filter_by(pessoa_id=pessoa.id).first()
+            
+            if progresso and (not progresso.dados_progresso or progresso.dados_progresso == {}):
+                print(f"  → Preenchendo {pessoa.nome}...")
+                progresso.dados_progresso = copy.deepcopy(modelo_conteudo)
+                db.session.add(progresso)
+        
+        db.session.commit()
+        print("✅ Modelo de progresso verificado/inicializado")
+        
+    except Exception as e:
+        print(f"⚠️ Aviso ao inicializar modelo de progresso: {e}")
+        db.session.rollback()
 
     # --- Garante utilizadores padrão ---
     utilizadores_a_eliminar = ['Chefe', 'Clan']
@@ -571,7 +605,6 @@ def init_db():
 
     db.session.commit()
     print("✅ Base de dados e utilizadores padrão inicializados.")
-
 
 
 # --- Garantir criação da base de dados e init mesmo fora do __main__ ---
