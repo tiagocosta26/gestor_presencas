@@ -342,24 +342,33 @@ def ler_contas():
     return {c.pessoa_nome: c.valor for c in contas_obj}
 
 def carregar_progresso():
+    """Carrega o progresso de todas as pessoas da BD."""
     progresso_obj = Progresso.query.join(Pessoa).all()
     
     dados_progresso = {}
     for p in progresso_obj:
-        # 🌟 CORREÇÃO DE CONSISTÊNCIA: Aplica .strip() à chave para garantir que corresponde ao nome limpo de carregar_nomes().
+        # Limpa o nome da pessoa
         nome_pessoa_limpo = p.pessoa.nome.strip()
         
-        # 🚨 CORREÇÃO PRINCIPAL: Tentativa de desserializar o progresso de JSON para um dicionário
-        dados_progresso[nome_pessoa_limpo] = {} # Valor por defeito
-        
+        # ✅ CORREÇÃO: O PostgreSQL já devolve JSON como dict, não precisa json.loads()
         if p.dados_progresso:
-            try:
-                # O campo p.dados_progresso é esperado como uma string JSON da BD
-                dados_progresso[nome_pessoa_limpo] = json.loads(p.dados_progresso)
-            except (json.JSONDecodeError, TypeError) as e:
-                # Se falhar o parsing JSON, logamos o aviso e usamos o dicionário vazio {}
-                print(f"AVISO: Falha ao desserializar progresso JSON para {nome_pessoa_limpo}. Erro: {e}")
-                
+            # Se já é um dicionário, usa diretamente
+            if isinstance(p.dados_progresso, dict):
+                dados_progresso[nome_pessoa_limpo] = p.dados_progresso
+                print(f"✅ {nome_pessoa_limpo} - dados carregados (dict)")
+            else:
+                # Se for string, faz parse
+                try:
+                    dados_progresso[nome_pessoa_limpo] = json.loads(p.dados_progresso)
+                    print(f"✅ {nome_pessoa_limpo} - dados carregados (JSON string)")
+                except (json.JSONDecodeError, TypeError) as e:
+                    print(f"⚠️ {nome_pessoa_limpo} - erro ao desserializar: {e}")
+                    dados_progresso[nome_pessoa_limpo] = {}
+        else:
+            # Dados vazios
+            dados_progresso[nome_pessoa_limpo] = {}
+            print(f"⚠️ {nome_pessoa_limpo} - sem dados, usando dict vazio")
+    
     return dados_progresso
 
 def carregar_progresso_modelo():
