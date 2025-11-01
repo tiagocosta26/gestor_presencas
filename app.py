@@ -907,18 +907,122 @@ def presencas():
 def atividades():
     """Lista todas as atividades de presença."""
     try:
-        atividades_agrupadas = carregar_atividades_presenca_bd()
+        print("\n" + "="*70)
+        print("🔄 CARREGANDO ATIVIDADES")
+        print("="*70)
+        
+        # 1. Verificar se tabela existe
+        print("\n1️⃣ Verificando tabela AtividadePresenca...")
+        try:
+            contagem = AtividadePresenca.query.count()
+            print(f"   ✅ Tabela existe. Total de atividades: {contagem}")
+        except Exception as e:
+            print(f"   ❌ Erro ao aceder à tabela: {e}")
+            raise
+        
+        # 2. Carregar atividades
+        print("\n2️⃣ Carregando atividades da BD...")
+        atividades_obj = AtividadePresenca.query.order_by(
+            AtividadePresenca.data_inicio.desc()
+        ).all()
+        print(f"   ✅ Carregadas {len(atividades_obj)} atividades")
+        
+        # 3. Agrupar por mês
+        print("\n3️⃣ Agrupando por mês...")
+        atividades_agrupadas = defaultdict(list)
+        
+        for atv in atividades_obj:
+            mes_ano = atv.data_inicio.strftime("%Y-%m")
+            atividades_agrupadas[mes_ano].append({
+                'id': atv.id,
+                'nome': atv.nome,
+                'data_inicio': atv.data_inicio.isoformat(),
+                'data_fim': atv.data_fim.isoformat(),
+                'data_criacao': atv.data_criacao.isoformat() if atv.data_criacao else None
+            })
+            print(f"   ✅ {atv.nome} ({mes_ano})")
+        
+        # 4. Ordenar meses
+        print("\n4️⃣ Ordenando meses...")
         meses_ordenados = sorted(atividades_agrupadas.keys(), reverse=True)
+        print(f"   ✅ Meses ordenados: {meses_ordenados}")
+        
+        print("\n" + "="*70 + "\n")
         
         return render_template(
             "atividades.html", 
             atividades_agrupadas=atividades_agrupadas, 
             meses_ordenados=meses_ordenados
         )
+    
     except Exception as e:
-        print(f"❌ Erro ao carregar atividades: {e}")
-        flash("Erro ao carregar atividades.", "danger")
+        db.session.rollback()
+        import traceback
+        erro = traceback.format_exc()
+        print(f"\n❌ ERRO ao carregar atividades:")
+        print(erro)
+        print("="*70 + "\n")
+        flash(f"Erro ao carregar atividades: {e}", "danger")
         return redirect(url_for("presencas"))
+
+@app.route("/debug_atividades_presenca")
+def debug_atividades_presenca():
+    """Debug das atividades de presença."""
+    if session.get('username') != 'Chefe':
+        return "Acesso negado", 403
+    
+    try:
+        print("\n" + "="*70)
+        print("🔍 DEBUG ATIVIDADES DE PRESENÇA")
+        print("="*70)
+        
+        # 1. Verificar tabela
+        print("\n📊 Informações da Tabela:")
+        try:
+            atividades = AtividadePresenca.query.all()
+            print(f"   Total: {len(atividades)}")
+            
+            for atv in atividades:
+                print(f"\n   {atv.id}. {atv.nome}")
+                print(f"      Data: {atv.data_inicio} a {atv.data_fim}")
+                print(f"      Criada: {atv.data_criacao}")
+                print(f"      Dados: {atv.dados}")
+        
+        except Exception as e:
+            print(f"   ❌ Erro: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        # 2. Verificar colunas
+        print("\n🗂️ Colunas da Tabela:")
+        try:
+            colunas = [c.name for c in AtividadePresenca.__table__.columns]
+            print(f"   {colunas}")
+        except Exception as e:
+            print(f"   ❌ Erro: {e}")
+        
+        print("\n" + "="*70 + "\n")
+        
+        debug_data = {
+            "total": len(atividades),
+            "atividades": [
+                {
+                    "id": atv.id,
+                    "nome": atv.nome,
+                    "data_inicio": atv.data_inicio.isoformat(),
+                    "data_fim": atv.data_fim.isoformat(),
+                    "dados": atv.dados
+                }
+                for atv in atividades
+            ]
+        }
+        
+        return jsonify(debug_data)
+    
+    except Exception as e:
+        import traceback
+        erro = traceback.format_exc()
+        return jsonify({"error": str(e), "traceback": erro}), 500
 
 
 @app.route('/eliminar_atividade/<int:atividade_id>', methods=['POST'])
