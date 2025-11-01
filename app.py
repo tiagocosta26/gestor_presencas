@@ -1811,34 +1811,84 @@ def progresso():
 
 @app.route("/atualizar_objetivo", methods=["POST"])
 def atualizar_objetivo():
+    """Atualiza o estado de um objetivo e guarda na BD."""
+    
     if session.get('username') != 'Chefe':
         return jsonify({"status": "error", "message": "Apenas o Chefe pode alterar o progresso."}), 403
-    data = request.get_json()
-    nome = data["nome"]
-    area = data["area"]
-    trilho = data["trilho"]
-    objetivo = data["objetivo"]
-    novo_estado = data["estado"]
-    pessoa = Pessoa.query.filter_by(nome=nome).first()
-    if not pessoa:
-        return jsonify({"status": "error", "message": "Pessoa não encontrada"}), 404
-    progresso = Progresso.query.filter_by(pessoa_id=pessoa.id).first()
-    if not progresso:
-        modelo = carregar_progresso_modelo()
-        progresso = Progresso(pessoa_id=pessoa.id, dados_progresso=copy.deepcopy(modelo))
+    
+    try:
+        data = request.get_json()
+        nome = data["nome"]
+        area = data["area"]
+        trilho = data["trilho"]
+        objetivo = data["objetivo"]
+        novo_estado = data["estado"]
+        
+        # Debug
+        print(f"\n🔄 Atualizando objetivo:")
+        print(f"   Nome: {nome}, Área: {area}, Trilho: {trilho}, Objetivo: {objetivo}")
+        print(f"   Novo estado: {novo_estado}")
+        
+        # Procura a pessoa
+        pessoa = Pessoa.query.filter_by(nome=nome).first()
+        if not pessoa:
+            print(f"   ❌ Pessoa '{nome}' não encontrada")
+            return jsonify({"status": "error", "message": "Pessoa não encontrada"}), 404
+        
+        # Procura o registo de progresso
+        progresso = Progresso.query.filter_by(pessoa_id=pessoa.id).first()
+        if not progresso:
+            modelo = carregar_progresso_modelo()
+            progresso = Progresso(pessoa_id=pessoa.id, dados_progresso=copy.deepcopy(modelo))
+            db.session.add(progresso)
+            db.session.flush()
+            print(f"   ✅ Progresso criado")
+        
+        # Inicializa estrutura se necessário
+        if not progresso.dados_progresso:
+            progresso.dados_progresso = {}
+        
+        if area not in progresso.dados_progresso:
+            progresso.dados_progresso[area] = {}
+        
+        if trilho not in progresso.dados_progresso[area]:
+            progresso.dados_progresso[area][trilho] = {}
+        
+        # Atualiza o objetivo
+        progresso.dados_progresso[area][trilho][objetivo] = novo_estado
+        
+        # ✅ CRÍTICO: Marca a coluna JSON como modificada para o SQLAlchemy
+        from sqlalchemy.orm import attributes
+        attributes.flag_modified(progresso, "dados_progresso")
+        
+        # Guarda na BD
         db.session.add(progresso)
-    if not progresso.dados_progresso:
-        progresso.dados_progresso = {}
-    if area not in progresso.dados_progresso:
-        progresso.dados_progresso[area] = {}
-    if trilho not in progresso.dados_progresso[area]:
-        progresso.dados_progresso[area][trilho] = {}
-    progresso.dados_progresso[area][trilho][objetivo] = novo_estado
-    db.session.commit()
-    dados_pessoa_bool = calcular_progresso_bool_do_dicionario(progresso.dados_progresso)
-    progresso_modelo = carregar_progresso_modelo()
-    nivel = calcular_nivel(dados_pessoa_bool, progresso_modelo)
-    return jsonify({"status": "ok", "novo_estado": novo_estado, "nivel": nivel})
+        db.session.commit()
+        
+        print(f"   ✅ Guardado com sucesso na BD")
+        
+        # Calcula o novo nível
+        dados_pessoa_bool = calcular_progresso_bool_do_dicionario(progresso.dados_progresso)
+        progresso_modelo = carregar_progresso_modelo()
+        nivel = calcular_nivel(dados_pessoa_bool, progresso_modelo)
+        
+        print(f"   📈 Novo nível: {nivel}\n")
+        
+        return jsonify({
+            "status": "ok", 
+            "novo_estado": novo_estado, 
+            "nivel": nivel
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        print(f"\n❌ ERRO ao atualizar objetivo: {e}")
+        traceback.print_exc()
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        }), 500
 
 
 @app.route("/debug_progresso")
