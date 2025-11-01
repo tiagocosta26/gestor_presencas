@@ -806,42 +806,91 @@ def admin_fix_progresso():
 def index():
     return render_template("index.html")
 
+
 @app.route("/gestao_presencas", methods=["GET", "POST"])
 def presencas():
+    """Gestão de presenças em atividades."""
     tribos = carregar_tribos()
+    
     if request.method == "POST":
-        atividade = request.form["atividade"]
-        atividade_limpa = limpar_nome(atividade)
-        data_inicio = request.form["data_inicio"]
-        data_fim = request.form["data_fim"]
-        tribos_selecionadas = request.form["tribos_selecionadas"].split(",")
-        caminho = os.path.join(DIRETORIO_PRESENCAS, f"{atividade_limpa}_{data_inicio}_a_{data_fim}.csv")
-        with open(caminho, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.writer(f)
-            writer.writerow(["Atividade", "Data Início", "Data Fim", "Tribo", "Elemento", "Cargos", "Presente"])
-            for tribo_nome in tribos_selecionadas:
-                membros = tribos.get(tribo_nome, [])
-                for membro in membros:
-                    nome = membro['nome']
-                    cargos_list = membro.get('cargo', [])
-                    cargos_str = ', '.join(cargos_list)
-                    presente = "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
-                    writer.writerow([atividade, data_inicio, data_fim, tribo_nome, nome, cargos_str, presente])
-        return redirect(url_for("atividades"))
+        try:
+            atividade = request.form.get("atividade", "").strip()
+            data_inicio = request.form.get("data_inicio", "").strip()
+            data_fim = request.form.get("data_fim", "").strip()
+            tribos_selecionadas = request.form.get("tribos_selecionadas", "").split(",")
+            
+            if not all([atividade, data_inicio, data_fim]):
+                flash("Todos os campos são obrigatórios.", "danger")
+                return redirect(url_for("presencas"))
+            
+            atividade_limpa = limpar_nome(atividade)
+            caminho = os.path.join(
+                DIRETORIO_PRESENCAS, 
+                f"{atividade_limpa}_{data_inicio}_a_{data_fim}.csv"
+            )
+            
+            # Criar diretório se não existir
+            os.makedirs(DIRETORIO_PRESENCAS, exist_ok=True)
+            
+            with open(caminho, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    "Atividade", "Data Início", "Data Fim", "Tribo", 
+                    "Elemento", "Cargos", "Presente"
+                ])
+                
+                for tribo_nome in tribos_selecionadas:
+                    if not tribo_nome.strip():
+                        continue
+                    
+                    membros = tribos.get(tribo_nome.strip(), [])
+                    for membro in membros:
+                        nome = membro['nome']
+                        cargos_list = membro.get('cargo', [])
+                        cargos_str = ', '.join(cargos_list)
+                        presente = "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
+                        
+                        writer.writerow([
+                            atividade, data_inicio, data_fim, 
+                            tribo_nome.strip(), nome, cargos_str, presente
+                        ])
+            
+            print(f"✅ Atividade '{atividade}' criada com sucesso")
+            flash(f"Atividade '{atividade}' registada com sucesso!", "success")
+            return redirect(url_for("atividades"))
+        
+        except Exception as e:
+            import traceback
+            print(f"❌ Erro ao criar atividade: {e}")
+            traceback.print_exc()
+            flash(f"Erro ao criar atividade: {e}", "danger")
+            return redirect(url_for("presencas"))
+    
     from datetime import date
     hoje = date.today().isoformat()
     return render_template("gestao_presencas.html", hoje=hoje, tribos=tribos)
 
+
 @app.route("/atividades")
 def atividades():
-    ficheiros = [f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")]
+    """Lista todas as atividades de presença."""
+    try:
+        ficheiros = [
+            f for f in os.listdir(DIRETORIO_PRESENCAS) 
+            if f.endswith(".csv")
+        ]
+    except FileNotFoundError:
+        ficheiros = []
+    
     atividades_agrupadas = defaultdict(list)
 
     def extrair_titulo_e_data(ficheiro):
+        """Extrai título e data do nome do ficheiro."""
         nome_base = ficheiro.rsplit('.', 1)[0]
         partes = nome_base.split('_')
         data_atividade = None
         indice_data = -1
+        
         for i in range(1, len(partes)):
             try:
                 data_atividade = datetime.strptime(partes[i].strip(), "%Y-%m-%d")
@@ -849,10 +898,15 @@ def atividades():
                 break
             except ValueError:
                 continue
+        
         if data_atividade and indice_data != -1:
             titulo_bruto_list = partes[0:indice_data]
             titulo_bruto = '_'.join(titulo_bruto_list).strip()
-            titulo_limpo = titulo_bruto.replace(' _ ', ' + ').replace('_', ' ').strip()
+            titulo_limpo = (
+                titulo_bruto.replace(' _ ', ' + ')
+                .replace('_', ' ')
+                .strip()
+            )
             return data_atividade, titulo_limpo
         return None, None
 
@@ -867,47 +921,93 @@ def atividades():
         atividades_agrupadas[mes].sort(key=lambda x: x[0], reverse=True)
         atividades_agrupadas[mes] = [(f[1], f[2]) for f in atividades_agrupadas[mes]]
 
-    return render_template("atividades.html", atividades_agrupadas=atividades_agrupadas, meses_ordenados=meses_ordenados)
+    return render_template(
+        "atividades.html", 
+        atividades_agrupadas=atividades_agrupadas, 
+        meses_ordenados=meses_ordenados
+    )
+
 
 @app.route('/eliminar_atividade/<nome_ficheiro>', methods=['POST'])
 def eliminar_atividade(nome_ficheiro):
+    """Elimina uma atividade."""
+    if session.get('username') not in ['Chefe', 'Clan']:
+        flash("Não tem permissão para eliminar atividades.", "danger")
+        return redirect(url_for('atividades'))
+    
     try:
         caminho_ficheiro = os.path.join(DIRETORIO_PRESENCAS, nome_ficheiro)
         if os.path.exists(caminho_ficheiro):
             os.remove(caminho_ficheiro)
-            #flash(f"Atividade '{nome_ficheiro}' eliminada com sucesso.", "success")
+            print(f"✅ Atividade '{nome_ficheiro}' eliminada")
+            flash(f"Atividade eliminada com sucesso.", "success")
+        else:
+            flash("Ficheiro não encontrado.", "danger")
     except Exception as e:
-        flash(f"Erro ao tentar eliminar o ficheiro: {e}", "danger")
+        import traceback
+        print(f"❌ Erro ao eliminar atividade: {e}")
+        traceback.print_exc()
+        flash(f"Erro ao eliminar: {e}", "danger")
+    
     return redirect(url_for('atividades'))
+
 
 @app.route("/atividade/<ficheiro>")
 def ver_atividade(ficheiro):
+    """Vê detalhes de uma atividade."""
     cargos_disponiveis = carregar_cargos()
     caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
     dados = defaultdict(list)
+    
     if os.path.exists(caminho):
-        with open(caminho, newline="", encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f)
-            for linha in reader:
-                if 'Tribo' in linha and 'Elemento' in linha:
-                    tribo_nome = linha['Tribo']
-                    nome = linha['Elemento']
-                    cargos_str = linha.get('Cargos', '')
-                    cargos_list = [c.strip() for c in cargos_str.split(',')] if cargos_str else []
-                    presente = linha['Presente']
-                    dados[tribo_nome].append({'nome': nome, 'presente': presente, 'cargos': cargos_list})
-    match = re.search(r'(\d{4}-\d{2}-\d{2})_a_(\d{4}-\d{2}-\d{2})', ficheiro)
+        try:
+            with open(caminho, newline="", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f)
+                for linha in reader:
+                    if 'Tribo' in linha and 'Elemento' in linha:
+                        tribo_nome = linha['Tribo']
+                        nome = linha['Elemento']
+                        cargos_str = linha.get('Cargos', '')
+                        cargos_list = [
+                            c.strip() for c in cargos_str.split(',')
+                        ] if cargos_str else []
+                        presente = linha['Presente']
+                        dados[tribo_nome].append({
+                            'nome': nome, 
+                            'presente': presente, 
+                            'cargos': cargos_list
+                        })
+        except Exception as e:
+            print(f"❌ Erro ao ler atividade: {e}")
+            flash("Erro ao carregar atividade.", "danger")
+    
+    match = re.search(
+        r'(\d{4}-\d{2}-\d{2})_a_(\d{4}-\d{2}-\d{2})', 
+        ficheiro
+    )
     if match:
         data_inicio_format = match.group(1)
         data_fim_format = match.group(2)
-        data_display = data_inicio_format if data_inicio_format == data_fim_format else f"{data_inicio_format} - {data_fim_format}"
+        data_display = (
+            data_inicio_format 
+            if data_inicio_format == data_fim_format 
+            else f"{data_inicio_format} - {data_fim_format}"
+        )
     else:
         data_display = "Data desconhecida"
-    return render_template("ver_atividade.html", ficheiro=ficheiro, dados=dados, 
-                         data_display=data_display, cargos_disponiveis=cargos_disponiveis)
+    
+    return render_template(
+        "ver_atividade.html", 
+        ficheiro=ficheiro, 
+        dados=dados,
+        data_display=data_display, 
+        cargos_disponiveis=cargos_disponiveis
+    )
+
 
 @app.route("/assiduidade", methods=["GET", "POST"])
 def assiduidade():
+    """Calcula assiduidade por pessoa."""
     ano_selecionado = request.form.get("ano_escutista")
     if ano_selecionado:
         ano_inicio = int(ano_selecionado.split('/')[0])
@@ -916,27 +1016,43 @@ def assiduidade():
         ano_inicio = hoje.year
         if hoje.month < 10 or (hoje.month == 10 and hoje.day < 10):
             ano_inicio -= 1
+    
     ano_fim = ano_inicio + 1
     data_inicio = datetime(ano_inicio, 10, 10)
     data_fim = datetime(ano_fim, 10, 9)
-    assiduidade_por_tribo = defaultdict(lambda: defaultdict(lambda: {'presente': 0, 'total': 0}))
+    assiduidade_por_tribo = defaultdict(
+        lambda: defaultdict(lambda: {'presente': 0, 'total': 0})
+    )
     atividades_do_ano = 0
-    ficheiros = [f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")]
+    
+    try:
+        ficheiros = [
+            f for f in os.listdir(DIRETORIO_PRESENCAS) 
+            if f.endswith(".csv")
+        ]
+    except FileNotFoundError:
+        ficheiros = []
+    
     for ficheiro in ficheiros:
         try:
             data_atividade = None
             partes = ficheiro.split('_')
             for i in range(1, len(partes)):
                 try:
-                    data_atividade = datetime.strptime(partes[i].strip(), "%Y-%m-%d")
+                    data_atividade = datetime.strptime(
+                        partes[i].strip(), "%Y-%m-%d"
+                    )
                     break 
                 except ValueError:
                     continue
+            
             if data_atividade is None:
-                raise ValueError("Formato de data não reconhecido")
+                continue
+            
             if data_inicio <= data_atividade <= data_fim:
                 atividades_do_ano += 1
                 caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
+                
                 with open(caminho, newline="", encoding="utf-8-sig") as f:
                     reader = csv.DictReader(f)
                     for row in reader:
@@ -946,8 +1062,11 @@ def assiduidade():
                         assiduidade_por_tribo[tribo][elemento]['total'] += 1
                         if presente == "Sim":
                             assiduidade_por_tribo[tribo][elemento]['presente'] += 1
+        
         except Exception as e:
-            print(f"Erro ao processar o ficheiro {ficheiro}: {e}")
+            print(f"⚠️ Erro ao processar {ficheiro}: {e}")
+    
+    # Calcular percentagens
     for tribo in assiduidade_por_tribo:
         for elemento in assiduidade_por_tribo[tribo]:
             dados = assiduidade_por_tribo[tribo][elemento]
@@ -955,6 +1074,8 @@ def assiduidade():
                 dados['percentagem'] = (dados['presente'] / dados['total']) * 100
             else:
                 dados['percentagem'] = 0
+    
+    # Encontrar anos disponíveis
     anos_disponiveis = set()
     for ficheiro in ficheiros:
         if len(ficheiro.split('_')) > 1:
@@ -963,24 +1084,39 @@ def assiduidade():
                 partes = ficheiro.split('_')
                 for i in range(1, len(partes)):
                     try:
-                        data_atividade = datetime.strptime(partes[i].strip(), "%Y-%m-%d")
+                        data_atividade = datetime.strptime(
+                            partes[i].strip(), "%Y-%m-%d"
+                        )
                         break 
                     except ValueError:
                         continue
+                
                 if data_atividade:
-                    ano_inicio_ficheiro = data_atividade.year if data_atividade.month >= 10 else data_atividade.year - 1
+                    ano_inicio_ficheiro = (
+                        data_atividade.year 
+                        if data_atividade.month >= 10 
+                        else data_atividade.year - 1
+                    )
                     anos_disponiveis.add(ano_inicio_ficheiro)
             except Exception:
                 pass
+    
     hoje = datetime.now()
-    is_new_scout_year_today = (hoje.month > 10) or (hoje.month == 10 and hoje.day >= 10)
+    is_new_scout_year_today = (
+        (hoje.month > 10) or (hoje.month == 10 and hoje.day >= 10)
+    )
     ano_atual = hoje.year if is_new_scout_year_today else hoje.year - 1
     anos_disponiveis.add(ano_atual)
     anos_disponiveis = sorted(list(anos_disponiveis), reverse=True)
     anos_formatados = [f"{ano}/{ano+1}" for ano in anos_disponiveis]
-    return render_template("assiduidade.html", assiduidade_por_tribo=assiduidade_por_tribo,
-                         atividades_do_ano=atividades_do_ano, anos_disponiveis=anos_formatados,
-                         ano_selecionado=f"{ano_inicio}/{ano_inicio+1}")
+    
+    return render_template(
+        "assiduidade.html", 
+        assiduidade_por_tribo=assiduidade_por_tribo,
+        atividades_do_ano=atividades_do_ano, 
+        anos_disponiveis=anos_formatados,
+        ano_selecionado=f"{ano_inicio}/{ano_inicio+1}"
+    )
 
 @app.route("/gestao_tribos", methods=["GET", "POST"])
 def gestao_tribos():
