@@ -201,9 +201,13 @@ class Conta(db.Model):
 
 class Progresso(db.Model):
     __tablename__ = 'progresso'
-    pessoa_id = db.Column(db.Integer, db.ForeignKey('pessoas.id'), primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)  # ← NOVO: ID independente
+    pessoa_id = db.Column(db.Integer, db.ForeignKey('pessoas.id', ondelete='CASCADE'), nullable=False)
     pessoa = db.relationship('Pessoa', backref='progresso_rel')
     dados_progresso = db.Column(JSON)
+    
+    # Índice único para garantir uma entrada por pessoa
+    __table_args__ = (db.UniqueConstraint('pessoa_id', name='uq_pessoa_id'),)
     
 class ProgressoModelo(db.Model):
     __tablename__ = 'progresso_modelo'
@@ -474,12 +478,40 @@ def calcular_nivel(dados_pessoa_bool, trilhos_por_area):
         # Se ocorrer qualquer outro erro inesperado (KeyError, TypeError, etc.), 
         # impede que o template falhe com Internal Server Error.
         return "Comunidade"
+    
+def init_default_data():
+    """Inicializa dados padrão (Tribos, Cargos) se estiverem vazios"""
+    try:
+        # Verifica se já existem cargos
+        if Cargo.query.count() == 0:
+            print("Criando cargos padrão...")
+            cargos_padrão = [
+                Cargo(nome='Guia', cor='#bb2124'),
+                Cargo(nome='Sub-Guia', cor='#bb2124'),
+                Cargo(nome='Tesoureiro', cor='#28a745'),
+                Cargo(nome='Secretário', cor='#007bff'),
+                Cargo(nome='Animador', cor='#ffa500'),
+                Cargo(nome='Cozinheiro', cor='#ffde21'),
+                Cargo(nome='Socorrista', cor='#ff0000'),
+                Cargo(nome='Guarda-Material', cor='#7c3a00'),
+                Cargo(nome='Relações Públicas', cor='#87cefa'),
+            ]
+            for cargo in cargos_padrão:
+                db.session.add(cargo)
+            db.session.commit()
+            print("✅ Cargos padrão criados.")
+            
+    except Exception as e:
+        print(f"⚠️ Erro ao inicializar dados padrão: {e}")
+        db.session.rollback()
 
 # --- INICIALIZAÇÃO ---
 
 def init_db():
     """Cria todas as tabelas e inicializa utilizadores padrão, se necessário."""
     db.create_all()
+
+    init_default_data()
 
     # --- Garante utilizadores padrão ---
     utilizadores_a_eliminar = ['Chefe', 'Clan']
@@ -497,6 +529,8 @@ def init_db():
 
     db.session.commit()
     print("✅ Base de dados e utilizadores padrão inicializados.")
+
+
 
 # --- Garantir criação da base de dados e init mesmo fora do __main__ ---
 with app.app_context():
@@ -700,6 +734,7 @@ def gestao_tribos():
         acao = request.form.get("acao")
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
+        # ✅ AÇÃO 1: CRIAR TRIBO
         if acao == "criar_tribo":
             nome_tribo = request.form.get("nome_tribo").strip()
             if nome_tribo:
@@ -713,6 +748,7 @@ def gestao_tribos():
                 return redirect(url_for("gestao_tribos"))
             return jsonify({"status": "ok", "nome_tribo": nome_tribo})
 
+        # ✅ AÇÃO 2: REMOVER TRIBO
         elif acao == "remover_tribo":
             nome_tribo = request.form.get("nome_tribo")
             tribo = Tribo.query.filter_by(nome=nome_tribo).first()
@@ -724,6 +760,7 @@ def gestao_tribos():
                 return redirect(url_for("gestao_tribos"))
             return jsonify({"status": "ok"})
 
+        # ✅ AÇÃO 3: ADICIONAR PESSOA
         elif acao == "adicionar_pessoa":
             tribo_nome = request.form.get("tribo")
             nome_pessoa = request.form.get("nome_pessoa").strip()
@@ -732,36 +769,81 @@ def gestao_tribos():
                 if Pessoa.query.filter_by(nome=nome_pessoa).first():
                     flash(f"A pessoa '{nome_pessoa}' já existe.", "danger")
                 else:
-                    nova_pessoa = Pessoa(nome=nome_pessoa, tribo_id=tribo.id)
-                    db.session.add(nova_pessoa)
-                    db.session.flush()
-                    modelo = carregar_progresso_modelo()
-                    novo_progresso = Progresso(pessoa_id=nova_pessoa.id, dados_progresso=copy.deepcopy(modelo))
-                    db.session.add(novo_progresso)
-                    nova_conta = Conta(pessoa_nome=nome_pessoa, valor=0.0)
-                    db.session.add(nova_conta)
-                    db.session.commit()
-                    nova_pessoa_dict = {"nome": nova_pessoa.nome, "cargo": [], "id": nova_pessoa.id}
-                    #flash(f"Pessoa '{nome_pessoa}' adicionada a {tribo_nome}.", "success")
-                    if not is_ajax:
-                        return redirect(url_for("gestao_tribos", tribo_id=tribo_nome))
-                    return jsonify({"status": "ok", "pessoa": nova_pessoa_dict})
+                    try:
+                        # Cria a pessoa
+                        nova_pessoa = Pessoa(nome=nome_pessoa, tribo_id=tribo.id)
+                        db.session.add(nova_pessoa)
+                        db.session.flush()  # Garante que pessoa.id é gerado
+                        
+                        # Cria o registo de progresso
+                        modelo = carregar_progresso_modelo()
+                        novo_progresso = Progresso(
+                            pessoa_id=nova_pessoa.id, 
+                            dados_progresso=copy.deepcopy(modelo)
+                        )
+                        db.session.add(novo_progresso)
+                        
+                        # Cria a conta
+                        nova_conta = Conta(pessoa_nome=nome_pessoa, valor=0.0)
+                        db.session.add(nova_conta)
+                        
+                        db.session.commit()
+                        nova_pessoa_dict = {"nome": nova_pessoa.nome, "cargo": [], "id": nova_pessoa.id}
+                        #flash(f"Pessoa '{nome_pessoa}' adicionada a {tribo_nome}.", "success")
+                        if not is_ajax:
+                            return redirect(url_for("gestao_tribos", tribo_id=tribo_nome))
+                        return jsonify({"status": "ok", "pessoa": nova_pessoa_dict})
+                    except Exception as e:
+                        db.session.rollback()
+                        print(f"ERRO ao adicionar pessoa: {e}")
+                        if not is_ajax:
+                            return redirect(url_for("gestao_tribos"))
+                        return jsonify({"status": "error", "message": str(e)}), 500
             return jsonify({"status": "error", "message": "Tribo ou nome inválidos."}), 400
 
+        # ✅ AÇÃO 4: REMOVER PESSOA (CORRIGIDA)
         elif acao == "remover_pessoa":
             tribo_nome = request.form.get("tribo")
             nome_pessoa = request.form.get("nome_pessoa")
-            pessoa = Pessoa.query.filter_by(nome=nome_pessoa).first()
-            if pessoa:
-                Conta.query.filter_by(pessoa_nome=nome_pessoa).delete()
-                CondicaoSaude.query.filter_by(pessoa_nome=nome_pessoa).delete()
-                db.session.delete(pessoa)
-                db.session.commit()
-                #flash(f"Pessoa '{nome_pessoa}' removida.", "warning")
+            
+            try:
+                pessoa = Pessoa.query.filter_by(nome=nome_pessoa).first()
+                if pessoa:
+                    # 🔴 IMPORTANTE: Ordem de eliminação para evitar cascade errors
+                    
+                    # 1. Elimina o registo de Progresso PRIMEIRO (evita cascade conflict)
+                    Progresso.query.filter_by(pessoa_id=pessoa.id).delete()
+                    
+                    # 2. Elimina a Conta
+                    Conta.query.filter_by(pessoa_nome=nome_pessoa).delete()
+                    
+                    # 3. Elimina CondicaoSaude
+                    CondicaoSaude.query.filter_by(pessoa_nome=nome_pessoa).delete()
+                    
+                    # 4. A Pessoa é eliminada (cascata automática para PessoaCargo por causa da FK)
+                    db.session.delete(pessoa)
+                    db.session.commit()
+                    
+                    #flash(f"Pessoa '{nome_pessoa}' removida.", "warning")
+                    print(f"✅ Pessoa '{nome_pessoa}' removida com sucesso.")
+                else:
+                    print(f"⚠️ Pessoa '{nome_pessoa}' não encontrada.")
+                    
+            except Exception as e:
+                db.session.rollback()
+                import traceback
+                print(f"❌ ERRO ao remover pessoa '{nome_pessoa}': {e}")
+                traceback.print_exc()
+                flash(f"Erro ao remover pessoa: {e}", "danger")
+                if not is_ajax:
+                    return redirect(url_for("gestao_tribos"))
+                return jsonify({"status": "error", "message": str(e)}), 500
+            
             if not is_ajax:
                 return redirect(url_for("gestao_tribos"))
             return jsonify({"status": "ok", "nome_pessoa": nome_pessoa})
         
+        # ✅ AÇÃO 5: ADICIONAR CARGO A PESSOA
         elif acao == "adicionar_cargo":
             pessoa_id = request.form.get("pessoa_id") 
             cargo_nome = request.form.get("cargo")
@@ -774,26 +856,43 @@ def gestao_tribos():
             cargo_obj = Cargo.query.filter_by(nome=cargo_nome).first()
             
             if pessoa and cargo_obj:
-                pessoa_cargo_link = PessoaCargo.query.filter_by(pessoa_id=pessoa.id, cargo_nome=cargo_nome).first()
-                if pessoa_cargo_link:
-                    db.session.delete(pessoa_cargo_link)
-                else:
-                    db.session.add(PessoaCargo(pessoa_id=pessoa.id, cargo_nome=cargo_nome))
+                try:
+                    pessoa_cargo_link = PessoaCargo.query.filter_by(
+                        pessoa_id=pessoa.id, 
+                        cargo_nome=cargo_nome
+                    ).first()
                     
-                db.session.commit()
-                
-                # Se for AJAX, devolve o estado atualizado
-                if is_ajax:
-                    db.session.refresh(pessoa)
-                    cargos_atuais = [pc.cargo.nome for pc in pessoa.cargos]
-                    cargos_atuais.sort(key=lambda c: cargo_ordem.get(c, float('inf')))
-                    return jsonify({"status": "ok", "cargos_atuais": cargos_atuais, "cargos_disponiveis": cargos_disponiveis})
+                    if pessoa_cargo_link:
+                        # Se já tem o cargo, remove
+                        db.session.delete(pessoa_cargo_link)
+                    else:
+                        # Se não tem, adiciona
+                        db.session.add(PessoaCargo(pessoa_id=pessoa.id, cargo_nome=cargo_nome))
+                    
+                    db.session.commit()
+                    
+                    # Se for AJAX, devolve o estado atualizado
+                    if is_ajax:
+                        db.session.refresh(pessoa)
+                        cargos_atuais = [pc.cargo.nome for pc in pessoa.cargos]
+                        cargos_atuais.sort(key=lambda c: cargo_ordem.get(c, float('inf')))
+                        return jsonify({
+                            "status": "ok", 
+                            "cargos_atuais": cargos_atuais, 
+                            "cargos_disponiveis": cargos_disponiveis
+                        })
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"ERRO ao adicionar cargo: {e}")
+                    if not is_ajax:
+                        return redirect(url_for("gestao_tribos"))
+                    return jsonify({"status": "error", "message": str(e)}), 500
             
             if not is_ajax:
                 return redirect(url_for("gestao_tribos"))
             return jsonify({"status": "error", "message": "Pessoa ou Cargo inválidos."}), 400
 
-        # --- CORREÇÃO COMPLETA: ORDENAR PESSOAS ---
+        # ✅ AÇÃO 6: REORDENAR PESSOAS (CORRIGIDA)
         elif acao == 'ordenar':
             original_tribo_nome = request.form.get('original_tribo')
             nova_tribo_nome = request.form.get('nova_tribo')
@@ -810,52 +909,59 @@ def gestao_tribos():
             if not nova_tribo:
                 return jsonify({'status': 'error', 'message': 'Tribo de destino não encontrada'}), 400
 
-            # 1. Se a pessoa mudou de tribo (Drag-and-Drop entre listas)
-            if original_tribo_nome != nova_tribo_nome:
-                original_tribo = Tribo.query.filter_by(nome=original_tribo_nome).first()
-                
-                if original_tribo:
-                    # A. Mover a pessoa
-                    pessoa_movida = Pessoa.query.filter_by(nome=nome_pessoa).first()
-                    if pessoa_movida:
-                        pessoa_movida.tribo_id = nova_tribo.id
-                        db.session.add(pessoa_movida)
-
-                    # B. Reordenar os membros remanescentes da tribo original
-                    # Isto garante que não ficam "buracos" na ordem da tribo de origem
-                    membros_origem = Pessoa.query.filter(Pessoa.tribo_id == original_tribo.id).order_by(Pessoa.ordem).all()
+            try:
+                # 1. Se a pessoa mudou de tribo (Drag-and-Drop entre listas)
+                if original_tribo_nome != nova_tribo_nome:
+                    original_tribo = Tribo.query.filter_by(nome=original_tribo_nome).first()
                     
-                    for index, pessoa in enumerate(membros_origem):
-                        if pessoa.nome != nome_pessoa:
-                             pessoa.ordem = index
-                             db.session.add(pessoa)
+                    if original_tribo:
+                        # A. Mover a pessoa
+                        pessoa_movida = Pessoa.query.filter_by(nome=nome_pessoa).first()
+                        if pessoa_movida:
+                            pessoa_movida.tribo_id = nova_tribo.id
+                            db.session.add(pessoa_movida)
 
-            # 2. Reordenar *todos* os membros da tribo de destino (incluindo o que possa ter chegado)
-            # A lista nova_ordem_nomes contém a nova sequência de nomes.
-            
-            for index, nome in enumerate(nova_ordem_nomes):
-                # CORREÇÃO: Usar a abordagem ORM padrão (carregar e atualizar) em vez de bulk update,
-                # para evitar o erro de compilação 'Unconsumed column names: ordem'.
-                pessoa_to_update = Pessoa.query.filter_by(nome=nome).first()
-                if pessoa_to_update:
-                    pessoa_to_update.ordem = index
-                    # Garantir que a pessoa está na nova tribo, em caso de drag-and-drop
-                    pessoa_to_update.tribo_id = nova_tribo.id 
-                    db.session.add(pessoa_to_update)
+                        # B. Reordenar os membros remanescentes da tribo original
+                        membros_origem = Pessoa.query.filter(
+                            Pessoa.tribo_id == original_tribo.id
+                        ).order_by(Pessoa.ordem).all()
+                        
+                        for index, pessoa in enumerate(membros_origem):
+                            if pessoa.nome != nome_pessoa:
+                                pessoa.ordem = index
+                                db.session.add(pessoa)
 
-            db.session.commit()
+                # 2. Reordenar *todos* os membros da tribo de destino
+                for index, nome in enumerate(nova_ordem_nomes):
+                    pessoa_to_update = Pessoa.query.filter_by(nome=nome).first()
+                    if pessoa_to_update:
+                        pessoa_to_update.ordem = index
+                        # Garantir que a pessoa está na nova tribo
+                        pessoa_to_update.tribo_id = nova_tribo.id 
+                        db.session.add(pessoa_to_update)
+
+                db.session.commit()
+                return jsonify({'status': 'ok'})
+                
+            except Exception as e:
+                db.session.rollback()
+                print(f"ERRO ao reordenar pessoas: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'status': 'error', 'message': str(e)}), 500
             
-            return jsonify({'status': 'ok'})
-            
-        # ... (Lógica de fallback para não-AJAX)
+        # Fallback para não-AJAX
         if not is_ajax:
             return redirect(url_for("gestao_tribos"))
         return jsonify({"status": "ok"})
 
-
-    # Lógica de GET
+    # ✅ LÓGICA DE GET: Carregar dados para renderizar
     tribos_dict = carregar_tribos() 
-    return render_template("gestao_tribos.html", tribos=tribos_dict, cargos_disponiveis=cargos_disponiveis)
+    return render_template(
+        "gestao_tribos.html", 
+        tribos=tribos_dict, 
+        cargos_disponiveis=cargos_disponiveis
+    )
 
 @app.route("/reordenar_pessoas", methods=["POST"])
 def reordenar_pessoas():
