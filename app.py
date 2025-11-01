@@ -736,6 +736,147 @@ with app.app_context():
 
 # --- ROTAS ---
 
+@app.route("/debug_atividades")
+def debug_atividades():
+    """Debug completo das atividades."""
+    if session.get('username') != 'Chefe':
+        return "Acesso negado", 403
+    
+    try:
+        # 1. Verificar tabela de atividades
+        print("\n" + "="*70)
+        print("🔍 DEBUG ATIVIDADES")
+        print("="*70)
+        
+        atividades = Atividade.query.all()
+        print(f"\n📊 Total de atividades na BD: {len(atividades)}")
+        
+        for i, atv in enumerate(atividades, 1):
+            print(f"\n{i}. {atv.titulo}")
+            print(f"   ID: {atv.id}")
+            print(f"   Tipo: {atv.tipo}")
+            print(f"   Início: {atv.data_inicio}")
+            print(f"   Fim: {atv.data_fim}")
+            print(f"   All day: {atv.all_day}")
+            print(f"   Descrição: {atv.descricao}")
+        
+        # 2. Verificar modelo de atividade
+        print("\n🗂️ Estrutura do modelo Atividade:")
+        print(f"   Colunas: {[c.name for c in Atividade.__table__.columns]}")
+        
+        # 3. Retornar JSON com debug
+        debug_data = {
+            "total_atividades": len(atividades),
+            "atividades": [
+                {
+                    "id": atv.id,
+                    "titulo": atv.titulo,
+                    "tipo": atv.tipo,
+                    "data_inicio": atv.data_inicio.isoformat() if atv.data_inicio else None,
+                    "data_fim": atv.data_fim.isoformat() if atv.data_fim else None,
+                    "all_day": atv.all_day,
+                    "descricao": atv.descricao
+                }
+                for atv in atividades
+            ]
+        }
+        
+        print("\n" + "="*70 + "\n")
+        
+        return jsonify(debug_data)
+    
+    except Exception as e:
+        import traceback
+        erro = traceback.format_exc()
+        print(f"\n❌ ERRO: {e}\n{erro}\n")
+        return jsonify({"error": str(e), "traceback": erro}), 500
+
+
+# ✅ TAMBÉM ADICIONAR ESTA ROTA PARA TESTAR CRIAÇÃO:
+
+@app.route("/test_criar_atividade", methods=["GET", "POST"])
+def test_criar_atividade():
+    """Rota de teste para criar atividade."""
+    if session.get('username') != 'Chefe':
+        return "Acesso negado", 403
+    
+    if request.method == "GET":
+        return """
+        <h1>🧪 Teste de Criação de Atividade</h1>
+        <form method="POST">
+            <input type="text" name="titulo" placeholder="Título" required>
+            <input type="date" name="data_inicio" required>
+            <input type="date" name="data_fim" required>
+            <select name="tipo" required>
+                <option value="Clan">Clan</option>
+                <option value="Agrupamento">Agrupamento</option>
+                <option value="Núcleo">Núcleo</option>
+            </select>
+            <textarea name="descricao" placeholder="Descrição"></textarea>
+            <button type="submit">Criar</button>
+        </form>
+        """
+    
+    if request.method == "POST":
+        try:
+            print("\n" + "="*70)
+            print("🧪 TESTE DE CRIAÇÃO")
+            print("="*70)
+            
+            titulo = request.form.get("titulo")
+            data_inicio_str = request.form.get("data_inicio")
+            data_fim_str = request.form.get("data_fim")
+            tipo = request.form.get("tipo")
+            descricao = request.form.get("descricao", "")
+            
+            print(f"\n📝 Dados recebidos:")
+            print(f"   Título: {titulo}")
+            print(f"   Data início: {data_inicio_str}")
+            print(f"   Data fim: {data_fim_str}")
+            print(f"   Tipo: {tipo}")
+            print(f"   Descrição: {descricao}")
+            
+            # Converter datas
+            data_inicio = datetime.strptime(data_inicio_str, "%Y-%m-%d")
+            data_fim = datetime.strptime(data_fim_str, "%Y-%m-%d")
+            
+            print(f"\n✅ Datas convertidas com sucesso")
+            
+            # Criar atividade
+            nova_atividade = Atividade(
+                id=str(uuid.uuid4()),
+                titulo=titulo,
+                data_inicio=data_inicio,
+                data_fim=data_fim,
+                tipo=tipo,
+                descricao=descricao,
+                all_day=False
+            )
+            
+            print(f"✅ Objeto Atividade criado")
+            print(f"   ID: {nova_atividade.id}")
+            
+            # Guardar
+            db.session.add(nova_atividade)
+            db.session.commit()
+            
+            print(f"✅ Guardado na BD com sucesso!")
+            print(f"\n" + "="*70 + "\n")
+            
+            return f"""
+            <h1>✅ Atividade Criada!</h1>
+            <p><strong>{titulo}</strong> foi criada com sucesso.</p>
+            <p><a href="/debug_atividades">Ver todas as atividades</a></p>
+            """
+        
+        except Exception as e:
+            db.session.rollback()
+            import traceback
+            erro = traceback.format_exc()
+            print(f"\n❌ ERRO: {e}\n{erro}\n")
+            return f"<h1>❌ Erro!</h1><pre>{erro}</pre>"
+
+
 @app.route("/admin/fix_progresso")
 def admin_fix_progresso():
     """
