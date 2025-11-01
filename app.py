@@ -1642,6 +1642,35 @@ def atualizar_objetivo():
     nivel = calcular_nivel(dados_pessoa_bool, progresso_modelo)
     return jsonify({"status": "ok", "novo_estado": novo_estado, "nivel": nivel})
 
+
+@app.route("/debug_progresso")
+def debug_progresso():
+    """Rota de debug para ver o estado do progresso na BD."""
+    
+    modelo = ProgressoModelo.query.first()
+    pessoas = Pessoa.query.all()
+    progressos = Progresso.query.all()
+    
+    debug_info = {
+        "modelo_existe": modelo is not None,
+        "modelo_conteudo": modelo.modelo if modelo else None,
+        "num_pessoas": len(pessoas),
+        "pessoas_nomes": [p.nome for p in pessoas],
+        "num_progressos": len(progressos),
+        "progressos_data": [
+            {
+                "pessoa_id": p.pessoa_id,
+                "pessoa_nome": p.pessoa.nome if p.pessoa else "???",
+                "tem_dados": p.dados_progresso is not None,
+                "dados": p.dados_progresso
+            }
+            for p in progressos
+        ]
+    }
+    
+    return jsonify(debug_info)
+
+
 @app.route("/secretaria", methods=["GET", "POST"])
 
 def secretaria():
