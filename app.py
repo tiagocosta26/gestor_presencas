@@ -507,6 +507,48 @@ def init_default_data():
 
 # --- INICIALIZAÇÃO ---
 
+def migrate_progresso_table():
+    """
+    Migra a tabela progresso do schema antigo (pessoa_id como PK)
+    para o novo schema (id como PK, pessoa_id como FK normal)
+    """
+    from sqlalchemy import text
+    
+    try:
+        with app.app_context():
+            # Verifica se a coluna 'id' já existe
+            result = db.session.execute(
+                text("SELECT column_name FROM information_schema.columns WHERE table_name='progresso' AND column_name='id'")
+            )
+            if result.fetchone():
+                print("✅ Tabela progresso já tem coluna 'id'. Migration não necessária.")
+                return
+            
+            print("🔄 Migrando tabela progresso...")
+            
+            # Se chegou aqui, precisa fazer a migração
+            # Backup dos dados antigos
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS progresso_backup AS 
+                SELECT * FROM progresso
+            """))
+            
+            # Drop da tabela antiga
+            db.session.execute(text("DROP TABLE IF EXISTS progresso CASCADE"))
+            
+            # Commit para aplicar as mudanças
+            db.session.commit()
+            
+            print("✅ Tabela progresso migrada com sucesso. Será recriada com o novo schema.")
+            
+    except Exception as e:
+        print(f"⚠️ Aviso durante migration: {e}")
+        try:
+            db.session.rollback()
+        except:
+            pass
+
+
 def init_db():
     """Cria todas as tabelas e inicializa utilizadores padrão, se necessário."""
     db.create_all()
@@ -535,13 +577,22 @@ def init_db():
 # --- Garantir criação da base de dados e init mesmo fora do __main__ ---
 with app.app_context():
     try:
+        # 1. Primeiro faz a migration (se necessário)
+        migrate_progresso_table()
+        
+        # 2. Depois cria as tabelas com o novo schema
         db.create_all()
+        
+        # 3. Depois inicializa os dados padrão
         init_db()
+        
         print("✅ Base de dados pronta para uso.")
     except Exception as e:
         import traceback
         print("❌ Erro ao criar/atualizar a base de dados:")
         traceback.print_exc()
+
+
 # --- ROTAS ---
 
 @app.route("/")
