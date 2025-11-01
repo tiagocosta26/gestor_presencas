@@ -142,6 +142,18 @@ class Utilizador(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
 
+class AtividadePresenca(db.Model):
+    """Modelo para guardar atividades de presença na BD."""
+    __tablename__ = 'atividades_presenca'
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(255), nullable=False)
+    data_inicio = db.Column(db.Date, nullable=False)
+    data_fim = db.Column(db.Date, nullable=False)
+    data_criacao = db.Column(db.DateTime, default=datetime.now)
+    
+    # Dados de presença em JSON
+    dados = db.Column(JSON)
+
 class FolhaCaixa(db.Model):
     __tablename__ = 'folha_caixa'
     id = db.Column(db.Integer, primary_key=True)
@@ -261,6 +273,26 @@ def carregar_nomes():
 def carregar_utilizadores():
     utilizadores_obj = Utilizador.query.all()
     return {u.username: {'password_hash': u.password_hash} for u in utilizadores_obj}
+
+def carregar_atividades_presenca_bd():
+    """Carrega atividades de presença da BD."""
+    atividades_obj = AtividadePresenca.query.order_by(
+        AtividadePresenca.data_inicio.desc()
+    ).all()
+    
+    atividades_agrupadas = defaultdict(list)
+    
+    for atv in atividades_obj:
+        mes_ano = atv.data_inicio.strftime("%Y-%m")
+        atividades_agrupadas[mes_ano].append({
+            'id': atv.id,
+            'nome': atv.nome,
+            'data_inicio': atv.data_inicio.isoformat(),
+            'data_fim': atv.data_fim.isoformat(),
+            'data_criacao': atv.data_criacao.isoformat()
+        })
+    
+    return atividades_agrupadas
 
 def carregar_folha_caixa(entidade):
     folha_caixa = FolhaCaixa.query.filter_by(entidade_nome=entidade).order_by(
@@ -736,147 +768,6 @@ with app.app_context():
 
 # --- ROTAS ---
 
-@app.route("/debug_atividades")
-def debug_atividades():
-    """Debug completo das atividades."""
-    if session.get('username') != 'Chefe':
-        return "Acesso negado", 403
-    
-    try:
-        # 1. Verificar tabela de atividades
-        print("\n" + "="*70)
-        print("🔍 DEBUG ATIVIDADES")
-        print("="*70)
-        
-        atividades = Atividade.query.all()
-        print(f"\n📊 Total de atividades na BD: {len(atividades)}")
-        
-        for i, atv in enumerate(atividades, 1):
-            print(f"\n{i}. {atv.titulo}")
-            print(f"   ID: {atv.id}")
-            print(f"   Tipo: {atv.tipo}")
-            print(f"   Início: {atv.data_inicio}")
-            print(f"   Fim: {atv.data_fim}")
-            print(f"   All day: {atv.all_day}")
-            print(f"   Descrição: {atv.descricao}")
-        
-        # 2. Verificar modelo de atividade
-        print("\n🗂️ Estrutura do modelo Atividade:")
-        print(f"   Colunas: {[c.name for c in Atividade.__table__.columns]}")
-        
-        # 3. Retornar JSON com debug
-        debug_data = {
-            "total_atividades": len(atividades),
-            "atividades": [
-                {
-                    "id": atv.id,
-                    "titulo": atv.titulo,
-                    "tipo": atv.tipo,
-                    "data_inicio": atv.data_inicio.isoformat() if atv.data_inicio else None,
-                    "data_fim": atv.data_fim.isoformat() if atv.data_fim else None,
-                    "all_day": atv.all_day,
-                    "descricao": atv.descricao
-                }
-                for atv in atividades
-            ]
-        }
-        
-        print("\n" + "="*70 + "\n")
-        
-        return jsonify(debug_data)
-    
-    except Exception as e:
-        import traceback
-        erro = traceback.format_exc()
-        print(f"\n❌ ERRO: {e}\n{erro}\n")
-        return jsonify({"error": str(e), "traceback": erro}), 500
-
-
-# ✅ TAMBÉM ADICIONAR ESTA ROTA PARA TESTAR CRIAÇÃO:
-
-@app.route("/test_criar_atividade", methods=["GET", "POST"])
-def test_criar_atividade():
-    """Rota de teste para criar atividade."""
-    if session.get('username') != 'Chefe':
-        return "Acesso negado", 403
-    
-    if request.method == "GET":
-        return """
-        <h1>🧪 Teste de Criação de Atividade</h1>
-        <form method="POST">
-            <input type="text" name="titulo" placeholder="Título" required>
-            <input type="date" name="data_inicio" required>
-            <input type="date" name="data_fim" required>
-            <select name="tipo" required>
-                <option value="Clan">Clan</option>
-                <option value="Agrupamento">Agrupamento</option>
-                <option value="Núcleo">Núcleo</option>
-            </select>
-            <textarea name="descricao" placeholder="Descrição"></textarea>
-            <button type="submit">Criar</button>
-        </form>
-        """
-    
-    if request.method == "POST":
-        try:
-            print("\n" + "="*70)
-            print("🧪 TESTE DE CRIAÇÃO")
-            print("="*70)
-            
-            titulo = request.form.get("titulo")
-            data_inicio_str = request.form.get("data_inicio")
-            data_fim_str = request.form.get("data_fim")
-            tipo = request.form.get("tipo")
-            descricao = request.form.get("descricao", "")
-            
-            print(f"\n📝 Dados recebidos:")
-            print(f"   Título: {titulo}")
-            print(f"   Data início: {data_inicio_str}")
-            print(f"   Data fim: {data_fim_str}")
-            print(f"   Tipo: {tipo}")
-            print(f"   Descrição: {descricao}")
-            
-            # Converter datas
-            data_inicio = datetime.strptime(data_inicio_str, "%Y-%m-%d")
-            data_fim = datetime.strptime(data_fim_str, "%Y-%m-%d")
-            
-            print(f"\n✅ Datas convertidas com sucesso")
-            
-            # Criar atividade
-            nova_atividade = Atividade(
-                id=str(uuid.uuid4()),
-                titulo=titulo,
-                data_inicio=data_inicio,
-                data_fim=data_fim,
-                tipo=tipo,
-                descricao=descricao,
-                all_day=False
-            )
-            
-            print(f"✅ Objeto Atividade criado")
-            print(f"   ID: {nova_atividade.id}")
-            
-            # Guardar
-            db.session.add(nova_atividade)
-            db.session.commit()
-            
-            print(f"✅ Guardado na BD com sucesso!")
-            print(f"\n" + "="*70 + "\n")
-            
-            return f"""
-            <h1>✅ Atividade Criada!</h1>
-            <p><strong>{titulo}</strong> foi criada com sucesso.</p>
-            <p><a href="/debug_atividades">Ver todas as atividades</a></p>
-            """
-        
-        except Exception as e:
-            db.session.rollback()
-            import traceback
-            erro = traceback.format_exc()
-            print(f"\n❌ ERRO: {e}\n{erro}\n")
-            return f"<h1>❌ Erro!</h1><pre>{erro}</pre>"
-
-
 @app.route("/admin/fix_progresso")
 def admin_fix_progresso():
     """
@@ -964,43 +855,43 @@ def presencas():
                 flash("Todos os campos são obrigatórios.", "danger")
                 return redirect(url_for("presencas"))
             
-            atividade_limpa = limpar_nome(atividade)
-            caminho = os.path.join(
-                DIRETORIO_PRESENCAS, 
-                f"{atividade_limpa}_{data_inicio}_a_{data_fim}.csv"
+            # Converter datas
+            dt_inicio = datetime.strptime(data_inicio, "%Y-%m-%d").date()
+            dt_fim = datetime.strptime(data_fim, "%Y-%m-%d").date()
+            
+            # Preparar dados de presença
+            dados_presenca = {}
+            
+            for tribo_nome in tribos_selecionadas:
+                if not tribo_nome.strip():
+                    continue
+                
+                tribo_nome = tribo_nome.strip()
+                dados_presenca[tribo_nome] = {}
+                
+                membros = tribos.get(tribo_nome, [])
+                for membro in membros:
+                    nome = membro['nome']
+                    presente = "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
+                    dados_presenca[tribo_nome][nome] = presente
+            
+            # ✅ GUARDAR NA BD EM VEZ DE FICHEIRO CSV
+            nova_atividade = AtividadePresenca(
+                nome=atividade,
+                data_inicio=dt_inicio,
+                data_fim=dt_fim,
+                dados=dados_presenca
             )
             
-            # Criar diretório se não existir
-            os.makedirs(DIRETORIO_PRESENCAS, exist_ok=True)
+            db.session.add(nova_atividade)
+            db.session.commit()
             
-            with open(caminho, "w", newline="", encoding="utf-8-sig") as f:
-                writer = csv.writer(f)
-                writer.writerow([
-                    "Atividade", "Data Início", "Data Fim", "Tribo", 
-                    "Elemento", "Cargos", "Presente"
-                ])
-                
-                for tribo_nome in tribos_selecionadas:
-                    if not tribo_nome.strip():
-                        continue
-                    
-                    membros = tribos.get(tribo_nome.strip(), [])
-                    for membro in membros:
-                        nome = membro['nome']
-                        cargos_list = membro.get('cargo', [])
-                        cargos_str = ', '.join(cargos_list)
-                        presente = "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
-                        
-                        writer.writerow([
-                            atividade, data_inicio, data_fim, 
-                            tribo_nome.strip(), nome, cargos_str, presente
-                        ])
-            
-            print(f"✅ Atividade '{atividade}' criada com sucesso")
+            print(f"✅ Atividade de presença '{atividade}' criada com sucesso na BD")
             flash(f"Atividade '{atividade}' registada com sucesso!", "success")
             return redirect(url_for("atividades"))
         
         except Exception as e:
+            db.session.rollback()
             import traceback
             print(f"❌ Erro ao criar atividade: {e}")
             traceback.print_exc()
@@ -1016,75 +907,38 @@ def presencas():
 def atividades():
     """Lista todas as atividades de presença."""
     try:
-        ficheiros = [
-            f for f in os.listdir(DIRETORIO_PRESENCAS) 
-            if f.endswith(".csv")
-        ]
-    except FileNotFoundError:
-        ficheiros = []
-    
-    atividades_agrupadas = defaultdict(list)
-
-    def extrair_titulo_e_data(ficheiro):
-        """Extrai título e data do nome do ficheiro."""
-        nome_base = ficheiro.rsplit('.', 1)[0]
-        partes = nome_base.split('_')
-        data_atividade = None
-        indice_data = -1
+        atividades_agrupadas = carregar_atividades_presenca_bd()
+        meses_ordenados = sorted(atividades_agrupadas.keys(), reverse=True)
         
-        for i in range(1, len(partes)):
-            try:
-                data_atividade = datetime.strptime(partes[i].strip(), "%Y-%m-%d")
-                indice_data = i
-                break
-            except ValueError:
-                continue
-        
-        if data_atividade and indice_data != -1:
-            titulo_bruto_list = partes[0:indice_data]
-            titulo_bruto = '_'.join(titulo_bruto_list).strip()
-            titulo_limpo = (
-                titulo_bruto.replace(' _ ', ' + ')
-                .replace('_', ' ')
-                .strip()
-            )
-            return data_atividade, titulo_limpo
-        return None, None
-
-    for ficheiro in ficheiros:
-        data_inicio, titulo = extrair_titulo_e_data(ficheiro)
-        if data_inicio and titulo:
-            mes_ano = data_inicio.strftime("%Y-%m")
-            atividades_agrupadas[mes_ano].append((data_inicio, ficheiro, titulo))
-
-    meses_ordenados = sorted(atividades_agrupadas.keys(), reverse=True)
-    for mes in meses_ordenados:
-        atividades_agrupadas[mes].sort(key=lambda x: x[0], reverse=True)
-        atividades_agrupadas[mes] = [(f[1], f[2]) for f in atividades_agrupadas[mes]]
-
-    return render_template(
-        "atividades.html", 
-        atividades_agrupadas=atividades_agrupadas, 
-        meses_ordenados=meses_ordenados
-    )
+        return render_template(
+            "atividades.html", 
+            atividades_agrupadas=atividades_agrupadas, 
+            meses_ordenados=meses_ordenados
+        )
+    except Exception as e:
+        print(f"❌ Erro ao carregar atividades: {e}")
+        flash("Erro ao carregar atividades.", "danger")
+        return redirect(url_for("presencas"))
 
 
-@app.route('/eliminar_atividade/<nome_ficheiro>', methods=['POST'])
-def eliminar_atividade(nome_ficheiro):
-    """Elimina uma atividade."""
+@app.route('/eliminar_atividade/<int:atividade_id>', methods=['POST'])
+def eliminar_atividade(atividade_id):
+    """Elimina uma atividade de presença."""
     if session.get('username') not in ['Chefe', 'Clan']:
         flash("Não tem permissão para eliminar atividades.", "danger")
         return redirect(url_for('atividades'))
     
     try:
-        caminho_ficheiro = os.path.join(DIRETORIO_PRESENCAS, nome_ficheiro)
-        if os.path.exists(caminho_ficheiro):
-            os.remove(caminho_ficheiro)
-            print(f"✅ Atividade '{nome_ficheiro}' eliminada")
+        atividade = AtividadePresenca.query.get(atividade_id)
+        if atividade:
+            db.session.delete(atividade)
+            db.session.commit()
+            print(f"✅ Atividade '{atividade.nome}' eliminada")
             flash(f"Atividade eliminada com sucesso.", "success")
         else:
-            flash("Ficheiro não encontrado.", "danger")
+            flash("Atividade não encontrada.", "danger")
     except Exception as e:
+        db.session.rollback()
         import traceback
         print(f"❌ Erro ao eliminar atividade: {e}")
         traceback.print_exc()
@@ -1093,57 +947,51 @@ def eliminar_atividade(nome_ficheiro):
     return redirect(url_for('atividades'))
 
 
-@app.route("/atividade/<ficheiro>")
-def ver_atividade(ficheiro):
+@app.route("/atividade/<int:atividade_id>")
+def ver_atividade(atividade_id):
     """Vê detalhes de uma atividade."""
-    cargos_disponiveis = carregar_cargos()
-    caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
-    dados = defaultdict(list)
-    
-    if os.path.exists(caminho):
-        try:
-            with open(caminho, newline="", encoding="utf-8-sig") as f:
-                reader = csv.DictReader(f)
-                for linha in reader:
-                    if 'Tribo' in linha and 'Elemento' in linha:
-                        tribo_nome = linha['Tribo']
-                        nome = linha['Elemento']
-                        cargos_str = linha.get('Cargos', '')
-                        cargos_list = [
-                            c.strip() for c in cargos_str.split(',')
-                        ] if cargos_str else []
-                        presente = linha['Presente']
-                        dados[tribo_nome].append({
-                            'nome': nome, 
-                            'presente': presente, 
-                            'cargos': cargos_list
-                        })
-        except Exception as e:
-            print(f"❌ Erro ao ler atividade: {e}")
-            flash("Erro ao carregar atividade.", "danger")
-    
-    match = re.search(
-        r'(\d{4}-\d{2}-\d{2})_a_(\d{4}-\d{2}-\d{2})', 
-        ficheiro
-    )
-    if match:
-        data_inicio_format = match.group(1)
-        data_fim_format = match.group(2)
+    try:
+        atividade = AtividadePresenca.query.get(atividade_id)
+        if not atividade:
+            flash("Atividade não encontrada.", "danger")
+            return redirect(url_for("atividades"))
+        
+        cargos_disponiveis = carregar_cargos()
+        
+        # Reformatar dados para o template
+        dados = defaultdict(list)
+        if atividade.dados:
+            for tribo_nome, membros in atividade.dados.items():
+                for pessoa_nome, presente in membros.items():
+                    # Procura os cargos da pessoa
+                    pessoa = Pessoa.query.filter_by(nome=pessoa_nome).first()
+                    cargos_list = []
+                    if pessoa:
+                        cargos_list = [pc.cargo.nome for pc in pessoa.cargos]
+                    
+                    dados[tribo_nome].append({
+                        'nome': pessoa_nome,
+                        'presente': presente,
+                        'cargos': cargos_list
+                    })
+        
         data_display = (
-            data_inicio_format 
-            if data_inicio_format == data_fim_format 
-            else f"{data_inicio_format} - {data_fim_format}"
+            atividade.data_inicio.isoformat() 
+            if atividade.data_inicio == atividade.data_fim 
+            else f"{atividade.data_inicio.isoformat()} - {atividade.data_fim.isoformat()}"
         )
-    else:
-        data_display = "Data desconhecida"
-    
-    return render_template(
-        "ver_atividade.html", 
-        ficheiro=ficheiro, 
-        dados=dados,
-        data_display=data_display, 
-        cargos_disponiveis=cargos_disponiveis
-    )
+        
+        return render_template(
+            "ver_atividade.html", 
+            ficheiro=atividade.nome,  # para compatibilidade com template
+            dados=dados,
+            data_display=data_display, 
+            cargos_disponiveis=cargos_disponiveis
+        )
+    except Exception as e:
+        print(f"❌ Erro ao carregar atividade: {e}")
+        flash("Erro ao carregar atividade.", "danger")
+        return redirect(url_for("atividades"))
 
 
 @app.route("/assiduidade", methods=["GET", "POST"])
