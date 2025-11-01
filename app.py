@@ -628,6 +628,72 @@ with app.app_context():
 
 # --- ROTAS ---
 
+@app.route("/admin/fix_progresso")
+def admin_fix_progresso():
+    """
+    Rota para corrigir o sistema de progresso.
+    Só acessível ao Chefe.
+    """
+    if session.get('username') != 'Chefe':
+        return "Acesso negado", 403
+    
+    try:
+        print("\n" + "="*70)
+        print("🔧 CORRIGINDO SISTEMA DE PROGRESSO")
+        print("="*70)
+        
+        # 1. Eliminar modelo antigo se existir
+        print("\n1️⃣ Limpando modelo antigo...")
+        ProgressoModelo.query.delete()
+        db.session.commit()
+        print("   ✅ Modelo antigo removido")
+        
+        # 2. Criar modelo novo
+        print("\n2️⃣ Criando modelo novo...")
+        modelo_padrao = criar_modelo_padrao()
+        novo_modelo = ProgressoModelo(modelo=modelo_padrao)
+        db.session.add(novo_modelo)
+        db.session.commit()
+        print("   ✅ Modelo criado")
+        print(f"   Áreas: {list(modelo_padrao.keys())}")
+        
+        # 3. Limpar progresso de todas as pessoas
+        print("\n3️⃣ Limpando progresso antigo...")
+        Progresso.query.delete()
+        db.session.commit()
+        print("   ✅ Progresso antigo removido")
+        
+        # 4. Recrear progresso para todas as pessoas com o modelo novo
+        print("\n4️⃣ Criando novo progresso para cada pessoa...")
+        pessoas = Pessoa.query.all()
+        
+        for pessoa in pessoas:
+            novo_progresso = Progresso(
+                pessoa_id=pessoa.id,
+                dados_progresso=copy.deepcopy(modelo_padrao)
+            )
+            db.session.add(novo_progresso)
+            print(f"   ✅ {pessoa.nome}")
+        
+        db.session.commit()
+        print("\n" + "="*70)
+        print(f"✅ SUCESSO! {len(pessoas)} pessoas inicializadas")
+        print("="*70 + "\n")
+        
+        return f"""
+        <h1>✅ Sistema de Progresso Corrigido!</h1>
+        <p><strong>{len(pessoas)} pessoas</strong> foram inicializadas com o modelo de progresso.</p>
+        <p><a href="/progresso"><button>Ver Progresso</button></a></p>
+        """
+    
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        erro = traceback.format_exc()
+        print(f"\n❌ ERRO: {e}\n")
+        return f"<h1>❌ Erro!</h1><pre>{erro}</pre>"
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
