@@ -309,41 +309,45 @@ def extract_storage_path(url_publica: str, bucket_name: str) -> str | None:
         print(f"❌ Erro ao extrair o caminho do storage do URL: {e}")
         return None
 
-def delete_from_supabase(url_publica: str, bucket_name: str) -> bool:
+def delete_from_supabase(url_ficheiro, bucket):
     """
-    Elimina um ficheiro do Supabase Storage.
-    Retorna True se o ficheiro foi eliminado (ou não existia).
+    Remove um ficheiro do Supabase Storage dado o URL público completo.
+    Retorna True se o ficheiro foi removido ou já não existia, False se houve erro.
     """
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        print("❌ Supabase não configurado — impossível eliminar ficheiro.")
-        return False
+    from supabase import create_client
+    import re
 
-    # Extrai o caminho do ficheiro dentro do bucket
-    storage_path = extract_storage_path(url_publica, bucket_name)
-    if not storage_path:
-        print("❌ Não foi possível determinar o caminho do ficheiro no Supabase.")
-        return False
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
     try:
-        url = f"{SUPABASE_URL}/storage/v1/object/{bucket_name}/{storage_path}"
-        headers = {
-            "Authorization": f"Bearer {SUPABASE_KEY}"
-        }
-
-        response = requests.delete(url, headers=headers)
-        if response.status_code in [200, 204]:
-            print(f"✅ Ficheiro eliminado: {bucket_name}/{storage_path}")
-            return True
-        elif response.status_code == 404:
-            print(f"⚠️ Ficheiro já não existe: {bucket_name}/{storage_path}")
-            return True
-        else:
-            print(f"❌ Erro ao eliminar ficheiro ({response.status_code}): {response.text}")
+        if not url_ficheiro:
+            print("⚠️ Nenhum URL recebido para eliminar.")
             return False
 
+        # Extrai o caminho interno dentro do bucket (ex: '2025-11-02/ficheiro.jpg')
+        padrao = rf"{bucket}/(.+)"
+        match = re.search(padrao, url_ficheiro)
+        if not match:
+            print(f"❌ URL inválido: {url_ficheiro}")
+            return False
+
+        caminho_ficheiro = match.group(1)
+        print(f"🧾 Caminho para eliminar: {caminho_ficheiro}")
+
+        # Tenta remover
+        response = supabase.storage.from_(bucket).remove([caminho_ficheiro])
+        print(f"📦 Supabase resposta: {response}")
+
+        # Se não houver exceção, assume que foi bem-sucedido
+        return True
+
     except Exception as e:
-        print(f"❌ Erro ao comunicar com Supabase Storage: {e}")
+        print(f"❌ Erro ao eliminar ficheiro no Supabase: {e}")
         return False
+
 
 
 def upload_para_supabase(file, bucket_name, pasta=""):
