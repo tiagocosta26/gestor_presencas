@@ -66,6 +66,13 @@ else:
 print("URI da base de dados a ser usada:", app.config['SQLALCHEMY_DATABASE_URI'])
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_size': 3,          # ✅ Reduzido para 3 (era 5 por padrão)
+    'max_overflow': 1,       # ✅ Apenas 1 conexão extra (era 10)
+    'pool_recycle': 300,     # Recicla a cada 5 min
+    'pool_pre_ping': True,   # Testa conexão antes de usar
+    'pool_timeout': 30       # Timeout de 30s
+}
 db = SQLAlchemy(app)
 
 
