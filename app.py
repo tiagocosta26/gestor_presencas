@@ -52,7 +52,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 
-
 # Diretórios para ficheiros
 DIRETORIO_PRESENCAS = "registos"
 DIRETORIO_TESOURARIA = "tesouraria"
@@ -249,177 +248,7 @@ class ItemFarmacia(db.Model):
             'observacoes': self.observacoes or ''
         }
 
-class Ata(db.Model):
-    """Modelo para guardar metadados de atas."""
-    __tablename__ = 'atas'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    data_ata = db.Column(db.Date, nullable=False)
-    nome_original = db.Column(db.String(255), nullable=False)
-    url_ficheiro = db.Column(db.String(500), nullable=False)
-    caminho_supabase = db.Column(db.String(500), nullable=False)
-    data_upload = db.Column(db.DateTime, default=datetime.now)
-    
-    def __repr__(self):
-        return f'<Ata {self.data_ata}>'
-
-
-class Documento(db.Model):
-    """Modelo para guardar metadados de documentos."""
-    __tablename__ = 'documentos'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    nome_original = db.Column(db.String(255), nullable=False)
-    url_ficheiro = db.Column(db.String(500), nullable=False)
-    caminho_supabase = db.Column(db.String(500), nullable=False)
-    data_upload = db.Column(db.DateTime, default=datetime.now)
-    
-    def __repr__(self):
-        return f'<Documento {self.nome_original}>'
-
 # --- FUNÇÕES AUXILIARES ---
-
-def fazer_upload_supabase(file, bucket_name, pasta=""):
-    """
-    Faz upload de um ficheiro para Supabase Storage.
-    
-    Args:
-        file: FileStorage object do Flask
-        bucket_name: Nome do bucket (ex: "receitas", "atas", "documentos")
-        pasta: Subpasta dentro do bucket (opcional)
-    
-    Returns:
-        dict com 'url' e 'caminho' ou None em caso de erro
-    """
-    if not supabase_client:
-        print("❌ Supabase não está configurado")
-        return None
-    
-    try:
-        # Gera nome único do ficheiro
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nome_original = file.filename
-        extensao = os.path.splitext(nome_original)[1]
-        nome_ficheiro = f"{timestamp}_{nome_original.replace(' ', '_')}"
-        
-        # Define o caminho no bucket
-        if pasta:
-            caminho = f"{pasta}/{nome_ficheiro}"
-        else:
-            caminho = nome_ficheiro
-        
-        print(f"📤 Fazendo upload: {nome_ficheiro} para {bucket_name}/{caminho}")
-        
-        # Lê o conteúdo do ficheiro
-        conteudo = file.read()
-        
-        # Faz upload
-        resposta = supabase_client.storage.from_(bucket_name).upload(
-            path=caminho,
-            file=conteudo,
-            file_options={"content-type": file.content_type}
-        )
-        
-        # Gera URL pública
-        url_publica = supabase_client.storage.from_(bucket_name).get_public_url(caminho)
-        
-        print(f"✅ Upload bem-sucedido: {url_publica}")
-        
-        return {
-            'url': url_publica,
-            'caminho': caminho,
-            'bucket': bucket_name,
-            'nome_original': nome_original
-        }
-    
-    except Exception as e:
-        print(f"❌ Erro no upload: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
-
-
-def eliminar_ficheiro_supabase(bucket_name, caminho):
-    """
-    Elimina um ficheiro do Supabase Storage.
-    
-    Args:
-        bucket_name: Nome do bucket
-        caminho: Caminho do ficheiro no bucket
-    
-    Returns:
-        True se eliminado com sucesso, False caso contrário
-    """
-    if not supabase_client:
-        print("❌ Supabase não está configurado")
-        return False
-    
-    try:
-        print(f"🗑️ Eliminando: {bucket_name}/{caminho}")
-        
-        supabase_client.storage.from_(bucket_name).remove([caminho])
-        
-        print(f"✅ Ficheiro eliminado com sucesso")
-        return True
-    
-    except Exception as e:
-        print(f"❌ Erro ao eliminar ficheiro: {e}")
-        return False
-
-
-def criar_bucket_supabase(bucket_name, publico=True):
-    """
-    Cria um novo bucket no Supabase (se não existir).
-    
-    Args:
-        bucket_name: Nome do bucket
-        publico: Se deve ser público ou privado
-    
-    Returns:
-        True se criado/já existe, False em caso de erro
-    """
-    if not supabase_client:
-        print("❌ Supabase não está configurado")
-        return False
-    
-    try:
-        print(f"🪣 Tentando criar bucket: {bucket_name}")
-        
-        # Tenta criar o bucket
-        supabase_client.storage.create_bucket(
-            bucket_name,
-            options={
-                "public": publico
-            }
-        )
-        
-        print(f"✅ Bucket '{bucket_name}' criado com sucesso")
-        return True
-    
-    except Exception as e:
-        if "already exists" in str(e):
-            print(f"ℹ️ Bucket '{bucket_name}' já existe")
-            return True
-        else:
-            print(f"❌ Erro ao criar bucket: {e}")
-            return False
-
-
-# ============ INICIALIZAR STORAGE ============
-
-def inicializar_storage_supabase():
-    """Cria os buckets necessários na inicialização."""
-    if not supabase_client:
-        print("⚠️ Supabase Storage não está configurado, pulando inicialização")
-        return
-    
-    print("\n🔧 Inicializando Storage Supabase...")
-    buckets = ["receitas", "atas", "documentos", "uploads"]
-    
-    for bucket in buckets:
-        criar_bucket_supabase(bucket, publico=True)
-    
-    print("✅ Storage Supabase inicializado\n")
 
 def limpar_nome(nome):
     nome_ficheiro = nome.replace('/', '-')
@@ -2674,267 +2503,119 @@ def debug_progresso():
 
 
 @app.route("/secretaria", methods=["GET", "POST"])
+
 def secretaria():
-    """Página de secretaria com upload para Supabase."""
-    
+
     if request.method == "POST":
-        # --- UPLOAD DE ATA ---
         if 'ata' in request.files:
-            data_ata = request.form.get('dataAta', '').strip()
+            data_ata = request.form.get('dataAta')
             file = request.files['ata']
-            
-            print(f"DEBUG: Upload de ata. Data: {data_ata}, Ficheiro: {file.filename}")
-            
             if file.filename == '' or not data_ata:
                 flash("Nenhum arquivo ou data de Ata selecionados.", "danger")
                 return redirect(request.url)
-            
-            try:
-                # Converte a data
-                try:
-                    data_ata_obj = datetime.strptime(data_ata, "%Y-%m-%d").date()
-                except ValueError:
-                    flash("Data da ata inválida. Use formato YYYY-MM-DD", "danger")
-                    return redirect(request.url)
-                
-                # Faz upload para Supabase
-                resultado = fazer_upload_supabase(file, "atas", f"atas/{data_ata}")
-                
-                if resultado:
-                    # Guarda metadados na BD
-                    nova_ata = Ata(
-                        data_ata=data_ata_obj,
-                        nome_original=resultado['nome_original'],
-                        url_ficheiro=resultado['url'],
-                        caminho_supabase=resultado['caminho']
-                    )
-                    db.session.add(nova_ata)
-                    db.session.commit()
-                    
-                    print(f"✅ Ata guardada com sucesso: {resultado['url']}")
-                    flash("Ata arquivada com sucesso!", "success")
-                else:
-                    flash("Erro ao fazer upload da ata para o servidor.", "danger")
-            
-            except Exception as e:
-                db.session.rollback()
-                print(f"❌ Erro ao arquivar ata: {e}")
-                import traceback
-                traceback.print_exc()
-                flash(f"Erro ao arquivar Ata: {e}", "danger")
 
-        # --- UPLOAD DE DOCUMENTO ---
+            if file:
+                filename = secure_filename(file.filename)
+                nome_com_data = f"{data_ata}_{filename}"
+                try:
+                    file.save(os.path.join(DIRETORIO_ATAS, nome_com_data))
+                    flash("Ata arquivada com sucesso!", "success")
+                except Exception as e:
+                    flash(f"Erro ao arquivar Ata: {e}", "8danger")
+
         elif 'documento' in request.files:
             file = request.files['documento']
-            
-            print(f"DEBUG: Upload de documento. Ficheiro: {file.filename}")
-            
             if file.filename == '':
                 flash("Nenhum arquivo de Documento selecionado.", "danger")
                 return redirect(request.url)
-            
-            try:
-                # Faz upload para Supabase
-                resultado = fazer_upload_supabase(file, "documentos", "documentos")
-                
-                if resultado:
-                    # Guarda metadados na BD
-                    novo_doc = Documento(
-                        nome_original=resultado['nome_original'],
-                        url_ficheiro=resultado['url'],
-                        caminho_supabase=resultado['caminho']
-                    )
-                    db.session.add(novo_doc)
-                    db.session.commit()
-                    
-                    print(f"✅ Documento guardado com sucesso: {resultado['url']}")
+
+            if file:
+                filename = secure_filename(file.filename)
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+                nome_com_timestamp = f"{timestamp}_{filename}"
+                try:
+                    file.save(os.path.join(DIRETORIO_OUTROS_DOCS, nome_com_timestamp))
                     flash("Documento arquivado com sucesso!", "success")
-                else:
-                    flash("Erro ao fazer upload do documento para o servidor.", "danger")
-            
-            except Exception as e:
-                db.session.rollback()
-                print(f"❌ Erro ao arquivar documento: {e}")
-                import traceback
-                traceback.print_exc()
-                flash(f"Erro ao arquivar Documento: {e}", "danger")
-        
+                except Exception as e:
+                    flash(f"Erro ao arquivar Documento: {e}", "danger")
         return redirect(url_for('secretaria'))
 
-    # --- GET REQUEST: CARREGA ATAS E DOCUMENTOS ---
-    print("\n" + "="*70)
-    print("📋 CARREGANDO SECRETARIA")
-    print("="*70 + "\n")
-    
-    try:
-        # Carrega atas da BD
-        atas = Ata.query.order_by(Ata.data_ata.desc()).all()
-        atas_formatadas = []
-        for ata in atas:
-            atas_formatadas.append({
-                'id': ata.id,
-                'nome_completo': ata.caminho_supabase,
-                'nome_original': ata.nome_original,
-                'data': ata.data_ata,
-                'url': ata.url_ficheiro
-            })
-        print(f"✅ {len(atas_formatadas)} atas carregadas")
-        
-        # Carrega documentos da BD
-        documentos = Documento.query.order_by(Documento.data_upload.desc()).all()
-        docs_formatados = []
-        for doc in documentos:
-            docs_formatados.append({
-                'id': doc.id,
-                'nome_completo': doc.caminho_supabase,
-                'nome_original': doc.nome_original,
-                'data': doc.data_upload,
-                'url': doc.url_ficheiro
-            })
-        print(f"✅ {len(docs_formatados)} documentos carregados")
-        
-        print("="*70 + "\n")
-    
-    except Exception as e:
-        print(f"❌ Erro ao carregar secretaria: {e}")
-        import traceback
-        traceback.print_exc()
-        atas_formatadas = []
-        docs_formatados = []
-    
-    return render_template(
-        "secretaria.html",
-        atas=atas_formatadas,
-        outros_documentos=docs_formatados
-    )
+
+    atas = []
+    for nome_ficheiro in os.listdir(DIRETORIO_ATAS):
+        try:
+            partes = nome_ficheiro.split('_', 1)
+            data_str = partes[0]
+            nome_original = partes[1]
+            data_ata = datetime.strptime(data_str, "%Y-%m-%d")
+            atas.append({'nome_completo': nome_ficheiro, 'nome_original': nome_original, 'data': data_ata})
+        except (ValueError, IndexError):
+            atas.append({'nome_completo': nome_ficheiro, 'nome_original': nome_ficheiro, 'data': None})
+    atas.sort(key=lambda x: x['data'] if x['data'] else datetime.min, reverse=True)
+
+
+    outros_documentos = []
+    for nome_ficheiro in os.listdir(DIRETORIO_OUTROS_DOCS):
+        try:
+            partes = nome_ficheiro.split('_', 2)
+            timestamp_str = f"{partes[0]}_{partes[1]}"
+            nome_original = partes[2]
+            data_doc = datetime.strptime(timestamp_str, "%Y-%m-%d_%H%M%S")
+            outros_documentos.append({'nome_completo': nome_ficheiro, 'nome_original': nome_original, 'data': data_doc})
+        except (ValueError, IndexError):
+            outros_documentos.append({'nome_completo': nome_ficheiro, 'nome_original': nome_ficheiro, 'data': None})
+    outros_documentos.sort(key=lambda x: x['data'] if x['data'] else datetime.min, reverse=True)
+    return render_template("secretaria.html", atas=atas, outros_documentos=outros_documentos)
 
 
 
-@app.route('/documentos/<int:documento_id>')
-def serve_documento(documento_id):
-    """Serve um documento (redireciona para URL do Supabase)."""
-    try:
-        doc = Documento.query.get(documento_id)
-        if doc:
-            return redirect(doc.url_ficheiro)
-        else:
-            flash("Documento não encontrado.", "danger")
-            return redirect(url_for('secretaria'))
-    except Exception as e:
-        print(f"❌ Erro ao servir documento: {e}")
-        return redirect(url_for('secretaria'))
+@app.route('/outros_documentos/<path:filename>')
+def serve_outro_doc(filename):
+    return send_from_directory(DIRETORIO_OUTROS_DOCS, filename)
 
 @app.route("/eliminar_outro_doc", methods=["POST"])
 def eliminar_outro_doc():
-    """Eliminar um documento do Supabase e BD."""
     if session.get('username') not in ['Chefe', 'Clan']:
         flash("Não tem permissão para realizar esta ação.", "danger")
         return redirect(url_for('login'))
-    
-    documento_id = request.form.get("documento_id")
-    
-    if not documento_id:
-        flash("ID do documento não fornecido.", "danger")
+    nome_completo_doc = request.form.get("nome_completo_doc")
+    if not nome_completo_doc:
+        flash("Nome do ficheiro não fornecido.", "danger")
         return redirect(url_for('secretaria'))
-    
+    caminho_ficheiro = os.path.join(DIRETORIO_OUTROS_DOCS, nome_completo_doc)
     try:
-        doc = Documento.query.get(int(documento_id))
-        if not doc:
-            flash("Documento não encontrado.", "danger")
-            return redirect(url_for('secretaria'))
-        
-        nome_original = doc.nome_original
-        caminho = doc.caminho_supabase
-        
-        print(f"🗑️ Eliminando documento: {nome_original}")
-        
-        # Elimina do Supabase
-        if eliminar_ficheiro_supabase("documentos", caminho):
-            # Elimina da BD
-            db.session.delete(doc)
-            db.session.commit()
-            print(f"✅ Documento '{nome_original}' eliminado com sucesso")
-            flash(f"Documento '{nome_original}' eliminado com sucesso.", "success")
+        if os.path.exists(caminho_ficheiro):
+            os.remove(caminho_ficheiro)
+            flash(f"Documento '{nome_completo_doc}' eliminado com sucesso.", "success")
         else:
-            flash("Erro ao eliminar documento do servidor.", "danger")
-    
+            flash("O ficheiro não foi encontrado.", "danger")
     except Exception as e:
-        db.session.rollback()
-        print(f"❌ Erro ao eliminar documento: {e}")
-        import traceback
-        traceback.print_exc()
         flash(f"Ocorreu um erro ao tentar eliminar o documento: {e}", "danger")
-    
     return redirect(url_for('secretaria'))
 
-@app.route('/atas/<int:ata_id>')
-def serve_ata(ata_id):
-    """Serve uma ata (redireciona para URL do Supabase)."""
-    try:
-        ata = Ata.query.get(ata_id)
-        if ata:
-            return redirect(ata.url_ficheiro)
-        else:
-            flash("Ata não encontrada.", "danger")
-            return redirect(url_for('secretaria'))
-    except Exception as e:
-        print(f"❌ Erro ao servir ata: {e}")
-        return redirect(url_for('secretaria'))
+@app.route('/atas/<path:filename>')
+def serve_ata(filename):
+    return send_from_directory(DIRETORIO_ATAS, filename)
 
 @app.route("/eliminar_ata", methods=["POST"])
 def eliminar_ata():
-    """Eliminar uma ata do Supabase e BD."""
     if session.get('username') not in ['Chefe', 'Clan']:
         flash("Não tem permissão para realizar esta ação.", "danger")
         return redirect(url_for('login'))
-    
-    ata_id = request.form.get("ata_id")
-    
-    if not ata_id:
-        flash("ID da ata não fornecido.", "danger")
+    nome_completo_ata = request.form.get("nome_completo_ata")
+    if not nome_completo_ata:
+        flash("Nome do ficheiro não fornecido.", "danger")
         return redirect(url_for('secretaria'))
-    
+    caminho_ficheiro = os.path.join(DIRETORIO_ATAS, nome_completo_ata)
     try:
-        ata = Ata.query.get(int(ata_id))
-        if not ata:
-            flash("Ata não encontrada.", "danger")
-            return redirect(url_for('secretaria'))
-        
-        nome_original = ata.nome_original
-        caminho = ata.caminho_supabase
-        
-        print(f"🗑️ Eliminando ata: {nome_original}")
-        
-        # Elimina do Supabase
-        if eliminar_ficheiro_supabase("atas", caminho):
-            # Elimina da BD
-            db.session.delete(ata)
-            db.session.commit()
-            print(f"✅ Ata '{nome_original}' eliminada com sucesso")
-            flash(f"Ata '{nome_original}' eliminada com sucesso.", "success")
+        if os.path.exists(caminho_ficheiro):
+            os.remove(caminho_ficheiro)
+            flash(f"Ata '{nome_completo_ata}' eliminada com sucesso.", "success")
         else:
-            flash("Erro ao eliminar ata do servidor.", "danger")
-    
+            flash("O ficheiro não foi encontrado.", "danger")
     except Exception as e:
-        db.session.rollback()
-        print(f"❌ Erro ao eliminar ata: {e}")
-        import traceback
-        traceback.print_exc()
         flash(f"Ocorreu um erro ao tentar eliminar a ata: {e}", "danger")
-    
     return redirect(url_for('secretaria'))
-
-def inicializar_storage_secretaria():
-    """Cria os buckets necessários para secretaria."""
-    if not supabase_client:
-        print("⚠️ Supabase não está configurado")
-        return
-    
-    buckets = ["atas", "documentos"]
-    for bucket in buckets:
-        criar_bucket_supabase(bucket, publico=True)
-    
-    print("✅ Storage de secretaria inicializado")
 
 @app.route("/atividades_calendario")
 def atividades_calendario():
