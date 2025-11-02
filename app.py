@@ -13,7 +13,6 @@ from flask import make_response
 import requests
 from urllib.parse import urlparse
 
-
 #MEGA ALTERAÇÂOOOOO0000
 
 # --- IMPORTAÇÕES DE BASE DE DADOS ---
@@ -290,18 +289,15 @@ def extract_storage_path(url_publica: str, bucket_name: str) -> str | None:
     Extrai o caminho do ficheiro (path do storage) a partir do URL público.
     Ex: '.../public/bucket_name/path/to/file.pdf' -> 'path/to/file.pdf'
     """
-    if not url_publica:
-        return None
     try:
-        # CORREÇÃO: Usar urllib.parse.urlparse
-        parsed_url = urllib.parse.urlparse(url_publica)
+        # Analisa o URL público
+        parsed_url = urlparse(url_publica)
         
         # O caminho completo deve ser algo como: /storage/v1/object/public/bucket_name/path/to/file.pdf
         full_path = parsed_url.path
         
         # Regex para encontrar a parte 'public/bucket_name/' e capturar o resto
         # O padrão é: .../public/{bucket_name}/(caminho-do-ficheiro)
-        # Assumindo que o URL pode conter o path do bucket no final
         pattern = re.compile(rf'/public/{re.escape(bucket_name)}/(.*)', re.IGNORECASE)
         match = pattern.search(full_path)
         
@@ -312,19 +308,21 @@ def extract_storage_path(url_publica: str, bucket_name: str) -> str | None:
         
         return None
     except Exception as e:
-        # A exceção agora deve ser apenas se a regex falhar
         print(f"❌ Erro ao extrair o caminho do storage do URL: {e}")
         return None
 
-def delete_from_supabase(supabase_client: Client | None, url_publica: str, bucket_name: str) -> bool:
+def delete_from_supabase(url_publica: str, bucket_name: str) -> bool:
     """
     Deleta um ficheiro do Supabase Storage.
-    Recebe o cliente Supabase como argumento para evitar problemas de âmbito (scope).
-    Retorna True em caso de sucesso. Retorna False se a operação falhar.
+    Retorna True em caso de sucesso. Retorna False se o Supabase não estiver inicializado 
+    ou se a operação falhar.
     """
-    # A variável agora chama-se supabase_client
-    if not supabase_client:
+    # CORREÇÃO CRÍTICA: Declara supabase como global para que a função possa aceder à instância global
+    global supabase 
+
+    if not supabase:
         print("❌ Supabase não está inicializado. Ignorando a exclusão do Storage.")
+        # Retornamos True para que o registo da BD seja apagado, já que o storage não pode ser acedido.
         return True 
     
     storage_path = extract_storage_path(url_publica, bucket_name)
@@ -335,7 +333,7 @@ def delete_from_supabase(supabase_client: Client | None, url_publica: str, bucke
 
     try:
         # O Supabase SDK usa o método remove para eliminar ficheiros
-        response = supabase_client.storage.from_(bucket_name).remove([storage_path])
+        response = supabase.storage.from_(bucket_name).remove([storage_path])
         
         if isinstance(response, list) and all('name' in item for item in response):
             print(f"✅ Ficheiro {storage_path} eliminado do bucket {bucket_name}.")
@@ -2772,8 +2770,9 @@ def eliminar_outro_doc():
             url_ficheiro = doc.url_supabase
             nome_original = doc.nome_original
             
-            # 1. TENTA ELIMINAR O FICHEIRO DO SUPABASE, PASSANDO O CLIENTE
-            storage_success = delete_from_supabase(supabase, url_ficheiro, "documentos") 
+            # 1. TENTA ELIMINAR O FICHEIRO DO SUPABASE
+            # Se a função retornar True, significa que o ficheiro foi removido ou não existia.
+            storage_success = delete_from_supabase(url_ficheiro, "documentos") 
             
             # 2. ELIMINA O REGISTO DA BASE DE DADOS INDEPENDENTEMENTE DO SUCESSO DO STORAGE
             db.session.delete(doc)
@@ -2789,6 +2788,8 @@ def eliminar_outro_doc():
         db.session.rollback()
         print(f"❌ Erro ao eliminar documento: {e}")
         flash(f"Erro: {e}", "danger")
+    
+    return redirect(url_for('secretaria'))
     
     return redirect(url_for('secretaria'))
 
@@ -2821,8 +2822,8 @@ def eliminar_ata():
             url_ficheiro = ata.url_supabase
             nome_original = ata.nome_original
             
-            # 1. TENTA ELIMINAR O FICHEIRO DO SUPABASE, PASSANDO O CLIENTE
-            storage_success = delete_from_supabase(supabase, url_ficheiro, "atas") 
+            # 1. TENTA ELIMINAR O FICHEIRO DO SUPABASE
+            storage_success = delete_from_supabase(url_ficheiro, "atas") 
             
             # 2. ELIMINA O REGISTO DA BASE DE DADOS
             db.session.delete(ata)
@@ -2836,9 +2837,6 @@ def eliminar_ata():
             flash("Ata não encontrada.", "danger")
     except Exception as e:
         db.session.rollback()
-        # O erro que estava a ocorrer aqui era 'name 'supabase' is not defined'.
-        # Ao remover a dependência de 'supabase' (se ela existisse implicitamente)
-        # e garantindo que o rollback e a mensagem de erro são simples, o código deve ser estável.
         print(f"❌ Erro ao eliminar ata: {e}")
         flash(f"Erro: {e}", "danger")
     
