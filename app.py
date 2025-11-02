@@ -10,7 +10,6 @@ import copy
 import uuid
 from icalendar import Calendar, Event
 from flask import make_response
-from supabase import create_client
 
 #MEGA ALTERAÇÂOOOOO0000
 
@@ -27,20 +26,6 @@ from cloudinary.utils import cloudinary_url
 
 print("DEBUG DATABASE_URL:", os.environ.get('EXTERNAL_DATABASE_URL'))
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://xatjptyulmyyynvlpwgo.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhhdGpwdHl1bG15eXludmxwd2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMjMyNjksImV4cCI6MjA3NzU5OTI2OX0.sjzayu2Lx4_LQ0S2F1zXD626YH27CabcNWw7mNbnPeo")
-
-supabase_client = None
-
-try:
-    if SUPABASE_URL and SUPABASE_KEY and "seu-projeto" not in SUPABASE_URL:
-        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-        print("✅ Supabase Storage conectado")
-    else:
-        print("⚠️ SUPABASE_URL ou SUPABASE_KEY não configurados corretamente")
-except Exception as e:
-    print(f"❌ Erro ao conectar Supabase: {e}")
-    supabase_client = None
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
