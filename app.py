@@ -309,16 +309,16 @@ def extract_storage_path(url_publica: str, bucket_name: str) -> str | None:
         print(f"❌ Erro ao extrair o caminho do storage do URL: {e}")
         return None
 
-def delete_from_supabase(url_ficheiro):
+def delete_from_supabase(url_ficheiro, bucket):
     """
-    Apaga um ficheiro do Supabase a partir da sua URL pública.
-
+    Elimina um ficheiro do Supabase Storage.
+    
     Args:
-        url_ficheiro (str): URL pública do ficheiro no Supabase.
-            Ex: https://<project>.supabase.co/storage/v1/object/public/bucket/pasta/ficheiro.pdf
-
+        url_ficheiro: URL público completo do ficheiro
+        bucket: nome do bucket ("atas" ou "documentos")
+    
     Returns:
-        bool: True se o ficheiro foi eliminado, False se não foi encontrado ou houve erro.
+        True se eliminado com sucesso, False caso contrário
     """
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -327,35 +327,47 @@ def delete_from_supabase(url_ficheiro):
         print("❌ Supabase não configurado")
         return False
 
-    # Regex para extrair bucket e caminho do ficheiro
-    match = re.search(r"/object/public/([^/]+)/(.+)$", url_ficheiro)
-    if not match:
-        print(f"❌ URL inválida ou não é uma URL pública do Supabase: {url_ficheiro}")
+    try:
+        # Extrai o caminho do ficheiro (tudo após o nome do bucket)
+        # Ex: https://xxx.supabase.co/storage/v1/object/public/atas/atas/2024_ata.pdf
+        #     -> atas/2024_ata.pdf
+        padrao = rf"/object/public/{bucket}/(.+)"
+        match = re.search(padrao, url_ficheiro)
+        
+        if not match:
+            print(f"❌ URL inválido ou padrão não encontrado: {url_ficheiro}")
+            return False
+
+        caminho_ficheiro = match.group(1)
+        print(f"🗑️ Tentando eliminar: {bucket}/{caminho_ficheiro}")
+
+        # Endpoint DELETE correto
+        endpoint = f"{SUPABASE_URL}/storage/v1/object/{bucket}/{caminho_ficheiro}"
+        
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        response = requests.delete(endpoint, headers=headers)
+
+        if response.status_code in [200, 204]:
+            print(f"✅ Ficheiro eliminado do Supabase: {bucket}/{caminho_ficheiro}")
+            return True
+        elif response.status_code == 404:
+            print(f"⚠️ Ficheiro não encontrado no Supabase: {bucket}/{caminho_ficheiro}")
+            # Retorna True porque o ficheiro já não existe (objetivo alcançado)
+            return True
+        else:
+            print(f"❌ Erro ao eliminar ficheiro ({response.status_code}): {response.text}")
+            return False
+
+    except Exception as e:
+        print(f"❌ Erro na função delete_from_supabase: {e}")
+        import traceback
+        traceback.print_exc()
         return False
-
-    bucket = match.group(1)        # ex: 'atas'
-    caminho_ficheiro = match.group(2)  # ex: 'atas/2025-11-02/ficheiro.pdf'
-
-    # Endpoint correto de DELETE
-    endpoint = f"{SUPABASE_URL}/storage/v1/object/{bucket}/{caminho_ficheiro}"
-
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-    }
-
-    response = requests.delete(endpoint, headers=headers)
-
-    if response.status_code in [200, 204]:
-        print(f"✅ Ficheiro eliminado do Supabase: {bucket}/{caminho_ficheiro}")
-        return True
-    elif response.status_code == 404:
-        print(f"⚠️ Ficheiro não encontrado no Supabase: {bucket}/{caminho_ficheiro}")
-        return False
-    else:
-        print(f"❌ Erro ao eliminar ficheiro ({response.status_code}): {response.text}")
-        return False
-
 
 
 
@@ -2786,7 +2798,7 @@ def eliminar_outro_doc():
             
             # 1. TENTA ELIMINAR O FICHEIRO DO SUPABASE
             # Se a função retornar True, significa que o ficheiro foi removido ou não existia.
-            storage_success = delete_from_supabase(url_ficheiro) 
+            storage_success = delete_from_supabase(url_ficheiro, "documentos") 
             
             # 2. ELIMINA O REGISTO DA BASE DE DADOS INDEPENDENTEMENTE DO SUCESSO DO STORAGE
             db.session.delete(doc)
@@ -2837,8 +2849,8 @@ def eliminar_ata():
             nome_original = ata.nome_original
             
             # 1. TENTA ELIMINAR O FICHEIRO DO SUPABASE
-            storage_success = delete_from_supabase(url_ficheiro)
-
+            storage_success = delete_from_supabase(url_ficheiro, "atas") 
+            
             # 2. ELIMINA O REGISTO DA BASE DE DADOS
             db.session.delete(ata)
             db.session.commit()
