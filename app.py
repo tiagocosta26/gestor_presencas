@@ -2751,24 +2751,37 @@ def serve_documento(documento_id):
 
 @app.route("/eliminar_outro_doc", methods=["POST"])
 def eliminar_outro_doc():
-    """Eliminar documento."""
+    """Eliminar documento e ficheiro do Supabase."""
     if session.get('username') not in ['Chefe', 'Clan']:
         flash("Sem permissão.", "danger")
         return redirect(url_for('login'))
     
-    documento_id = request.form.get("documento_id")
+    documento_id = request.form.get("documento_id") 
     
     try:
+        # Supondo que Documento e Ata têm um atributo 'url_supabase'
         doc = Documento.query.get(int(documento_id))
         if doc:
+            url_ficheiro = doc.url_supabase
+            nome_original = doc.nome_original
+            
+            # 1. TENTA ELIMINAR O FICHEIRO DO SUPABASE
+            # Se a função retornar True, significa que o ficheiro foi removido ou não existia.
+            storage_success = delete_from_supabase(url_ficheiro, "documentos") 
+            
+            # 2. ELIMINA O REGISTO DA BASE DE DADOS INDEPENDENTEMENTE DO SUCESSO DO STORAGE
             db.session.delete(doc)
             db.session.commit()
-            flash(f"Documento eliminado.", "success")
+            
+            if storage_success:
+                flash(f"Documento '{nome_original}' eliminado com sucesso (BD e Storage).", "success")
+            else:
+                flash(f"Documento '{nome_original}' eliminado da BD. ATENÇÃO: Houve um erro ao eliminar o ficheiro no Supabase. Verifique o Storage.", "warning")
         else:
             flash("Documento não encontrado.", "danger")
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Erro: {e}")
+        print(f"❌ Erro ao eliminar documento: {e}")
         flash(f"Erro: {e}", "danger")
     
     return redirect(url_for('secretaria'))
@@ -2789,24 +2802,35 @@ def serve_ata(ata_id):
 
 @app.route("/eliminar_ata", methods=["POST"])
 def eliminar_ata():
-    """Eliminar ata."""
+    """Eliminar ata e ficheiro do Supabase."""
     if session.get('username') not in ['Chefe', 'Clan']:
         flash("Sem permissão.", "danger")
         return redirect(url_for('login'))
     
-    ata_id = request.form.get("ata_id")
+    ata_id = request.form.get("ata_id") 
     
     try:
         ata = Ata.query.get(int(ata_id))
         if ata:
+            url_ficheiro = ata.url_supabase
+            nome_original = ata.nome_original
+            
+            # 1. TENTA ELIMINAR O FICHEIRO DO SUPABASE
+            storage_success = delete_from_supabase(url_ficheiro, "atas") 
+            
+            # 2. ELIMINA O REGISTO DA BASE DE DADOS
             db.session.delete(ata)
             db.session.commit()
-            flash(f"Ata eliminada.", "success")
+            
+            if storage_success:
+                flash(f"Ata '{nome_original}' eliminada com sucesso (BD e Storage).", "success")
+            else:
+                flash(f"Ata '{nome_original}' eliminada da BD. ATENÇÃO: Houve um erro ao eliminar o ficheiro no Supabase. Verifique o Storage.", "warning")
         else:
             flash("Ata não encontrada.", "danger")
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Erro: {e}")
+        print(f"❌ Erro ao eliminar ata: {e}")
         flash(f"Erro: {e}", "danger")
     
     return redirect(url_for('secretaria'))
