@@ -311,41 +311,38 @@ def extract_storage_path(url_publica: str, bucket_name: str) -> str | None:
 
 def delete_from_supabase(url_ficheiro, bucket):
     """
-    Remove um ficheiro do Supabase Storage dado o URL público completo.
-    Retorna True se o ficheiro foi removido ou já não existia, False se houve erro.
+    Elimina um ficheiro do Supabase Storage (via API HTTP).
+    - url_ficheiro: URL completo do ficheiro no Supabase.
+    - bucket: nome do bucket (ex: "atas" ou "documentos").
+    Retorna True se o ficheiro foi eliminado (ou não existia), False se houve erro.
     """
-    from supabase import create_client
-    import re
-
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    # Extrair o caminho do ficheiro dentro do bucket
+    padrao = rf"{bucket}/(.+)"
+    match = re.search(padrao, url_ficheiro)
+    if not match:
+        print(f"❌ URL inválido ou não contém o bucket '{bucket}': {url_ficheiro}")
+        return False
 
-    try:
-        if not url_ficheiro:
-            print("⚠️ Nenhum URL recebido para eliminar.")
-            return False
+    caminho_ficheiro = match.group(1)
+    endpoint = f"{SUPABASE_URL}/storage/v1/object/{bucket}/{caminho_ficheiro}"
 
-        # Extrai o caminho interno dentro do bucket (ex: '2025-11-02/ficheiro.jpg')
-        padrao = rf"{bucket}/(.+)"
-        match = re.search(padrao, url_ficheiro)
-        if not match:
-            print(f"❌ URL inválido: {url_ficheiro}")
-            return False
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+    }
 
-        caminho_ficheiro = match.group(1)
-        print(f"🧾 Caminho para eliminar: {caminho_ficheiro}")
+    # Pedido DELETE à API
+    response = requests.delete(endpoint, headers=headers)
 
-        # Tenta remover
-        response = supabase.storage.from_(bucket).remove([caminho_ficheiro])
-        print(f"📦 Supabase resposta: {response}")
-
-        # Se não houver exceção, assume que foi bem-sucedido
+    if response.status_code in [200, 204, 404]:
+        # 404 também é aceitável (ficheiro já não existia)
+        print(f"✅ Ficheiro eliminado (ou não encontrado): {caminho_ficheiro}")
         return True
-
-    except Exception as e:
-        print(f"❌ Erro ao eliminar ficheiro no Supabase: {e}")
+    else:
+        print(f"❌ Erro ao eliminar ficheiro ({response.status_code}): {response.text}")
         return False
 
 
