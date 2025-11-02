@@ -152,7 +152,10 @@ class AtividadePresenca(db.Model):
     data_criacao = db.Column(db.DateTime, default=datetime.now)
     
     # Dados de presença em JSON
-    dados = db.Column(JSON)
+    dados = db.Column(db.JSON, nullable=True)
+
+    def __repr__(self):
+        return f'<AtividadePresenca {self.nome}>'
 
 class FolhaCaixa(db.Model):
     __tablename__ = 'folha_caixa'
@@ -1047,9 +1050,9 @@ def presencas():
             atividade = request.form.get("atividade", "").strip()
             data_inicio = request.form.get("data_inicio", "").strip()
             data_fim = request.form.get("data_fim", "").strip()
-            tribos_selecionadas = request.form.get("tribos_selecionadas", "").split(",")
+            tribos_selecionadas = [t.strip() for t in request.form.get("tribos_selecionadas", "").split(",") if t.strip()]
             
-            if not all([atividade, data_inicio, data_fim]):
+            if not all([atividade, data_inicio, data_fim, tribos_selecionadas]):
                 flash("Todos os campos são obrigatórios.", "danger")
                 return redirect(url_for("presencas"))
             
@@ -1061,10 +1064,6 @@ def presencas():
             dados_presenca = {}
             
             for tribo_nome in tribos_selecionadas:
-                if not tribo_nome.strip():
-                    continue
-                
-                tribo_nome = tribo_nome.strip()
                 dados_presenca[tribo_nome] = {}
                 
                 membros = tribos.get(tribo_nome, [])
@@ -1073,7 +1072,7 @@ def presencas():
                     presente = "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
                     dados_presenca[tribo_nome][nome] = presente
             
-            # ✅ GUARDAR NA BD EM VEZ DE FICHEIRO CSV
+            # ✅ GUARDAR NA BD
             nova_atividade = AtividadePresenca(
                 nome=atividade,
                 data_inicio=dt_inicio,
@@ -1109,7 +1108,7 @@ def atividades():
     print("="*70)
     
     try:
-        print("\n1️⃣ Carregando atividades...")
+        print("\n1️⃣ Carregando atividades da BD...")
         atividades_obj = AtividadePresenca.query.order_by(
             AtividadePresenca.data_inicio.desc()
         ).all()
@@ -1165,7 +1164,6 @@ def eliminar_atividade(nome_ficheiro):
     try:
         print(f"\n🗑️ Tentando eliminar atividade: {nome_ficheiro}")
         
-        # Tentar converter para int (agora é ID em vez de nome de ficheiro)
         try:
             atividade_id = int(nome_ficheiro)
         except (ValueError, TypeError):
@@ -1199,7 +1197,6 @@ def ver_atividade(ficheiro):
     try:
         print(f"\n👁️ Carregando atividade: {ficheiro}")
         
-        # Tentar converter para int (agora é ID em vez de nome de ficheiro)
         try:
             atividade_id = int(ficheiro)
         except (ValueError, TypeError):
@@ -1245,7 +1242,7 @@ def ver_atividade(ficheiro):
         
         return render_template(
             "ver_atividade.html", 
-            ficheiro=atividade.nome,  # para compatibilidade com template
+            ficheiro=atividade.nome,
             dados=dados,
             data_display=data_display, 
             cargos_disponiveis=cargos_disponiveis
@@ -1260,116 +1257,120 @@ def ver_atividade(ficheiro):
 
 @app.route("/assiduidade", methods=["GET", "POST"])
 def assiduidade():
-    """Calcula assiduidade por pessoa."""
-    ano_selecionado = request.form.get("ano_escutista")
-    if ano_selecionado:
-        ano_inicio = int(ano_selecionado.split('/')[0])
-    else:
-        hoje = datetime.now()
-        ano_inicio = hoje.year
-        if hoje.month < 10 or (hoje.month == 10 and hoje.day < 10):
-            ano_inicio -= 1
-    
-    ano_fim = ano_inicio + 1
-    data_inicio = datetime(ano_inicio, 10, 10)
-    data_fim = datetime(ano_fim, 10, 9)
-    assiduidade_por_tribo = defaultdict(
-        lambda: defaultdict(lambda: {'presente': 0, 'total': 0})
-    )
-    atividades_do_ano = 0
+    """Calcula assiduidade por pessoa usando dados da BD."""
+    print("\n" + "="*70)
+    print("📊 ROTA /assiduidade CHAMADA")
+    print("="*70)
     
     try:
-        ficheiros = [
-            f for f in os.listdir(DIRETORIO_PRESENCAS) 
-            if f.endswith(".csv")
-        ]
-    except FileNotFoundError:
-        ficheiros = []
-    
-    for ficheiro in ficheiros:
-        try:
-            data_atividade = None
-            partes = ficheiro.split('_')
-            for i in range(1, len(partes)):
-                try:
-                    data_atividade = datetime.strptime(
-                        partes[i].strip(), "%Y-%m-%d"
-                    )
-                    break 
-                except ValueError:
-                    continue
+        ano_selecionado = request.form.get("ano_escutista")
+        if ano_selecionado:
+            ano_inicio = int(ano_selecionado.split('/')[0])
+        else:
+            hoje = datetime.now()
+            ano_inicio = hoje.year
+            if hoje.month < 10 or (hoje.month == 10 and hoje.day < 10):
+                ano_inicio -= 1
+        
+        ano_fim = ano_inicio + 1
+        data_inicio = datetime(ano_inicio, 10, 10).date()
+        data_fim = datetime(ano_fim, 10, 9).date()
+        
+        print(f"\n📅 Período: {data_inicio} a {data_fim}")
+        print(f"📅 Ano escutista: {ano_inicio}/{ano_fim}")
+        
+        assiduidade_por_tribo = defaultdict(
+            lambda: defaultdict(lambda: {'presente': 0, 'total': 0})
+        )
+        atividades_do_ano = 0
+        
+        # ✅ CARREGA ATIVIDADES DA BD EM VEZ DE FICHEIROS CSV
+        print("\n1️⃣ Carregando atividades da BD...")
+        atividades = AtividadePresenca.query.filter(
+            AtividadePresenca.data_inicio >= data_inicio,
+            AtividadePresenca.data_inicio <= data_fim
+        ).all()
+        
+        print(f"   ✅ {len(atividades)} atividades encontradas\n")
+        
+        for atividade in atividades:
+            print(f"2️⃣ Processando: {atividade.nome} ({atividade.data_inicio})")
+            atividades_do_ano += 1
             
-            if data_atividade is None:
+            if not atividade.dados:
+                print(f"   ⚠️  Sem dados de presença")
                 continue
             
-            if data_inicio <= data_atividade <= data_fim:
-                atividades_do_ano += 1
-                caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
-                
-                with open(caminho, newline="", encoding="utf-8-sig") as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        tribo = row['Tribo']
-                        elemento = row['Elemento']
-                        presente = row['Presente']
-                        assiduidade_por_tribo[tribo][elemento]['total'] += 1
-                        if presente == "Sim":
-                            assiduidade_por_tribo[tribo][elemento]['presente'] += 1
+            # Processa cada tribo
+            for tribo_nome, membros in atividade.dados.items():
+                for pessoa_nome, presente in membros.items():
+                    assiduidade_por_tribo[tribo_nome][pessoa_nome]['total'] += 1
+                    if presente == "Sim":
+                        assiduidade_por_tribo[tribo_nome][pessoa_nome]['presente'] += 1
+                    print(f"   ✅ {pessoa_nome} ({tribo_nome}): {presente}")
         
-        except Exception as e:
-            print(f"⚠️ Erro ao processar {ficheiro}: {e}")
+        # Calcular percentagens
+        print("\n3️⃣ Calculando percentagens...")
+        for tribo in assiduidade_por_tribo:
+            for elemento in assiduidade_por_tribo[tribo]:
+                dados = assiduidade_por_tribo[tribo][elemento]
+                if dados['total'] > 0:
+                    dados['percentagem'] = (dados['presente'] / dados['total']) * 100
+                else:
+                    dados['percentagem'] = 0
+        
+        # Encontrar anos disponíveis da BD
+        print("\n4️⃣ Encontrando anos disponíveis...")
+        todas_atividades = AtividadePresenca.query.all()
+        anos_disponiveis = set()
+        
+        for atv in todas_atividades:
+            if atv.data_inicio:
+                ano_inicio_atividade = atv.data_inicio.year
+                if atv.data_inicio.month >= 10:
+                    ano_escutista = ano_inicio_atividade
+                else:
+                    ano_escutista = ano_inicio_atividade - 1
+                anos_disponiveis.add(ano_escutista)
+                print(f"   ✅ {atv.nome}: {atv.data_inicio} -> ano escutista {ano_escutista}")
+        
+        hoje = datetime.now()
+        is_new_scout_year_today = (
+            (hoje.month > 10) or (hoje.month == 10 and hoje.day >= 10)
+        )
+        ano_atual = hoje.year if is_new_scout_year_today else hoje.year - 1
+        anos_disponiveis.add(ano_atual)
+        anos_disponiveis = sorted(list(anos_disponiveis), reverse=True)
+        anos_formatados = [f"{ano}/{ano+1}" for ano in anos_disponiveis]
+        
+        print(f"\n5️⃣ Anos disponíveis: {anos_formatados}")
+        print(f"   Total de atividades neste ano: {atividades_do_ano}")
+        print("="*70 + "\n")
+        
+        return render_template(
+            "assiduidade.html", 
+            assiduidade_por_tribo=assiduidade_por_tribo,
+            atividades_do_ano=atividades_do_ano, 
+            anos_disponiveis=anos_formatados,
+            ano_selecionado=f"{ano_inicio}/{ano_inicio+1}"
+        )
     
-    # Calcular percentagens
-    for tribo in assiduidade_por_tribo:
-        for elemento in assiduidade_por_tribo[tribo]:
-            dados = assiduidade_por_tribo[tribo][elemento]
-            if dados['total'] > 0:
-                dados['percentagem'] = (dados['presente'] / dados['total']) * 100
-            else:
-                dados['percentagem'] = 0
-    
-    # Encontrar anos disponíveis
-    anos_disponiveis = set()
-    for ficheiro in ficheiros:
-        if len(ficheiro.split('_')) > 1:
-            try:
-                data_atividade = None
-                partes = ficheiro.split('_')
-                for i in range(1, len(partes)):
-                    try:
-                        data_atividade = datetime.strptime(
-                            partes[i].strip(), "%Y-%m-%d"
-                        )
-                        break 
-                    except ValueError:
-                        continue
-                
-                if data_atividade:
-                    ano_inicio_ficheiro = (
-                        data_atividade.year 
-                        if data_atividade.month >= 10 
-                        else data_atividade.year - 1
-                    )
-                    anos_disponiveis.add(ano_inicio_ficheiro)
-            except Exception:
-                pass
-    
-    hoje = datetime.now()
-    is_new_scout_year_today = (
-        (hoje.month > 10) or (hoje.month == 10 and hoje.day >= 10)
-    )
-    ano_atual = hoje.year if is_new_scout_year_today else hoje.year - 1
-    anos_disponiveis.add(ano_atual)
-    anos_disponiveis = sorted(list(anos_disponiveis), reverse=True)
-    anos_formatados = [f"{ano}/{ano+1}" for ano in anos_disponiveis]
-    
-    return render_template(
-        "assiduidade.html", 
-        assiduidade_por_tribo=assiduidade_por_tribo,
-        atividades_do_ano=atividades_do_ano, 
-        anos_disponiveis=anos_formatados,
-        ano_selecionado=f"{ano_inicio}/{ano_inicio+1}"
-    )
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        erro = traceback.format_exc()
+        print(f"\n❌ ERRO EM /assiduidade:")
+        print(erro)
+        print("="*70 + "\n")
+        flash(f"Erro ao carregar assiduidade: {e}", "danger")
+        return render_template(
+            "assiduidade.html", 
+            assiduidade_por_tribo={},
+            atividades_do_ano=0, 
+            anos_disponiveis=[],
+            ano_selecionado="",
+            erro="Erro ao carregar dados de assiduidade"
+        )
 
 @app.route("/gestao_tribos", methods=["GET", "POST"])
 def gestao_tribos():
