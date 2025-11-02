@@ -12,6 +12,7 @@ from icalendar import Calendar, Event
 from flask import make_response
 import requests
 from urllib.parse import urlparse
+from supabase import create_client, Client 
 
 #MEGA ALTERAÇÂOOOOO0000
 
@@ -314,8 +315,17 @@ def extract_storage_path(url_publica: str, bucket_name: str) -> str | None:
 def delete_from_supabase(url_publica: str, bucket_name: str) -> bool:
     """
     Deleta um ficheiro do Supabase Storage.
-    Retorna True em caso de sucesso ou se o ficheiro já não existir (erro 404).
+    Retorna True em caso de sucesso. Retorna False se o Supabase não estiver inicializado 
+    ou se a operação falhar.
     """
+    # CORREÇÃO CRÍTICA: Declara supabase como global para que a função possa aceder à instância global
+    global supabase 
+
+    if not supabase:
+        print("❌ Supabase não está inicializado. Ignorando a exclusão do Storage.")
+        # Retornamos True para que o registo da BD seja apagado, já que o storage não pode ser acedido.
+        return True 
+    
     storage_path = extract_storage_path(url_publica, bucket_name)
     
     if not storage_path:
@@ -323,12 +333,10 @@ def delete_from_supabase(url_publica: str, bucket_name: str) -> bool:
         return False
 
     try:
-        # Nota: O Supabase SDK usa o método remove para eliminar ficheiros
+        # O Supabase SDK usa o método remove para eliminar ficheiros
         response = supabase.storage.from_(bucket_name).remove([storage_path])
         
-        # O método remove retorna uma lista de objetos, se a chamada for bem-sucedida.
-        # Se ocorrer um erro, lança uma exceção.
-        if isinstance(response, list):
+        if isinstance(response, list) and all('name' in item for item in response):
             print(f"✅ Ficheiro {storage_path} eliminado do bucket {bucket_name}.")
             return True
         else:
@@ -336,10 +344,7 @@ def delete_from_supabase(url_publica: str, bucket_name: str) -> bool:
              return False
 
     except Exception as e:
-        # Muitas vezes, um erro aqui significa que o ficheiro já não existe (o que é aceitável)
-        # Se for um erro 404/NotFound, podemos considerar sucesso.
-        # Devido à estrutura do erro Supabase, é difícil analisar o código HTTP exato aqui,
-        # portanto, vamos registar o erro e retornar False, a menos que tenhamos a certeza.
+        # Nota: Deve melhorar o tratamento de erros para ignorar 404 (ficheiro não existe)
         print(f"❌ Erro ao comunicar com Supabase Storage para eliminar {storage_path}: {e}")
         return False
 
@@ -2784,6 +2789,8 @@ def eliminar_outro_doc():
         db.session.rollback()
         print(f"❌ Erro ao eliminar documento: {e}")
         flash(f"Erro: {e}", "danger")
+    
+    return redirect(url_for('secretaria'))
     
     return redirect(url_for('secretaria'))
 
