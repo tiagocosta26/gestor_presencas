@@ -404,8 +404,26 @@ def carregar_progresso():
     return dados_progresso
 
 def carregar_progresso_modelo():
-    modelo = ProgressoModelo.query.first()
-    return modelo.modelo if modelo else {}
+    modelo_obj = ProgressoModelo.query.first()
+    
+    if not modelo_obj or not modelo_obj.modelo:
+        return {}
+        
+    progresso_modelo = modelo_obj.modelo
+    
+    try:
+        # 1. Converte o dicionário Python (com chaves escapadas) para uma string JSON.
+        modelo_string = json.dumps(progresso_modelo)
+        
+        # 2. Converte a string JSON de volta para um dicionário Python.
+        #    Isto força os caracteres Unicode (como 'í') a serem decodificados.
+        progresso_modelo_normalizado = json.loads(modelo_string)
+        return progresso_modelo_normalizado
+        
+    except Exception as e:
+        print(f"🚨 ERRO DE NORMALIZAÇÃO DO MODELO: {e}. Usando modelo original (pode falhar no Jinja).")
+        return progresso_modelo # Retorna o modelo original como fallback
+
 
 def carregar_atividades_calendario():
     atividades_obj = Atividade.query.order_by(Atividade.data_inicio).all()
@@ -2321,52 +2339,94 @@ def atividades_calendario():
 @app.route("/api/atividades", methods=["GET", "POST"])
 def api_atividades():
     cores_por_tipo = {
-        'Clan': '#ff0000', 'Agrupamento': '#0000ff', 'Núcleo': '#ffff00',
+        'Clan': '#ff0000', 'Agrupamento': '#0000ff', 'Núcleo': '#f8da45', 'Cenáculo': "#97612B",
         'Região': '#800080', 'Nacional': '#008000', 'Internacional': '#ffc0cb'
     }
+    
     if request.method == "POST":
         if session.get('username') not in ['Chefe', 'Clan']:
             return jsonify({"error": "Não tem permissão para realizar esta ação."}), 403
+        
         data = request.get_json()
         required_fields = ['title', 'start', 'type']
+        
         if not all(field in data for field in required_fields):
-            return jsonify({"error": "Dados incompletos."}), 400
+            return jsonify({"error": "Dados incompletos. Faltam: 'title', 'start' ou 'type'."}), 400
+        
+        all_day = data.get('allDay', False)
+        
+        # 1. Tratar a data de início
+        try:
+            data_inicio_obj = datetime.fromisoformat(data['start'].replace('Z', '+00:00'))
+        except ValueError as e:
+            return jsonify({"error": f"Formato de data/hora 'start' inválido: {e}"}), 400
+        
+        data_fim_obj = None
+        
+        # 2. Tratar a data de fim (essencial para múltiplos dias)
+        if 'end' in data and data['end']:
+            try:
+                # O FullCalendar envia a data de fim (end) exclusiva.
+                data_fim_obj = datetime.fromisoformat(data['end'].replace('Z', '+00:00'))
+            except ValueError as e:
+                return jsonify({"error": f"Formato de data/hora 'end' inválido: {e}"}), 400
+        elif all_day:
+            # Se for allDay e 'end' não for fornecido, a atividade é de 1 dia. 
+            # O 'end' deve ser o dia seguinte ao 'start' (comportamento FullCalendar).
+            # Garante que funciona mesmo se data_inicio_obj for apenas uma data (sem hora).
+            data_fim_obj = data_inicio_obj.date() + timedelta(days=1)
+            data_fim_obj = datetime.combine(data_fim_obj, datetime.min.time())
+        else:
+            # Se não for allDay e 'end' não for fornecido, assume 1 hora de duração.
+            data_fim_obj = data_inicio_obj + timedelta(hours=1)
+
+        # 3. Criar e guardar a atividade
         nova_atividade = Atividade(
             id=str(uuid.uuid4()),
             titulo=data['title'],
-            data_inicio=datetime.fromisoformat(data['start']),
+            data_inicio=data_inicio_obj,
+            # Se o seu campo na DB não suporta o objeto datetime, ajuste conforme necessário
+            data_fim=data_fim_obj, 
             tipo=data['type'],
             descricao=data.get('details', ''),
-            all_day=data.get('allDay', False)
+            all_day=all_day
         )
-        if not nova_atividade.all_day:
-            if 'end' not in data:
-                return jsonify({"error": "Dados incompletos. 'end' em falta."}), 400
-            nova_atividade.data_fim = datetime.fromisoformat(data['end'])
-        else:
-            end_date = datetime.strptime(data['start'], '%Y-%m-%d') + timedelta(days=1)
-            nova_atividade.data_fim = end_date
+        
         db.session.add(nova_atividade)
         db.session.commit()
+        
+        # 4. Preparar a resposta JSON
+        # Formata start/end para YYYY-MM-DD se for allDay (necessário para FullCalendar)
+        def format_date_for_fc(dt, is_all_day):
+            if is_all_day and isinstance(dt, datetime):
+                return dt.isoformat().split('T')[0]
+            if isinstance(dt, datetime):
+                 return dt.isoformat()
+            return dt # se já for string
+        
         return jsonify({
             'id': nova_atividade.id,
             'title': nova_atividade.titulo,
-            'start': nova_atividade.data_inicio.isoformat(),
-            'end': nova_atividade.data_fim.isoformat(),
+            'start': format_date_for_fc(nova_atividade.data_inicio, nova_atividade.all_day),
+            'end': format_date_for_fc(nova_atividade.data_fim, nova_atividade.all_day),
             'color': cores_por_tipo.get(nova_atividade.tipo, '#000000'),
             'type': nova_atividade.tipo,
             'details': nova_atividade.descricao,
             'allDay': nova_atividade.all_day
         }), 201
+    
+    # Rota GET - (Mantida a lógica original, só com pequenos ajustes)
     elif request.method == "GET":
         atividades = carregar_atividades_calendario()
         eventos = []
         for atv in atividades:
+            # Garante que 'end' é incluído e que o formato está correto 
+            # (depende de como carregar_atividades_calendario retorna os dados)
             evento = {
                 'id': atv['id'],
                 'title': atv['title'],
                 'start': atv['start'],
-                'end': atv.get('end'),
+                'end': atv.get('end'), # Se a DB retornar None para 'end', o FullCalendar trata bem
                 'color': cores_por_tipo.get(atv['type'], '#000000'),
                 'type': atv['type'],
                 'details': atv.get('details', ''),
@@ -2374,44 +2434,6 @@ def api_atividades():
             }
             eventos.append(evento)
         return jsonify(eventos)
-
-@app.route("/api/atividades/<id>", methods=["PUT"])
-def api_editar_atividade(id):
-    if session.get('username') not in ['Chefe', 'Clan']:
-        return jsonify({"error": "Não tem permissão para realizar esta ação."}), 403
-    cores_por_tipo = {
-        'Clan': '#ff0000', 'Agrupamento': '#0000ff', 'Núcleo': '#ffff00',
-        'Região': '#800080', 'Nacional': '#008000', 'Internacional': '#ffc0cb'
-    }
-    try:
-        data = request.get_json()
-        atividade = Atividade.query.get(id)
-        if not atividade:
-            return jsonify({"error": "Atividade não encontrada."}), 404
-        atividade.titulo = data.get('title', atividade.titulo)
-        atividade.data_inicio = datetime.fromisoformat(data.get('start', atividade.data_inicio.isoformat()))
-        atividade.tipo = data.get('type', atividade.tipo)
-        atividade.descricao = data.get('details', atividade.descricao)
-        atividade.all_day = data.get('allDay', atividade.all_day)
-        if not atividade.all_day:
-            atividade.data_fim = datetime.fromisoformat(data.get('end'))
-        else:
-            end_date = atividade.data_inicio + timedelta(days=1)
-            atividade.data_fim = end_date
-        db.session.commit()
-        return jsonify({
-            'id': atividade.id,
-            'title': atividade.titulo,
-            'start': atividade.data_inicio.isoformat(),
-            'end': atividade.data_fim.isoformat(),
-            'color': cores_por_tipo.get(atividade.tipo, '#000000'),
-            'type': atividade.tipo,
-            'details': atividade.descricao,
-            'allDay': atividade.all_day
-        }), 200
-    except Exception as e:
-        print(f"Erro ao editar a atividade: {e}")
-        return jsonify({"error": f"Erro interno do servidor: {e}"}), 500
 
 @app.route("/api/atividades/<id>", methods=["DELETE"])
 def api_eliminar_atividade(id):

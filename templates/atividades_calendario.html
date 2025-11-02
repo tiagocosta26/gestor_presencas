@@ -57,30 +57,41 @@
                             <label for="atividadeTitulo" class="form-label">Título</label>
                             <input type="text" class="form-control" id="atividadeTitulo" required>
                         </div>
-                        <div class="mb-3">
-                            <label for="atividadeData" class="form-label">Data</label>
-                            <input type="date" class="form-control" id="atividadeData" required>
-                        </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="atividadeAllDay">
-                            <label class="form-check-label" for="atividadeAllDay">Dia Inteiro</label>
-                        </div>
-                        <div id="horariosCampos">
-                            <div class="mb-3">
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="atividadeDataInicio" class="form-label">Data de Início</label>
+                                <input type="date" class="form-control" id="atividadeDataInicio" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
                                 <label for="atividadeHoraInicio" class="form-label">Hora de Início</label>
                                 <input type="time" class="form-control" id="atividadeHoraInicio">
                             </div>
-                            <div class="mb-3">
+                        </div>
+
+                        <div class="row" id="camposFim">
+                            <div class="col-md-6 mb-3">
+                                <label for="atividadeDataFim" class="form-label">Data de Fim</label>
+                                <input type="date" class="form-control" id="atividadeDataFim">
+                            </div>
+                            <div class="col-md-6 mb-3">
                                 <label for="atividadeHoraFim" class="form-label">Hora de Fim</label>
                                 <input type="time" class="form-control" id="atividadeHoraFim">
                             </div>
                         </div>
+                        
+                        <div class="mb-3 form-check" id="campoAllDay">
+                            <input type="checkbox" class="form-check-input" id="atividadeAllDay">
+                            <label class="form-check-label" for="atividadeAllDay">Dia Inteiro</label>
+                        </div>
+
                         <div class="mb-3">
                             <label for="atividadeTipo" class="form-label">Tipo de Atividade</label>
                             <select class="form-select" id="atividadeTipo" required>
                                 <option value="Clan">Clan</option>
                                 <option value="Agrupamento">Agrupamento</option>
                                 <option value="Núcleo">Núcleo</option>
+                                <option value="Cenáculo">Cenáculo</option>
                                 <option value="Região">Região</option>
                                 <option value="Nacional">Nacional</option>
                                 <option value="Internacional">Internacional</option>
@@ -107,14 +118,14 @@
                 <div class="modal-body">
                     <h3 id="detalhesTitulo"></h3>
                     <p><strong>Tipo:</strong> <span id="detalhesTipo"></span></p>
-                    <p><strong>Data:</strong> <span id="detalhesData"></span></p>
+                    <p id="detalhesDataFormatada"><strong>Data:</strong> <span id="detalhesData"></span></p>
                     <p id="detalhesHoras"></p>
                     <p><strong>Detalhes:</strong> <span id="detalhesDescricao"></span></p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="editarAtividadeBtn">Editar Atividade</button>
                     <button type="button" class="btn btn-danger" id="eliminarAtividadeBtn">Eliminar Atividade</button>
-                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -122,7 +133,6 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales-all.global.min.js"></script>
 <script>
-    //Definir podeEditar como true, ignorando a sessão
     const podeEditar = true; 
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -131,27 +141,79 @@
         const detalhesAtividadeModal = new bootstrap.Modal(document.getElementById('detalhesAtividadeModal'));
         const atividadeForm = document.getElementById('atividadeForm');
         const atividadeAllDay = document.getElementById('atividadeAllDay');
-        const horariosCampos = document.getElementById('horariosCampos');
+        
+        const atividadeDataInicio = document.getElementById('atividadeDataInicio'); 
+        const atividadeDataFim = document.getElementById('atividadeDataFim');     
+        const atividadeHoraInicio = document.getElementById('atividadeHoraInicio'); 
+        const atividadeHoraFim = document.getElementById('atividadeHoraFim');     
+
         const atividadeModalLabel = document.getElementById('atividadeModalLabel');
         const submitBtn = document.getElementById('submitBtn');
 
         const editarAtividadeBtn = document.getElementById('editarAtividadeBtn');
         const eliminarAtividadeBtn = document.getElementById('eliminarAtividadeBtn');
-
+        const detalhesDataFormatada = document.getElementById('detalhesDataFormatada');
+        const campoAllDay = document.getElementById('campoAllDay'); 
+        
         let modoEdicao = false;
+        
+        // Elementos dos campos de hora e data de fim para fácil acesso
+        const campoHoraInicio = atividadeHoraInicio.closest('.col-md-6');
+        const campoHoraFim = atividadeHoraFim.closest('.col-md-6');
+        const campoDataFim = atividadeDataFim.closest('.col-md-6');
 
-        atividadeAllDay.addEventListener('change', function() {
-            if (this.checked) {
-                horariosCampos.style.display = 'none';
-                document.getElementById('atividadeHoraInicio').removeAttribute('required');
-                document.getElementById('atividadeHoraFim').removeAttribute('required');
+        // Função para esconder/mostrar campos de hora e 'required'
+        function toggleCamposHora(isAllDay) {
+            if (isAllDay) {
+                campoHoraInicio.style.display = 'none';
+                campoHoraFim.style.display = 'none';
+                
+                atividadeHoraInicio.removeAttribute('required');
+                atividadeHoraFim.removeAttribute('required');
+                atividadeDataFim.removeAttribute('required'); 
             } else {
-                horariosCampos.style.display = 'block';
-                document.getElementById('atividadeHoraInicio').setAttribute('required', 'required');
-                document.getElementById('atividadeHoraFim').setAttribute('required', 'required');
+                campoHoraInicio.style.display = 'block';
+                campoHoraFim.style.display = 'block';
+                
+                atividadeHoraInicio.setAttribute('required', 'required');
+                atividadeHoraFim.setAttribute('required', 'required');
+                atividadeDataFim.setAttribute('required', 'required'); 
             }
-        });
+            campoDataFim.style.display = 'block';
+        }
+        
+        // Função CRUCIAL: Esconde "Dia Inteiro" se as datas forem diferentes
+        function toggleAllDayCheckbox() {
+            const dataInicio = atividadeDataInicio.value;
+            const dataFim = atividadeDataFim.value;
+            
+            if (dataInicio && dataFim && dataInicio !== dataFim) {
+                // Datas diferentes: Esconde a opção Dia Inteiro e força AllDay=false
+                campoAllDay.style.display = 'none';
+                atividadeAllDay.checked = false; // Garante que não está marcada
+                toggleCamposHora(false); // Força modo com hora
+            } else {
+                // Datas iguais ou uma delas vazia: Mostra a opção Dia Inteiro
+                campoAllDay.style.display = 'block';
+                // Preserva o estado da hora (pode estar em modo allDay=true)
+                toggleCamposHora(atividadeAllDay.checked);
+            }
+        }
+        
+        // Inicializa o estado
+        toggleCamposHora(false);
 
+        // Adiciona listeners para controlar a visibilidade do AllDay
+        atividadeAllDay.addEventListener('change', function() {
+            toggleCamposHora(this.checked);
+        });
+        atividadeDataInicio.addEventListener('change', toggleAllDayCheckbox);
+        atividadeDataFim.addEventListener('change', toggleAllDayCheckbox);
+
+
+        // ===================================================
+        // Configuração do FullCalendar
+        // ===================================================
         const config = {
             initialView: 'dayGridMonth',
             locale: 'pt',
@@ -161,84 +223,201 @@
                 right: 'prev,next today'
             },
             events: '/api/atividades',
-            editable: true, 
-            eventStartEditable: true,
-            eventDurationEditable: true,
+            editable: podeEditar, 
+            eventStartEditable: podeEditar,
+            eventDurationEditable: podeEditar,
+            selectable: true, 
+            selectMirror: true, 
+            
+            // CORREÇÃO: Mudar para true para que o FullCalendar crie o elemento da hora
+            displayEventTime: true, 
+
             eventTimeFormat: { 
                 hour: '2-digit', 
                 minute: '2-digit', 
                 hour12: false 
             },
+
+            // NOVA FUNÇÃO: Esconder a hora em eventos multi-dia com hora definida
+            eventDidMount: function(arg) {
+                const event = arg.event;
+                
+                // Se for All Day, ou se estiver na vista timeGrid (onde a hora deve sempre aparecer), ignoramos.
+                if (event.allDay || arg.view.type.startsWith('timeGrid')) {
+                    return;
+                }
+
+                // Verificação se é um evento Multi-Dia com Hora
+                // Separamos a data da string de data/hora de início e fim
+                const start_date_str = event.startStr.split('T')[0];
+                // Para eventos com hora (allDay: false), event.endStr é a data/hora final inclusiva.
+                const end_date_str = event.endStr.split('T')[0]; 
+                
+                // Se a data de início for diferente da data de fim, é um evento multi-dia com hora.
+                const is_multi_day_timed = start_date_str !== end_date_str;
+                
+                // Se for um evento multi-dia com hora (e estiver nas vistas dayGrid), esconde o tempo.
+                if (is_multi_day_timed) {
+                    const timeEl = arg.el.querySelector('.fc-event-time');
+                    if (timeEl) {
+                        timeEl.style.display = 'none';
+                    }
+                }
+            },
+            
+            // Lógica Central: callback 'select' - Criação de Atividade
+            select: function(info) {
+                if (!podeEditar) return; 
+
+                modoEdicao = false;
+                atividadeModalLabel.textContent = 'Adicionar Atividade';
+                submitBtn.textContent = 'Adicionar';
+                atividadeForm.reset();
+                document.getElementById('atividadeId').value = '';
+
+                // Lógica de cálculo de datas e horas (mantida)
+                const diffMs = info.end.getTime() - info.start.getTime();
+                const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)); 
+                
+                const start = info.startStr.split('T')[0];
+                let end = info.endStr.split('T')[0];
+
+                if (info.allDay) {
+                    if (diffDays === 1) {
+                        atividadeAllDay.checked = false; 
+                        toggleCamposHora(false); 
+
+                        atividadeDataInicio.value = start;
+                        atividadeDataFim.value = start; 
+                        
+                        atividadeHoraInicio.value = '09:00'; 
+                        atividadeHoraFim.value = '10:00';  
+                        
+                    } else {
+                        atividadeAllDay.checked = true; 
+                        toggleCamposHora(true); 
+
+                        atividadeDataInicio.value = start;
+                        
+                        const lastIncludedDay = new Date(info.end);
+                        lastIncludedDay.setDate(lastIncludedDay.getDate() - 1);
+                        atividadeDataFim.value = lastIncludedDay.toISOString().split('T')[0];
+                    }
+                } else {
+                    atividadeAllDay.checked = false;
+                    toggleCamposHora(false); 
+                    
+                    atividadeDataInicio.value = start;
+                    atividadeDataFim.value = end; 
+                    
+                    atividadeHoraInicio.value = info.startStr.split('T')[1].substring(0, 5);
+                    atividadeHoraFim.value = info.endStr.split('T')[1] ? info.endStr.split('T')[1].substring(0, 5) : '';
+                }
+
+                toggleAllDayCheckbox();
+
+                calendar.unselect(); 
+                atividadeModal.show();
+            },
+
+            // Lógica Central: callback 'eventClick' - Exibe Detalhes
             eventClick: function(info) {
                 const event = info.event;
-                const start = event.startStr.split('T');
-
+                
+                // 1. Carregar Detalhes na modal de Detalhes
                 document.getElementById('detalhesTitulo').textContent = event.title;
                 document.getElementById('detalhesTipo').textContent = event.extendedProps.type || event.type;
-                document.getElementById('detalhesData').textContent = start[0];
+                
+                let dataFormatada;
+                let dataInicio = event.start.toISOString().split('T')[0];
+                let dataFim = event.end ? event.end.toISOString().split('T')[0] : dataInicio;
 
+                // Formatação de Datas
+                if (event.allDay) {
+                    const start_dt = new Date(dataInicio);
+                    const end_dt = new Date(dataFim);
+                    const diffDays = Math.ceil((end_dt - start_dt) / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays <= 1) {
+                        dataFormatada = dataInicio;
+                    } else {
+                        const last_day = new Date(end_dt);
+                        last_day.setDate(last_day.getDate() - 1);
+                        dataFormatada = `${dataInicio} a ${last_day.toISOString().split('T')[0]}`;
+                    }
+                } else {
+                    if (dataInicio === dataFim) {
+                        dataFormatada = dataInicio;
+                    } else {
+                        dataFormatada = `${dataInicio} a ${dataFim}`;
+                    }
+                }
+                detalhesDataFormatada.innerHTML = `<strong>Data:</strong> <span id="detalhesData">${dataFormatada}</span>`;
+
+                // Formatação de Horas
                 const detalhesHoras = document.getElementById('detalhesHoras');
                 if (event.allDay) {
                     detalhesHoras.innerHTML = '<strong>Horas:</strong> Dia Inteiro';
                 } else {
-                    const end = event.endStr.split('T');
-                    detalhesHoras.innerHTML = `<strong>Início:</strong> ${start[1] ? start[1].substring(0, 5) : 'N/A'}<br><strong>Fim:</strong> ${end[1] ? end[1].substring(0, 5) : 'N/A'}`;
+                    const start_time = event.startStr.split('T')[1] ? event.startStr.split('T')[1].substring(0, 5) : 'N/A';
+                    const end_time = event.endStr.split('T')[1] ? event.endStr.split('T')[1].substring(0, 5) : 'N/A';
+                    detalhesHoras.innerHTML = `<strong>Início:</strong> ${start_time}<br><strong>Fim:</strong> ${end_time}`;
                 }
 
                 document.getElementById('detalhesDescricao').textContent = event.extendedProps.details || event.details || 'N/A';
 
-                // Estes botões existem sempre, mas precisam do ID
+                // Configuração dos botões
+                eliminarAtividadeBtn.style.display = podeEditar ? 'inline-block' : 'none';
+                editarAtividadeBtn.style.display = podeEditar ? 'inline-block' : 'none';
                 eliminarAtividadeBtn.setAttribute('data-id', event.id);
                 editarAtividadeBtn.setAttribute('data-id', event.id);
                 
-
+                // 2. CORREÇÃO: Esconder o modal de Criação e Mostrar o modal de Detalhes
+                atividadeModal.hide(); 
                 detalhesAtividadeModal.show();
+            },
+            
+            eventDrop: function(info) {
+                if (!podeEditar) { info.revert(); return; }
+                
+                const event = info.event;
+                
+                let dataToUpdate = {
+                    title: event.title,
+                    start: event.startStr,
+                    end: event.endStr, 
+                    type: event.extendedProps.type,
+                    details: event.extendedProps.details,
+                    allDay: event.allDay 
+                };
+                
+                fetch(`/api/atividades/${event.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dataToUpdate)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        alert('Erro ao mover a atividade. Desfazendo a alteração.');
+                        info.revert();
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro de rede ao mover:', error);
+                    alert('Erro de rede. Desfazendo a alteração.');
+                    info.revert();
+                });
             }
-        };
-
-        config.dateClick = function(info) {
-            modoEdicao = false;
-            atividadeModalLabel.textContent = 'Adicionar Atividade';
-            submitBtn.textContent = 'Adicionar';
-            atividadeForm.reset();
-            document.getElementById('atividadeId').value = '';
-            const dataSelecionada = info.dateStr.split('T')[0];
-            document.getElementById('atividadeData').value = dataSelecionada;
-            horariosCampos.style.display = 'block';
-            document.getElementById('atividadeHoraInicio').setAttribute('required', 'required');
-            document.getElementById('atividadeHoraFim').setAttribute('required', 'required');
-            atividadeModal.show();
         };
 
         const calendar = new FullCalendar.Calendar(calendarEl, config);
         calendar.render();
 
-        eliminarAtividadeBtn.addEventListener('click', function() {
-            const eventoId = this.getAttribute('data-id');
-            fetch(`/api/atividades/${eventoId}`, {
-                method: 'DELETE'
-            })
-            .then(response => {
-                if (response.ok) {
-                    calendar.getEventById(eventoId).remove();
-                    detalhesAtividadeModal.hide();
-                } else {
-                    const contentType = response.headers.get("content-type");
-                    if (contentType && contentType.indexOf("application/json") !== -1) {
-                        return response.json().then(data => {
-                            alert('Erro ao eliminar a atividade: ' + data.error);
-                        });
-                    } else {
-                        alert('Erro ao eliminar a atividade. Resposta inválida do servidor.');
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro de rede ao eliminar a atividade.');
-            });
-        });
+        // -------------------------------------------------------------
+        // Handlers de Botões (Edit e Submit)
+        // -------------------------------------------------------------
 
+        // Função para carregar dados do evento na modal de Edição
         editarAtividadeBtn.addEventListener('click', function() {
             modoEdicao = true;
             const event = calendar.getEventById(this.getAttribute('data-id'));
@@ -249,37 +428,48 @@
             document.getElementById('atividadeId').value = event.id;
             document.getElementById('atividadeTitulo').value = event.title;
             
-            const startStr = event.startStr.split('T')[0];
-            document.getElementById('atividadeData').value = startStr;
+            atividadeDataInicio.value = event.startStr.split('T')[0];
             
-            document.getElementById('atividadeAllDay').checked = event.allDay;
+            let dataFim;
             if (event.allDay) {
-                horariosCampos.style.display = 'none';
-                document.getElementById('atividadeHoraInicio').removeAttribute('required');
-                document.getElementById('atividadeHoraFim').removeAttribute('required');
+                 // Para exibição no formulário de edição (subtrai 1 dia)
+                const end_dt = new Date(event.endStr);
+                end_dt.setDate(end_dt.getDate() - 1);
+                dataFim = end_dt.toISOString().split('T')[0];
             } else {
-                horariosCampos.style.display = 'block';
-                document.getElementById('atividadeHoraInicio').setAttribute('required', 'required');
-                document.getElementById('atividadeHoraFim').setAttribute('required', 'required');
-                document.getElementById('atividadeHoraInicio').value = event.startStr.split('T')[1].substring(0, 5);
-                document.getElementById('atividadeHoraFim').value = event.endStr.split('T')[1].substring(0, 5);
+                dataFim = event.endStr ? event.endStr.split('T')[0] : '';
+            }
+            atividadeDataFim.value = dataFim;
+            
+            // Define o estado do checkbox e dos campos
+            atividadeAllDay.checked = event.allDay;
+            toggleCamposHora(event.allDay);
+
+            if (!event.allDay) {
+                atividadeHoraInicio.value = event.startStr.split('T')[1] ? event.startStr.split('T')[1].substring(0, 5) : '';
+                atividadeHoraFim.value = event.endStr && event.endStr.split('T')[1] ? event.endStr.split('T')[1].substring(0, 5) : '';
             }
             
             const eventType = event.extendedProps.type || event.type;
             document.getElementById('atividadeTipo').value = eventType;
             
             const eventDetails = event.extendedProps.details || event.details;
-            document.getElementById('atividadeDetalhes').value = eventDetails;
+            document.getElementById('atividadeDetalhes').value = eventDetails || '';
             
+            // CORREÇÃO: Esconde Detalhes antes de abrir a Edição
             detalhesAtividadeModal.hide();
             atividadeModal.show();
+            
+            toggleAllDayCheckbox();
         });
         
+        // Handler para o envio do formulário (Criação ou Edição)
         atividadeForm.addEventListener('submit', function(event) {
             event.preventDefault();
 
             const titulo = document.getElementById('atividadeTitulo').value;
-            const data = document.getElementById('atividadeData').value;
+            const dataInicio = atividadeDataInicio.value; 
+            const dataFimInput = atividadeDataFim.value;     
             const tipo = document.getElementById('atividadeTipo').value;
             const detalhes = document.getElementById('atividadeDetalhes').value;
             const isAllDay = atividadeAllDay.checked;
@@ -287,13 +477,19 @@
 
             let start, end;
             if (isAllDay) {
-                start = data;
-                end = data;
+                // Evento All Day: O FullCalendar exige que o 'end' seja o dia seguinte (exclusivo)
+                start = dataInicio;
+                
+                const end_dt = new Date(dataFimInput + 'T00:00:00'); 
+                end_dt.setDate(end_dt.getDate() + 1);
+                end = end_dt.toISOString().split('T')[0];
             } else {
-                const horaInicio = document.getElementById('atividadeHoraInicio').value;
-                const horaFim = document.getElementById('atividadeHoraFim').value;
-                start = `${data}T${horaInicio}:00`;
-                end = `${data}T${horaFim}:00`;
+                // Evento com Horas 
+                const horaInicio = atividadeHoraInicio.value;
+                const horaFim = atividadeHoraFim.value;
+                
+                start = `${dataInicio}T${horaInicio}:00`;
+                end = `${dataFimInput}T${horaFim}:00`; 
             }
 
             const method = modoEdicao ? 'PUT' : 'POST';
@@ -301,9 +497,7 @@
 
             fetch(url, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     title: titulo,
                     start: start,
@@ -322,6 +516,7 @@
                 return response.json();
             })
             .then(data => {
+                // Atualização ou adição do evento no calendário
                 if (modoEdicao) {
                     const event = calendar.getEventById(atividadeId);
                     event.setProp('title', data.title);
@@ -353,6 +548,34 @@
                 alert('Erro ao guardar a atividade: ' + error.message);
             });
         });
+
+        // Handler para eliminar atividade (mantido)
+        eliminarAtividadeBtn.addEventListener('click', function() {
+             const eventoId = this.getAttribute('data-id');
+             fetch(`/api/atividades/${eventoId}`, {
+                 method: 'DELETE'
+             })
+             .then(response => {
+                if (response.ok) {
+                    calendar.getEventById(eventoId).remove();
+                    detalhesAtividadeModal.hide();
+                } else {
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        return response.json().then(data => {
+                            alert('Erro ao eliminar a atividade: ' + data.error);
+                        });
+                    } else {
+                        alert('Erro ao eliminar a atividade. Resposta inválida do servidor.');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro de rede ao eliminar a atividade.');
+            });
+        });
+
     });
 </script>
 {% endblock %}
