@@ -315,15 +315,17 @@ def delete_from_supabase(url_ficheiro, bucket):
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-    # Extrai o caminho completo após /object/public/
-    padrao = rf"/object/public/{bucket}/(.+)"
+    # Extrai tudo após /object/public/
+    padrao = r"/object/public/(.+)"
     match = re.search(padrao, url_ficheiro)
     if not match:
-        print(f"❌ URL inválido ou não contém o bucket '{bucket}': {url_ficheiro}")
+        print(f"❌ URL inválido: {url_ficheiro}")
         return False
 
     caminho_ficheiro = match.group(1)
-    endpoint = f"{SUPABASE_URL}/storage/v1/object/{bucket}/{caminho_ficheiro}"
+
+    # Endpoint DELETE correto (sem /public)
+    endpoint = f"{SUPABASE_URL}/storage/v1/object/{caminho_ficheiro}"
 
     headers = {
         "apikey": SUPABASE_KEY,
@@ -332,12 +334,16 @@ def delete_from_supabase(url_ficheiro, bucket):
 
     response = requests.delete(endpoint, headers=headers)
 
-    if response.status_code in [200, 204, 404]:
-        print(f"✅ Ficheiro eliminado (ou não encontrado): {caminho_ficheiro}")
+    if response.status_code in [200, 204]:
+        print(f"✅ Ficheiro eliminado do Supabase: {caminho_ficheiro}")
         return True
+    elif response.status_code == 404:
+        print(f"⚠️ Ficheiro não encontrado no Supabase: {caminho_ficheiro}")
+        return False
     else:
         print(f"❌ Erro ao eliminar ficheiro ({response.status_code}): {response.text}")
         return False
+
 
 
 
