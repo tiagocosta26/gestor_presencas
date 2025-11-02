@@ -10,6 +10,7 @@ import copy
 import uuid
 from icalendar import Calendar, Event
 from flask import make_response
+from supabase import create_client
 
 #MEGA ALTERAÇÂOOOOO0000
 
