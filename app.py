@@ -34,6 +34,17 @@ SUPABASE_KEY = os.getenv("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 print(f"✅ Supabase URL: {SUPABASE_URL}")
 print(f"✅ Supabase Key configurada: {bool(SUPABASE_KEY)}")
 
+print("DEBUG: Todas as variáveis de ambiente:")
+for key in os.environ:
+    if 'SUPABASE' in key or 'DATABASE' in key:
+        print(f"  {key} = {os.environ[key][:50]}...")
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+print(f"SUPABASE_URL final: {SUPABASE_URL}")
+print(f"SUPABASE_KEY final: {bool(SUPABASE_KEY)}")
+
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'uma_chave_segura_para_as_sessoes')
