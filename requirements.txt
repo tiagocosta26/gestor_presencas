@@ -7,3 +7,8 @@ psycopg2-binary
 Werkzeug
 python-dotenv
 cloudinary
+supabase==2.1.0
+postgrest-py==0.13.0
+realtime-py==1.0.0
+storage-py==0.7.0
+httpx==0.25.0
