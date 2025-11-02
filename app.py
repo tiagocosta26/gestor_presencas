@@ -25,39 +25,7 @@ import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
 
 print("DEBUG DATABASE_URL:", os.environ.get('EXTERNAL_DATABASE_URL'))
-"""
-# Configurar Cloudinary
-cloudinary.config(
-    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
-    api_key=os.environ.get('CLOUDINARY_API_KEY'),
-    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
-    secure=True
-)
-"""
-"""
-def upload_para_cloudinary(file, pasta="clan"):
-    
-    Faz upload de um ficheiro para o Cloudinary
-    
-    Args:
-        file: Ficheiro do request.files
-        pasta: Nome da pasta no Cloudinary (ex: 'atas', 'receitas', 'comprovativos')
-    
-    Returns:
-        URL pública do ficheiro ou None se falhar
-    
-    try:
-        # Upload para Cloudinary
-        resultado = cloudinary.uploader.upload(
-            file,
-            folder=f"clan/{pasta}",  # Organiza em pastas
-            resource_type="auto"  # Aceita qualquer tipo de ficheiro
-        )
-        return resultado['secure_url']
-    except Exception as e:
-        print(f"Erro ao fazer upload para Cloudinary: {e}")
-        return None
-"""
+
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -229,6 +197,32 @@ class ProgressoModelo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     modelo = db.Column(JSON)
 
+class ItemCozinha(db.Model):
+    """Modelo para itens do inventário de cozinha."""
+    __tablename__ = 'itens_cozinha'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)
+    quantidade = db.Column(db.Float, nullable=False)  # Agora é Float em vez de String
+    unidade = db.Column(db.String(50), nullable=False)  # Ex: "kg", "l", "unidades"
+    categoria = db.Column(db.String(50), nullable=False)  # Ex: "Cereais", "Laticínios"
+    observacoes = db.Column(db.Text, nullable=True)
+    data_adicao = db.Column(db.DateTime, default=datetime.now)
+    
+    def __repr__(self):
+        return f'<ItemCozinha {self.nome}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'quantidade': self.quantidade,
+            'unidade': self.unidade,
+            'categoria': self.categoria,
+            'observacoes': self.observacoes or ''
+        }
+
+
 # --- FUNÇÕES AUXILIARES ---
 
 def limpar_nome(nome):
@@ -323,17 +317,13 @@ def carregar_farmacia():
              'tribo_clan': i.tribo_clan or '', 'observacoes': i.observacoes or ''} for i in itens]
 
 def carregar_inventario_cozinha():
-    itens = Item.query.filter_by(categoria='Cozinha').all()
-    result = []
-    for i in itens:
-        result.append({
-            'nome': i.nome,
-            'quantidade': i.quantidade or '',
-            'unidade': i.localizacao or '',
-            'categoria': i.tribo_clan or '',
-            'comprovativo': i.comprovativo or ''
-        })
-    return result
+    """Carrega todos os itens do inventário de cozinha."""
+    try:
+        itens = ItemCozinha.query.order_by(ItemCozinha.nome).all()
+        return [i.to_dict() for i in itens]
+    except Exception as e:
+        print(f"❌ Erro ao carregar inventário de cozinha: {e}")
+        return []
 
 def carregar_alergias():
     condicoes = CondicaoSaude.query.filter_by(tipo='Alergia').all()
@@ -559,199 +549,6 @@ def guardar_progresso(dados): pass
 def guardar_atividades_calendario(atividades): pass
 
 # --- FUNÇÕES DE PROGRESSO ---
-
-@app.route("/admin/importar_presencas_csv", methods=["GET", "POST"])
-def importar_presencas_csv():
-    """Importa atividades de presença de ficheiros CSV antigos para a BD."""
-    
-    # Verificar permissão
-    if session.get('username') != 'Chefe':
-        flash("Apenas o Chefe pode importar presenças.", "danger")
-        return redirect(url_for("index"))
-    
-    if request.method == "POST":
-        try:
-            print("\n" + "="*70)
-            print("🔄 INICIANDO IMPORTAÇÃO DE PRESENÇAS CSV")
-            print("="*70 + "\n")
-            
-            # Usa o mesmo diretório do app.py (que já está definido globalmente)
-            # Se não estiver definido, ajuste aqui para o seu caminho
-            if 'DIRETORIO_PRESENCAS' in globals():
-                DIRETORIO_PRESENCAS = globals()['DIRETORIO_PRESENCAS']
-            else:
-                # Tenta encontrar o diretório comum
-                DIRETORIO_PRESENCAS = os.path.join(os.path.dirname(__file__), "presencas")
-            
-            print(f"📁 Usando diretório: {DIRETORIO_PRESENCAS}")
-            
-            if not os.path.exists(DIRETORIO_PRESENCAS):
-                flash(f"Diretório '{DIRETORIO_PRESENCAS}' não encontrado.", "danger")
-                return redirect(url_for("importar_presencas_csv"))
-            
-            # Lista todos os ficheiros CSV
-            ficheiros_csv = [f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")]
-            
-            if not ficheiros_csv:
-                flash("Nenhum ficheiro CSV encontrado.", "info")
-                return redirect(url_for("importar_presencas_csv"))
-            
-            print(f"📁 Encontrados {len(ficheiros_csv)} ficheiros CSV\n")
-            
-            importadas = 0
-            duplicadas = 0
-            erros = 0
-            
-            for ficheiro in sorted(ficheiros_csv):
-                try:
-                    print(f"📄 Processando: {ficheiro}")
-                    caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
-                    
-                    # Extrai a data do nome do ficheiro
-                    # Formato esperado: "atividade_YYYY-MM-DD_..."
-                    data_atividade = None
-                    partes = ficheiro.replace(".csv", "").split('_')
-                    
-                    # Tenta encontrar a data
-                    for i in range(1, len(partes)):
-                        try:
-                            data_atividade = datetime.strptime(partes[i], "%Y-%m-%d").date()
-                            break
-                        except ValueError:
-                            continue
-                    
-                    if not data_atividade:
-                        print(f"   ⚠️  Não conseguiu extrair data do nome do ficheiro")
-                        data_atividade = datetime.now().date()
-                    
-                    # Lê o CSV
-                    with open(caminho, newline="", encoding="utf-8-sig") as f:
-                        reader = csv.DictReader(f)
-                        
-                        # Coletas os dados
-                        dados_presenca = {}
-                        nome_atividade = ficheiro.replace(".csv", "").replace("_", " ")
-                        
-                        for row in reader:
-                            tribo = row.get('Tribo', '').strip()
-                            elemento = row.get('Elemento', '').strip()
-                            presente = row.get('Presente', 'Não').strip()
-                            
-                            if not tribo or not elemento:
-                                continue
-                            
-                            if tribo not in dados_presenca:
-                                dados_presenca[tribo] = {}
-                            
-                            dados_presenca[tribo][elemento] = presente
-                        
-                        if not dados_presenca:
-                            print(f"   ⚠️  Ficheiro vazio ou mal formatado")
-                            erros += 1
-                            continue
-                        
-                        # Verifica se já existe
-                        atividade_existente = AtividadePresenca.query.filter_by(
-                            nome=nome_atividade,
-                            data_inicio=data_atividade
-                        ).first()
-                        
-                        if atividade_existente:
-                            print(f"   ℹ️  Atividade já existe na BD (duplicada)")
-                            duplicadas += 1
-                            continue
-                        
-                        # Cria nova atividade
-                        nova_atividade = AtividadePresenca(
-                            nome=nome_atividade,
-                            data_inicio=data_atividade,
-                            data_fim=data_atividade,
-                            dados=dados_presenca
-                        )
-                        
-                        db.session.add(nova_atividade)
-                        db.session.commit()
-                        
-                        # Conta o número de pessoas
-                        num_pessoas = sum(len(membros) for membros in dados_presenca.values())
-                        print(f"   ✅ Importada com sucesso ({len(dados_presenca)} tribos, {num_pessoas} pessoas)")
-                        importadas += 1
-                
-                except Exception as e:
-                    print(f"   ❌ Erro: {e}")
-                    db.session.rollback()
-                    erros += 1
-            
-            print("\n" + "="*70)
-            print(f"📊 RESULTADO DA IMPORTAÇÃO:")
-            print(f"   ✅ Importadas: {importadas}")
-            print(f"   ℹ️  Duplicadas (não importadas): {duplicadas}")
-            print(f"   ❌ Erros: {erros}")
-            print("="*70 + "\n")
-            
-            flash(f"Importação concluída! {importadas} atividades importadas, {duplicadas} duplicadas, {erros} erros.", "info")
-            return redirect(url_for("atividades"))
-        
-        except Exception as e:
-            import traceback
-            print(f"\n❌ ERRO NA IMPORTAÇÃO:")
-            print(traceback.format_exc())
-            print("="*70 + "\n")
-            flash(f"Erro na importação: {e}", "danger")
-            return redirect(url_for("importar_presencas_csv"))
-    
-    # GET request - mostra página de importação
-    # Conta ficheiros disponíveis
-    if 'DIRETORIO_PRESENCAS' in globals():
-        DIRETORIO_PRESENCAS = globals()['DIRETORIO_PRESENCAS']
-    else:
-        DIRETORIO_PRESENCAS = os.path.join(os.path.dirname(__file__), "presencas")
-    
-    num_ficheiros = 0
-    
-    if os.path.exists(DIRETORIO_PRESENCAS):
-        num_ficheiros = len([f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")])
-    
-    return render_template(
-        "importar_presencas.html",
-        num_ficheiros=num_ficheiros,
-        diretorio=DIRETORIO_PRESENCAS
-    )
-
-
-@app.route("/admin/status_importacao")
-def status_importacao():
-    """Mostra o status das atividades importadas."""
-    
-    if session.get('username') != 'Chefe':
-        return jsonify({"error": "Não autorizado"}), 403
-    
-    try:
-        # Conta as atividades importadas
-        total_atividades = AtividadePresenca.query.count()
-        
-        # Calcula estatísticas
-        atividades = AtividadePresenca.query.all()
-        num_tribos = set()
-        num_pessoas = set()
-        
-        for atv in atividades:
-            if atv.dados:
-                for tribo_nome, membros in atv.dados.items():
-                    num_tribos.add(tribo_nome)
-                    for pessoa_nome in membros.keys():
-                        num_pessoas.add(pessoa_nome)
-        
-        return jsonify({
-            "total_atividades": total_atividades,
-            "num_tribos": len(num_tribos),
-            "num_pessoas": len(num_pessoas),
-            "tribos": sorted(list(num_tribos)),
-            "status": "ok"
-        })
-    
-    except Exception as e:
-        return jsonify({"error": str(e), "status": "error"}), 500
 
 @app.template_global()
 def calcular_progresso_bool_do_dicionario(obj):
@@ -2156,6 +1953,7 @@ def farmacia():
 
 @app.route("/cozinha", methods=["GET", "POST"])
 def cozinha():
+    """Página de cozinha com inventário e receitas."""
     inventario = carregar_inventario_cozinha()
     receitas = carregar_receitas()
     tribos_disponiveis = list(carregar_tribos().keys())
@@ -2165,119 +1963,159 @@ def cozinha():
 
     if request.method == "POST":
         acao = request.form.get("acao")
-        # NOVO DEBUG CRÍTICO 1: Confirma que o POST está a ser recebido e qual é a ação
-        print(f"DEBUG FLUXO: Método POST recebido. Ação identificada: {acao}")
+        print(f"DEBUG FLUXO: Método POST recebido. Ação: {acao}")
 
-# --- LÓGICA PARA ADICIONAR ITEM AO INVENTÁRIO (DEBUG CRÍTICO) ---
-        if acao == "adicionar_item_cozinha": # <-- CORRIGIDO: Agora espera 'adicionar_item_cozinha'
-            nome_item = request.form.get("nome_item")
-            quantidade_item_raw = request.form.get("quantidade_item")
-            unidade_item = request.form.get("unidade_item")
-            categoria_item = request.form.get("categoria_item")
-
-            # *** NOVO DEBUG: Mostra o que o Flask recebeu ***
-            print(f"DEBUG INPUTS: Nome='{nome_item}', Quantidade='{quantidade_item_raw}', Unidade='{unidade_item}'")
-            # ************************************************
-
-            if not nome_item or not quantidade_item_raw or not unidade_item:
-                print("DEBUG FLUXO: Campos obrigatórios (Nome, Quantidade, Unidade) em falta no formulário.")
+        # --- ADICIONAR ITEM AO INVENTÁRIO DE COZINHA ---
+        if acao == "adicionar_item_cozinha":
+            nome_item = request.form.get("nome_item", "").strip()
+            quantidade_item_raw = request.form.get("quantidade_item", "").strip()
+            unidade_item = request.form.get("unidade_item", "").strip()
+            categoria_item = request.form.get("categoria_item", "").strip()
+            observacoes = request.form.get("observacoes", "").strip()
+            
+            print(f"DEBUG INPUTS: Nome='{nome_item}', Qtd='{quantidade_item_raw}', Unidade='{unidade_item}', Categoria='{categoria_item}'")
+            
+            if not all([nome_item, quantidade_item_raw, unidade_item, categoria_item]):
+                print("DEBUG FLUXO: Campos obrigatórios em falta")
                 return redirect(url_for('cozinha'))
-
+            
             try:
-                # Trata vírgulas e espaços e tenta converter para float
-                quantidade_item_num = float(quantidade_item_raw.strip().replace(',', '.'))
+                quantidade_item_num = float(quantidade_item_raw.replace(',', '.'))
             except ValueError:
-                # flash("A quantidade deve ser um número válido.", "danger")
-                print(f"ERRO: Quantidade '{quantidade_item_raw}' inválida para conversão.")
+                print(f"ERRO: Quantidade '{quantidade_item_raw}' inválida")
                 return redirect(url_for('cozinha'))
-
-            novo_item = Item(
-                categoria='Cozinha',
-                nome=nome_item.strip(),
-                quantidade=quantidade_item_num,
-                localizacao=unidade_item,  # Unidade de medida
-                tribo_clan=categoria_item, # Categoria do alimento
-            )
-
+            
             try:
-                # NOVO DEBUG CRÍTICO 2: Confirma que a execução chegou ao ponto de adição
-                print(f"DEBUG FLUXO: A tentar adicionar item {nome_item} ao DB...")
-                db.session.add(novo_item)
+                # Verifica se já existe um item com o mesmo nome
+                item_existente = ItemCozinha.query.filter_by(
+                    nome=nome_item,
+                    unidade=unidade_item,
+                    categoria=categoria_item
+                ).first()
+                
+                if item_existente:
+                    # Se existe, soma a quantidade
+                    print(f"DEBUG FLUXO: Item já existe, atualizando quantidade")
+                    item_existente.quantidade += quantidade_item_num
+                else:
+                    # Se não existe, cria novo
+                    novo_item = ItemCozinha(
+                        nome=nome_item,
+                        quantidade=quantidade_item_num,
+                        unidade=unidade_item,
+                        categoria=categoria_item,
+                        observacoes=observacoes if observacoes else None
+                    )
+                    db.session.add(novo_item)
+                    print(f"DEBUG FLUXO: Novo item adicionado: {nome_item}")
+                
                 db.session.commit()
-                # Debug de sucesso, se chegar aqui
-                print(f"SUCESSO: Item '{nome_item}' adicionado. Tentativa de commit OK.")
+                print(f"SUCESSO: Item '{nome_item}' guardado/atualizado na BD")
+            
             except Exception as e:
                 db.session.rollback()
-                # *** CÓDIGO CRÍTICO DE DEBUG: É AQUI QUE O ERRO DEVE APARECER ***
                 import traceback
                 print("\n" + "="*70)
-                print("FALHA CRÍTICA NO COMMIT DO INVENTÁRIO. CAUSA MAIS PROVÁVEL: CAMPO OBRIGATÓRIO (NULLABLE=FALSE) EM FALTA NO MODELO ITEM.")
-                print(f"Item tentado: Nome={nome_item}, Qtd={quantidade_item_num}, Unidade={unidade_item}, Cat={categoria_item}")
-                print("\n--- INÍCIO DO TRACEBACK ---")
-                traceback.print_exc() # Imprime o stack trace completo
-                print("--- FIM DO TRACEBACK ---\n")
+                print("❌ ERRO AO GUARDAR ITEM DE COZINHA")
+                print(traceback.format_exc())
                 print("="*70 + "\n")
-                # Fim do código crítico
-                
-                # Se estiver a usar um ambiente de produção (gunicorn/uwsgi), o print pode falhar.
-                # Se não vir nada, o erro é 100% no modelo Item.
-                return redirect(url_for('cozinha')) # Mantém o fluxo normal mesmo em caso de falha
-
+            
             return redirect(url_for('cozinha'))
 
-        if acao == "adicionar_receita":
-            nome_receita = request.form.get("nome_receita")
-            ingredientes_raw = request.form.get("ingredientes_raw")
-            instrucoes = request.form.get("instrucoes")
-            tempo_preparacao = request.form.get("tempo_preparacao")
-            dificuldade = request.form.get("dificuldade")
-            porcoes_base = request.form.get("porcoes_base")
+        # --- ADICIONAR RECEITA ---
+        elif acao == "adicionar_receita":
+            nome_receita = request.form.get("nome_receita", "").strip()
+            ingredientes_raw = request.form.get("ingredientes_raw", "").strip()
+            instrucoes = request.form.get("instrucoes", "").strip()
+            tempo_preparacao = request.form.get("tempo_preparacao", "").strip()
+            dificuldade = request.form.get("dificuldade", "Médio").strip()
+            porcoes_base = request.form.get("porcoes_base", "").strip()
+            
+            print(f"DEBUG FLUXO: Adicionando receita: {nome_receita}")
+            
             if not nome_receita:
-                #flash("O nome da receita é obrigatório.", "danger")
+                print("DEBUG FLUXO: Nome da receita vazio")
                 return redirect(url_for('cozinha'))
-            link_ficheiro = None
-            if 'comprovativo_receita' in request.files:
-                file = request.files['comprovativo_receita']
-                if file.filename != '':
-                    filename = secure_filename(file.filename)
-                    filepath = os.path.join(DIRETORIO_RECEITAS, filename)
-                    file.save(filepath)  # ❌ Guarda localmente
-                    link_ficheiro = url_for('serve_receita', filename=filename)
-            if link_ficheiro:
-                nova_receita = Receita(nome=nome_receita.strip(), link_ficheiro=link_ficheiro)
-            else:
-                ingredientes_processados = []
-                for linha in ingredientes_raw.splitlines():
-                    if linha.strip():
-                        ingredientes_processados.append(linha.strip())
-                if not (ingredientes_processados and instrucoes):
-                    #flash("Para receitas manuais, preencha Ingredientes e Instruções.", "danger")
-                    return redirect(url_for('cozinha'))
-                nova_receita = Receita(
-                    nome=nome_receita.strip(),
-                    ingredientes=ingredientes_processados,
-                    instrucoes=instrucoes,
-                    tempo_preparacao=tempo_preparacao,
-                    dificuldade=dificuldade,
-                    porcoes_base=porcoes_base
-                )
-            db.session.add(nova_receita)
-            db.session.commit()
-            #flash(f"Receita '{nome_receita}' arquivada com sucesso!", "success")
+            
+            try:
+                link_ficheiro = None
+                
+                # Se há ficheiro anexado
+                if 'comprovativo_receita' in request.files:
+                    file = request.files['comprovativo_receita']
+                    if file.filename != '':
+                        filename = secure_filename(file.filename)
+                        filepath = os.path.join(DIRETORIO_RECEITAS, filename)
+                        os.makedirs(DIRETORIO_RECEITAS, exist_ok=True)
+                        file.save(filepath)
+                        link_ficheiro = url_for('serve_receita', filename=filename)
+                        print(f"DEBUG FLUXO: Ficheiro guardado: {filename}")
+                
+                # Se há ficheiro, guarda com link
+                if link_ficheiro:
+                    nova_receita = Receita(
+                        nome=nome_receita,
+                        link_ficheiro=link_ficheiro
+                    )
+                    print(f"DEBUG FLUXO: Receita com ficheiro criada")
+                else:
+                    # Processa ingredientes
+                    ingredientes_processados = []
+                    for linha in ingredientes_raw.splitlines():
+                        if linha.strip():
+                            ingredientes_processados.append(linha.strip())
+                    
+                    if not (ingredientes_processados and instrucoes):
+                        print("DEBUG FLUXO: Ingredientes ou instruções em falta")
+                        return redirect(url_for('cozinha'))
+                    
+                    nova_receita = Receita(
+                        nome=nome_receita,
+                        ingredientes=ingredientes_processados,
+                        instrucoes=instrucoes,
+                        tempo_preparacao=tempo_preparacao if tempo_preparacao else None,
+                        dificuldade=dificuldade,
+                        porcoes_base=porcoes_base if porcoes_base else None
+                    )
+                    print(f"DEBUG FLUXO: Receita manual criada")
+                
+                db.session.add(nova_receita)
+                db.session.commit()
+                print(f"SUCESSO: Receita '{nome_receita}' guardada na BD")
+            
+            except Exception as e:
+                db.session.rollback()
+                import traceback
+                print("\n" + "="*70)
+                print("❌ ERRO AO GUARDAR RECEITA")
+                print(traceback.format_exc())
+                print("="*70 + "\n")
+            
             return redirect(url_for('cozinha'))
+        
         return redirect(url_for('cozinha'))
 
+    # GET request - carrega filtros
     filtro_categoria = request.args.get('categoria', 'Todos')
     inventario_ordenado = sorted(inventario, key=lambda x: x['nome'])
+    
     if filtro_categoria == 'Todos':
         inventario_filtrado = inventario_ordenado
     else:
         inventario_filtrado = [item for item in inventario_ordenado if item.get('categoria') == filtro_categoria]
+    
     receitas_ordenadas = sorted(receitas, key=lambda x: x['nome'])
-    return render_template("cozinha.html", inventario=inventario_filtrado, receitas=receitas_ordenadas,
-                          opcoes_unidade=opcoes_unidade, opcoes_categoria=opcoes_categoria,
-                          opcoes_dificuldade=opcoes_dificuldade, tribos_disponiveis=tribos_disponiveis,
-                          filtro_categoria_atual=filtro_categoria)
+    
+    return render_template(
+        "cozinha.html",
+        inventario=inventario_filtrado,
+        receitas=receitas_ordenadas,
+        opcoes_unidade=opcoes_unidade,
+        opcoes_categoria=opcoes_categoria,
+        opcoes_dificuldade=opcoes_dificuldade,
+        tribos_disponiveis=tribos_disponiveis,
+        filtro_categoria_atual=filtro_categoria
+    )
 
 @app.route('/uploads/cozinha/<path:filename>')
 def serve_upload_cozinha(filename):
@@ -2319,13 +2157,27 @@ def eliminar_receita():
 
 @app.route("/eliminar_item_inventario", methods=["POST"])
 def eliminar_item_inventario():
-    nome_item_raw = request.form.get("nome_item", "").strip()
-    unidade_item_raw = request.form.get("unidade_item", "").strip()
-    if not nome_item_raw or not unidade_item_raw:
-        #flash("Nome ou unidade do item não fornecidos.", "danger")
+    """Eliminar um item do inventário de cozinha."""
+    item_id = request.form.get("item_id")
+    
+    if not item_id:
+        print("DEBUG FLUXO: ID do item vazio")
         return redirect(url_for('cozinha'))
-    Item.query.filter_by(categoria='Cozinha', nome=nome_item_raw).delete()
-    db.session.commit()
+    
+    try:
+        item = ItemCozinha.query.get(int(item_id))
+        if item:
+            nome = item.nome
+            db.session.delete(item)
+            db.session.commit()
+            print(f"✅ Item '{nome}' eliminado do inventário")
+        else:
+            print(f"❌ Item com ID {item_id} não encontrado")
+    
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Erro ao eliminar item: {e}")
+    
     return redirect(url_for('cozinha'))
 
 @app.route("/progresso")
