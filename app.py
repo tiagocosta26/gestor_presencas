@@ -26,6 +26,20 @@ from cloudinary.utils import cloudinary_url
 
 print("DEBUG DATABASE_URL:", os.environ.get('EXTERNAL_DATABASE_URL'))
 
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://xatjptyulmyyynvlpwgo.supabase.co")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhhdGpwdHl1bG15eXludmxwd2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMjMyNjksImV4cCI6MjA3NzU5OTI2OX0.sjzayu2Lx4_LQ0S2F1zXD626YH27CabcNWw7mNbnPeo")
+
+supabase_client = None
+
+try:
+    if SUPABASE_URL and SUPABASE_KEY and "seu-projeto" not in SUPABASE_URL:
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print("✅ Supabase Storage conectado")
+    else:
+        print("⚠️ SUPABASE_URL ou SUPABASE_KEY não configurados corretamente")
+except Exception as e:
+    print(f"❌ Erro ao conectar Supabase: {e}")
+    supabase_client = None
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -50,6 +64,7 @@ print("URI da base de dados a ser usada:", app.config['SQLALCHEMY_DATABASE_URI']
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
 
 
 # Diretórios para ficheiros
@@ -277,6 +292,148 @@ class Documento(db.Model):
         return f'<Documento {self.nome_original}>'
 
 # --- FUNÇÕES AUXILIARES ---
+
+def fazer_upload_supabase(file, bucket_name, pasta=""):
+    """
+    Faz upload de um ficheiro para Supabase Storage.
+    
+    Args:
+        file: FileStorage object do Flask
+        bucket_name: Nome do bucket (ex: "receitas", "atas", "documentos")
+        pasta: Subpasta dentro do bucket (opcional)
+    
+    Returns:
+        dict com 'url' e 'caminho' ou None em caso de erro
+    """
+    if not supabase_client:
+        print("❌ Supabase não está configurado")
+        return None
+    
+    try:
+        # Gera nome único do ficheiro
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        nome_original = file.filename
+        extensao = os.path.splitext(nome_original)[1]
+        nome_ficheiro = f"{timestamp}_{nome_original.replace(' ', '_')}"
+        
+        # Define o caminho no bucket
+        if pasta:
+            caminho = f"{pasta}/{nome_ficheiro}"
+        else:
+            caminho = nome_ficheiro
+        
+        print(f"📤 Fazendo upload: {nome_ficheiro} para {bucket_name}/{caminho}")
+        
+        # Lê o conteúdo do ficheiro
+        conteudo = file.read()
+        
+        # Faz upload
+        resposta = supabase_client.storage.from_(bucket_name).upload(
+            path=caminho,
+            file=conteudo,
+            file_options={"content-type": file.content_type}
+        )
+        
+        # Gera URL pública
+        url_publica = supabase_client.storage.from_(bucket_name).get_public_url(caminho)
+        
+        print(f"✅ Upload bem-sucedido: {url_publica}")
+        
+        return {
+            'url': url_publica,
+            'caminho': caminho,
+            'bucket': bucket_name,
+            'nome_original': nome_original
+        }
+    
+    except Exception as e:
+        print(f"❌ Erro no upload: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def eliminar_ficheiro_supabase(bucket_name, caminho):
+    """
+    Elimina um ficheiro do Supabase Storage.
+    
+    Args:
+        bucket_name: Nome do bucket
+        caminho: Caminho do ficheiro no bucket
+    
+    Returns:
+        True se eliminado com sucesso, False caso contrário
+    """
+    if not supabase_client:
+        print("❌ Supabase não está configurado")
+        return False
+    
+    try:
+        print(f"🗑️ Eliminando: {bucket_name}/{caminho}")
+        
+        supabase_client.storage.from_(bucket_name).remove([caminho])
+        
+        print(f"✅ Ficheiro eliminado com sucesso")
+        return True
+    
+    except Exception as e:
+        print(f"❌ Erro ao eliminar ficheiro: {e}")
+        return False
+
+
+def criar_bucket_supabase(bucket_name, publico=True):
+    """
+    Cria um novo bucket no Supabase (se não existir).
+    
+    Args:
+        bucket_name: Nome do bucket
+        publico: Se deve ser público ou privado
+    
+    Returns:
+        True se criado/já existe, False em caso de erro
+    """
+    if not supabase_client:
+        print("❌ Supabase não está configurado")
+        return False
+    
+    try:
+        print(f"🪣 Tentando criar bucket: {bucket_name}")
+        
+        # Tenta criar o bucket
+        supabase_client.storage.create_bucket(
+            bucket_name,
+            options={
+                "public": publico
+            }
+        )
+        
+        print(f"✅ Bucket '{bucket_name}' criado com sucesso")
+        return True
+    
+    except Exception as e:
+        if "already exists" in str(e):
+            print(f"ℹ️ Bucket '{bucket_name}' já existe")
+            return True
+        else:
+            print(f"❌ Erro ao criar bucket: {e}")
+            return False
+
+
+# ============ INICIALIZAR STORAGE ============
+
+def inicializar_storage_supabase():
+    """Cria os buckets necessários na inicialização."""
+    if not supabase_client:
+        print("⚠️ Supabase Storage não está configurado, pulando inicialização")
+        return
+    
+    print("\n🔧 Inicializando Storage Supabase...")
+    buckets = ["receitas", "atas", "documentos", "uploads"]
+    
+    for bucket in buckets:
+        criar_bucket_supabase(bucket, publico=True)
+    
+    print("✅ Storage Supabase inicializado\n")
 
 def limpar_nome(nome):
     nome_ficheiro = nome.replace('/', '-')
