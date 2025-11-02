@@ -405,35 +405,80 @@ def carregar_progresso():
 
 def carregar_progresso_modelo():
     """
-    Carrega o modelo de progresso e normaliza as chaves Unicode 
-    (ex: 'F\\u00edsico' -> 'Físico'). ESTA É A CORREÇÃO PRINCIPAL.
+    Carrega o modelo de progresso da BD e normaliza as chaves Unicode escapadas.
+    Corrige o problema onde as chaves vêm como 'F\\u00edsico' em vez de 'Físico'.
     """
     modelo_obj = ProgressoModelo.query.first()
     
     if not modelo_obj or not modelo_obj.modelo:
         print("AVISO: Modelo de progresso não encontrado na BD.")
-        return criar_modelo_padrao() # Usa o modelo padrão se não estiver na BD
-        
+        return criar_modelo_padrao()
+    
     progresso_modelo = modelo_obj.modelo
     
     try:
-        # 1. Converte o dicionário Python (com chaves escapadas) para uma string JSON.
-        #    Isto é crucial porque json.dumps por defeito preserva caracteres não-ASCII
-        #    como sequências de escape (\uXXXX), mas apenas dentro dos *valores*. 
-        #    O problema aqui é frequentemente na *chave*.
+        # Se já é um dicionário (como deveria ser do PostgreSQL com JSON type)
+        if isinstance(progresso_modelo, dict):
+            # Converte para string JSON e volta - isto normaliza as chaves
+            modelo_string = json.dumps(progresso_modelo, ensure_ascii=False, indent=2)
+            progresso_modelo_normalizado = json.loads(modelo_string)
+        else:
+            # Se é uma string JSON (fallback)
+            progresso_modelo_normalizado = json.loads(progresso_modelo)
         
-        # Faz dumps com ensure_ascii=False para garantir que os caracteres são strings Unicode
-        modelo_string = json.dumps(progresso_modelo, ensure_ascii=False)
-        
-        # 2. Converte a string JSON de volta para um dicionário Python.
-        #    Isto força a correta decodificação dos caracteres Unicode nas CHAVES.
-        progresso_modelo_normalizado = json.loads(modelo_string)
         print("✅ Modelo de progresso carregado e chaves normalizadas.")
+        print(f"   Chaves normalizadas: {list(progresso_modelo_normalizado.keys())}")
+        
         return progresso_modelo_normalizado
         
     except Exception as e:
-        print(f"🚨 ERRO DE NORMALIZAÇÃO DO MODELO: {e}. Usando modelo original (pode falhar no Jinja).")
-        return progresso_modelo # Retorna o modelo original como fallback
+        print(f"🚨 ERRO ao normalizar modelo: {e}")
+        import traceback
+        traceback.print_exc()
+        return criar_modelo_padrao()
+
+
+def normalizar_chaves_dict(dados):
+    """
+    Função auxiliar que normaliza recursivamente as chaves de um dicionário.
+    Converte 'F\\u00edsico' para 'Físico', etc.
+    """
+    if not isinstance(dados, dict):
+        return dados
+    
+    novo_dict = {}
+    for chave, valor in dados.items():
+        try:
+            # Tenta decodificar a chave como se fosse uma string JSON escapada
+            chave_normalizada = json.loads(f'"{chave}"')
+        except:
+            # Se falhar, usa a chave como está
+            chave_normalizada = chave
+        
+        # Normaliza recursivamente os valores se forem dicionários
+        if isinstance(valor, dict):
+            valor_normalizado = normalizar_chaves_dict(valor)
+        else:
+            valor_normalizado = valor
+        
+        novo_dict[chave_normalizada] = valor_normalizado
+    
+    return novo_dict
+
+
+def garantir_progresso_pessoa(nome_pessoa, progresso_por_pessoa, progresso_modelo):
+    """
+    Função auxiliar que garante que cada pessoa tem dados de progresso válidos.
+    Se não tiver, usa o modelo normalizado como fallback.
+    """
+    dados_pessoa = progresso_por_pessoa.get(nome_pessoa)
+    
+    # Se não tem dados ou dados inválidos, usa o modelo
+    if not isinstance(dados_pessoa, dict) or not dados_pessoa:
+        print(f"⚠️  Usando modelo para {nome_pessoa}")
+        dados_pessoa = copy.deepcopy(progresso_modelo)
+    
+    return dados_pessoa
 
 
 def carregar_atividades_calendario():
@@ -2046,68 +2091,53 @@ def eliminar_item_inventario():
 
 @app.route("/progresso")
 def progresso():
-    # Assegura que todas as funções auxiliares estão a usar os dados normalizados
-    
     pessoas = carregar_nomes()
-    
-    # Progresso das pessoas (keys: 'Físico', etc.)
     progresso_por_pessoa = carregar_progresso()
-    # Modelo carregado e normalizado (keys: 'Físico', etc.)
-    progresso_modelo = carregar_progresso_modelo() 
+    progresso_modelo = carregar_progresso_modelo()  # Já normalizado
+    
+    # Debug
+    print(f"DEBUG: Nomes de Pessoas: {pessoas}")
+    print(f"DEBUG: Progresso Carregado (chaves): {list(progresso_por_pessoa.keys())}")
+    print(f"DEBUG: Modelo de Progresso (chaves): {list(progresso_modelo.keys())}")
     
     areas = []
     trilhos = {}
-
-    # O código de depuração do utilizador é mantido aqui
-    print(f"DEBUG: Nomes de Pessoas Carregados: {pessoas}")
-    primeiro_progresso = next(iter(progresso_por_pessoa.values()), "Nenhum dado de progresso carregado.")
-    print(f"DEBUG: Dados de Progresso Carregados (chaves): {list(progresso_por_pessoa.keys())}")
-    print(f"DEBUG: Primeiro Registo de Progresso: {primeiro_progresso}")
-    print(f"DEBUG: Modelo de Progresso (chaves): {list(progresso_modelo.keys()) if isinstance(progresso_modelo, dict) else progresso_modelo}")
-
-
+    
     if progresso_modelo:
         areas = list(progresso_modelo.keys())
-        for area_nome, trilhos_area in progresso_modelo.items():
-            trilhos[area_nome] = {}
-            for trilho_nome, objetivos_trilho in trilhos_area.items():
-                if isinstance(objetivos_trilho, dict):
-                    trilhos[area_nome][trilho_nome] = list(objetivos_trilho.keys())
-                else:
-                    trilhos[area_nome][trilho_nome] = []
+        print(f"DEBUG: Áreas extraídas: {areas}")
+        
+        for area_nome in areas:
+            trilhos_area = progresso_modelo[area_nome]
+            if isinstance(trilhos_area, dict):
+                trilhos[area_nome] = {}
+                for trilho_nome, objetivos_trilho in trilhos_area.items():
+                    if isinstance(objetivos_trilho, dict):
+                        trilhos[area_nome][trilho_nome] = list(objetivos_trilho.keys())
+                    else:
+                        trilhos[area_nome][trilho_nome] = []
     
     dados_para_tabela = {}
     for nome_pessoa in pessoas:
-        # Se carregar_progresso() usou json.loads(), a key 'Físico' está OK.
-        # Se a BD devolveu 'Físico', também está OK.
-        # O problema era que o modelo (progresso_modelo) vinha com 'F\u00edsico', 
-        # o que agora corrigimos em carregar_progresso_modelo().
-        dados_pessoa = progresso_por_pessoa.get(nome_pessoa)
-        
-        estado = "VÁLIDO" if isinstance(dados_pessoa, dict) and dados_pessoa else "INVÁLIDO/VAZIO"
-        print(f"DEBUG_LOOP: Progresso para {nome_pessoa} (estado): {estado}")
-        
-        if nome_pessoa and pessoas and nome_pessoa == pessoas[0]:
-            print(f"DEBUG_CONTRADICAO: Valor de progresso para {nome_pessoa} (inside loop): {dados_pessoa}")
-        
-        
-        if not isinstance(dados_pessoa, dict) or not dados_pessoa:
-             print(f"AVISO: Dados de progresso ausentes/inválidos para {nome_pessoa}. Usando o modelo como fallback.")
-             try:
-                 # Usa o modelo JÁ NORMALIZADO.
-                 dados_pessoa = copy.deepcopy(progresso_modelo)
-             except AttributeError:
-                 print("AVISO: O modelo de progresso não pôde ser copiado. Usando dict vazio.")
-                 dados_pessoa = {}
-        
+        # Garante que tem dados válidos
+        dados_pessoa = garantir_progresso_pessoa(
+            nome_pessoa, 
+            progresso_por_pessoa, 
+            progresso_modelo
+        )
         dados_para_tabela[nome_pessoa] = dados_pessoa
-        
-    if not isinstance(trilhos, dict) or not trilhos:
-         print("ERRO: O modelo de progresso (trilhos) não foi carregado corretamente.")
-         trilhos = {} 
-         
-    return render_template("progresso.html", progresso=dados_para_tabela,
-                            areas=areas, trilhos=trilhos, progresso_modelo=progresso_modelo)
+        print(f"✅ {nome_pessoa} - progresso preparado")
+    
+    if not trilhos:
+        print("ERRO: Trilhos vazios após carregamento do modelo.")
+    
+    return render_template(
+        "progresso.html", 
+        progresso=dados_para_tabela,
+        areas=areas, 
+        trilhos=trilhos, 
+        progresso_modelo=progresso_modelo
+    )
 
 @app.route("/atualizar_objetivo", methods=["POST"])
 def atualizar_objetivo():
