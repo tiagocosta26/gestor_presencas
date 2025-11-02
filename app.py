@@ -2684,7 +2684,7 @@ def secretaria():
                 data_ata_obj = datetime.strptime(data_ata, "%Y-%m-%d").date()
                 
                 # Upload para Supabase
-                url_publica = upload_para_supabase(file, "atas", data_ata)
+                url_publica = upload_para_supabase(file, "atas", f"atas/{data_ata}")
                 
                 if url_publica:
                     # Guarda na BD
