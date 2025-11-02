@@ -22,15 +22,13 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy import event, DDL
 # ------------------------------------------
 
-import cloudinary
-import cloudinary.uploader
-from cloudinary.utils import cloudinary_url
 
 print("DEBUG DATABASE_URL:", os.environ.get('EXTERNAL_DATABASE_URL'))
 
 
-SUPABASE_URL = os.getenv("https://xatjptyulmyyynvlpwgo.supabase.co")  # https://seu-projeto.supabase.co
-SUPABASE_KEY = os.getenv("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhhdGpwdHl1bG15eXludmxwd2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMjMyNjksImV4cCI6MjA3NzU5OTI2OX0.sjzayu2Lx4_LQ0S2F1zXD626YH27CabcNWw7mNbnPeo")   # sua-chave-publica
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
 
 print(f"✅ Supabase URL: {SUPABASE_URL}")
 print(f"✅ Supabase Key configurada: {bool(SUPABASE_KEY)}")
@@ -313,39 +311,40 @@ def extract_storage_path(url_publica: str, bucket_name: str) -> str | None:
 
 def delete_from_supabase(url_publica: str, bucket_name: str) -> bool:
     """
-    Deleta um ficheiro do Supabase Storage.
-    Retorna True em caso de sucesso. Retorna False se o Supabase não estiver inicializado 
-    ou se a operação falhar.
+    Elimina um ficheiro do Supabase Storage.
+    Retorna True se o ficheiro foi eliminado (ou não existia).
     """
-    # CORREÇÃO CRÍTICA: Declara supabase como global para que a função possa aceder à instância global
-    global supabase 
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("❌ Supabase não configurado — impossível eliminar ficheiro.")
+        return False
 
-    if not supabase:
-        print("❌ Supabase não está inicializado. Ignorando a exclusão do Storage.")
-        # Retornamos True para que o registo da BD seja apagado, já que o storage não pode ser acedido.
-        return True 
-    
+    # Extrai o caminho do ficheiro dentro do bucket
     storage_path = extract_storage_path(url_publica, bucket_name)
-    
     if not storage_path:
         print("❌ Não foi possível determinar o caminho do ficheiro no Supabase.")
         return False
 
     try:
-        # O Supabase SDK usa o método remove para eliminar ficheiros
-        response = supabase.storage.from_(bucket_name).remove([storage_path])
-        
-        if isinstance(response, list) and all('name' in item for item in response):
-            print(f"✅ Ficheiro {storage_path} eliminado do bucket {bucket_name}.")
+        url = f"{SUPABASE_URL}/storage/v1/object/{bucket_name}/{storage_path}"
+        headers = {
+            "Authorization": f"Bearer {SUPABASE_KEY}"
+        }
+
+        response = requests.delete(url, headers=headers)
+        if response.status_code in [200, 204]:
+            print(f"✅ Ficheiro eliminado: {bucket_name}/{storage_path}")
+            return True
+        elif response.status_code == 404:
+            print(f"⚠️ Ficheiro já não existe: {bucket_name}/{storage_path}")
             return True
         else:
-             print(f"❌ Erro desconhecido ao eliminar ficheiro do Supabase: {response}")
-             return False
+            print(f"❌ Erro ao eliminar ficheiro ({response.status_code}): {response.text}")
+            return False
 
     except Exception as e:
-        # Nota: Deve melhorar o tratamento de erros para ignorar 404 (ficheiro não existe)
-        print(f"❌ Erro ao comunicar com Supabase Storage para eliminar {storage_path}: {e}")
+        print(f"❌ Erro ao comunicar com Supabase Storage: {e}")
         return False
+
 
 def upload_para_supabase(file, bucket_name, pasta=""):
     """
