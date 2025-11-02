@@ -223,6 +223,31 @@ class ItemCozinha(db.Model):
         }
 
 
+class ItemFarmacia(db.Model):
+    """Modelo para itens do inventário de farmácia."""
+    __tablename__ = 'itens_farmacia'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)
+    quantidade = db.Column(db.Integer, nullable=False)
+    localizacao = db.Column(db.String(100), nullable=True)  # Onde está guardado
+    tribo_clan = db.Column(db.String(100), nullable=False)  # Qual tribo/responsável
+    observacoes = db.Column(db.Text, nullable=True)
+    data_adicao = db.Column(db.DateTime, default=datetime.now)
+    
+    def __repr__(self):
+        return f'<ItemFarmacia {self.nome}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'quantidade': str(self.quantidade),
+            'localizacao': self.localizacao or '',
+            'tribo_clan': self.tribo_clan,
+            'observacoes': self.observacoes or ''
+        }
+
 # --- FUNÇÕES AUXILIARES ---
 
 def limpar_nome(nome):
@@ -312,9 +337,13 @@ def carregar_material():
              'tribo_clan': i.tribo_clan or '', 'observacoes': i.observacoes or ''} for i in itens]
 
 def carregar_farmacia():
-    itens = Item.query.filter_by(categoria='Farmácia').all()
-    return [{'nome': i.nome, 'quantidade': i.quantidade, 'localizacao': i.localizacao or '',
-             'tribo_clan': i.tribo_clan or '', 'observacoes': i.observacoes or ''} for i in itens]
+    """Carrega todos os itens do inventário de farmácia."""
+    try:
+        itens = ItemFarmacia.query.order_by(ItemFarmacia.nome).all()
+        return [i.to_dict() for i in itens]
+    except Exception as e:
+        print(f"❌ Erro ao carregar farmácia: {e}")
+        return []
 
 def carregar_inventario_cozinha():
     """Carrega todos os itens do inventário de cozinha."""
@@ -1848,108 +1877,219 @@ def material():
 
 @app.route("/farmacia", methods=["GET", "POST"])
 def farmacia():
+    """Página de farmácia com inventário e informações de saúde."""
     farmacia_itens = carregar_farmacia()
     alergias = carregar_alergias()
     condicoes = carregar_condicoes()
     tribos = carregar_tribos()
     tribos_disponiveis = list(tribos.keys())
+    
+    # Coleta todas as pessoas disponíveis
     pessoas_disponiveis = []
     for membros in tribos.values():
         for pessoa in membros:
             if isinstance(pessoa, dict) and "nome" in pessoa:
                 pessoas_disponiveis.append(pessoa["nome"])
             else:
-                pessoas_disponiveis.append(pessoa)
+                pessoas_disponiveis.append(str(pessoa))
 
     if request.method == "POST":
         acao = request.form.get("acao")
+        print(f"DEBUG FLUXO: Ação de farmácia: {acao}")
+
+        # --- ADICIONAR ITEM À FARMÁCIA ---
         if acao == "adicionar_item":
-            nome_item = request.form.get("nome_item")
-            quantidade_str = request.form.get("quantidade")
-            localizacao = request.form.get("localizacao")
-            tribo_clan = request.form.get("tribo_clan")
-            observacoes = request.form.get("observacoes", "")
+            nome_item = request.form.get("nome_item", "").strip()
+            quantidade_str = request.form.get("quantidade", "").strip()
+            localizacao = request.form.get("localizacao", "").strip()
+            tribo_clan = request.form.get("tribo_clan", "").strip()
+            observacoes = request.form.get("observacoes", "").strip()
+            
+            print(f"DEBUG INPUTS: Nome='{nome_item}', Qtd='{quantidade_str}', Local='{localizacao}', Tribo='{tribo_clan}'")
+            
             if not all([nome_item, quantidade_str, tribo_clan]):
+                print("DEBUG FLUXO: Campos obrigatórios em falta")
                 return redirect(url_for('farmacia'))
+            
             try:
                 quantidade = int(quantidade_str)
             except (ValueError, TypeError):
+                print(f"ERRO: Quantidade '{quantidade_str}' inválida")
                 return redirect(url_for('farmacia'))
-            item_existente = Item.query.filter_by(
-                categoria='Farmácia',
-                nome=nome_item,
-                localizacao=localizacao,
-                tribo_clan=tribo_clan
-            ).first()
-            if item_existente:
-                item_existente.quantidade = str(int(item_existente.quantidade) + quantidade)
-            else:
-                novo_item = Item(
-                    categoria='Farmácia',
+            
+            try:
+                # Verifica se já existe um item com o mesmo nome
+                item_existente = ItemFarmacia.query.filter_by(
                     nome=nome_item,
-                    quantidade=str(quantidade),
                     localizacao=localizacao,
-                    tribo_clan=tribo_clan,
-                    observacoes=observacoes
-                )
-                db.session.add(novo_item)
-            db.session.commit()
+                    tribo_clan=tribo_clan
+                ).first()
+                
+                if item_existente:
+                    # Se existe, soma a quantidade
+                    print(f"DEBUG FLUXO: Item já existe, atualizando quantidade")
+                    item_existente.quantidade += quantidade
+                else:
+                    # Se não existe, cria novo
+                    novo_item = ItemFarmacia(
+                        nome=nome_item,
+                        quantidade=quantidade,
+                        localizacao=localizacao if localizacao else None,
+                        tribo_clan=tribo_clan,
+                        observacoes=observacoes if observacoes else None
+                    )
+                    db.session.add(novo_item)
+                    print(f"DEBUG FLUXO: Novo item adicionado: {nome_item}")
+                
+                db.session.commit()
+                print(f"SUCESSO: Item '{nome_item}' guardado/atualizado na BD")
+            
+            except Exception as e:
+                db.session.rollback()
+                import traceback
+                print("\n" + "="*70)
+                print("❌ ERRO AO GUARDAR ITEM DE FARMÁCIA")
+                print(traceback.format_exc())
+                print("="*70 + "\n")
+            
             return redirect(url_for('farmacia'))
 
+        # --- REMOVER ITEM DA FARMÁCIA ---
         elif acao == "remover_item":
-            nome_item = request.form.get("nome_item")
-            tribo_clan = request.form.get("tribo_clan")
-            Item.query.filter_by(categoria='Farmácia', nome=nome_item, tribo_clan=tribo_clan).delete()
-            db.session.commit()
-            return jsonify({'status': 'success', 'message': 'Item removido!'})
+            item_id = request.form.get("item_id")
+            
+            if not item_id:
+                print("DEBUG FLUXO: ID do item vazio")
+                return jsonify({'status': 'error', 'message': 'ID do item não fornecido'}), 400
+            
+            try:
+                item = ItemFarmacia.query.get(int(item_id))
+                if item:
+                    nome = item.nome
+                    db.session.delete(item)
+                    db.session.commit()
+                    print(f"✅ Item '{nome}' removido")
+                    return jsonify({'status': 'success', 'message': f'Item {nome} removido!'})
+                else:
+                    print(f"❌ Item com ID {item_id} não encontrado")
+                    return jsonify({'status': 'error', 'message': 'Item não encontrado'}), 404
+            
+            except Exception as e:
+                db.session.rollback()
+                print(f"❌ Erro ao remover item: {e}")
+                return jsonify({'status': 'error', 'message': str(e)}), 500
 
+        # --- GUARDAR INFORMAÇÕES DE SAÚDE ---
         elif acao == "guardar_saude":
-            CondicaoSaude.query.delete()
-            for pessoa in pessoas_disponiveis:
-                alergia_raw = request.form.get(f"alergia-{pessoa}", "").strip()
-                condicao_raw = request.form.get(f"condicao-{pessoa}", "").strip()
-                if alergia_raw:
-                    for alergia in alergia_raw.splitlines():
-                        if alergia.strip():
-                            db.session.add(CondicaoSaude(pessoa_nome=pessoa, tipo='Alergia', detalhe=alergia.strip()))
-                if condicao_raw:
-                    for condicao in condicao_raw.splitlines():
-                        if condicao.strip():
-                            db.session.add(CondicaoSaude(pessoa_nome=pessoa, tipo='Condição', detalhe=condicao.strip()))
-            db.session.commit()
+            print("DEBUG FLUXO: Guardando informações de saúde")
+            try:
+                # Limpa informações antigas
+                CondicaoSaude.query.delete()
+                
+                # Adiciona novas informações
+                for pessoa in pessoas_disponiveis:
+                    alergia_raw = request.form.get(f"alergia-{pessoa}", "").strip()
+                    condicao_raw = request.form.get(f"condicao-{pessoa}", "").strip()
+                    
+                    if alergia_raw:
+                        for alergia in alergia_raw.splitlines():
+                            if alergia.strip():
+                                db.session.add(CondicaoSaude(
+                                    pessoa_nome=pessoa,
+                                    tipo='Alergia',
+                                    detalhe=alergia.strip()
+                                ))
+                                print(f"   ✅ Alergia adicionada: {pessoa} -> {alergia.strip()}")
+                    
+                    if condicao_raw:
+                        for condicao in condicao_raw.splitlines():
+                            if condicao.strip():
+                                db.session.add(CondicaoSaude(
+                                    pessoa_nome=pessoa,
+                                    tipo='Condição',
+                                    detalhe=condicao.strip()
+                                ))
+                                print(f"   ✅ Condição adicionada: {pessoa} -> {condicao.strip()}")
+                
+                db.session.commit()
+                print("SUCESSO: Informações de saúde guardadas")
+            
+            except Exception as e:
+                db.session.rollback()
+                import traceback
+                print("\n" + "="*70)
+                print("❌ ERRO AO GUARDAR INFORMAÇÕES DE SAÚDE")
+                print(traceback.format_exc())
+                print("="*70 + "\n")
+            
             return redirect(url_for("farmacia"))
 
+        return redirect(url_for('farmacia'))
+
+    # --- GET REQUEST: APLICAR FILTROS ---
     filtro_nome = request.args.get('filtro_nome', '').strip().lower()
     filtro_quantidade_str = request.args.get('filtro_quantidade', '').strip()
     filtro_localizacao = request.args.get('filtro_localizacao', '').strip().lower()
     filtro_tribo_clan = request.args.get('filtro_tribo_clan', '').strip()
 
     farmacia_itens = carregar_farmacia()
-    opcoes_nome = sorted(list(set(item['nome'] for item in farmacia_itens)))
-    opcoes_quantidade = sorted(list(set(item['quantidade'] for item in farmacia_itens)))
-    opcoes_localizacao = sorted(list(set(item['localizacao'] for item in farmacia_itens)))
+    
+    # Extrai opções únicas para os filtros
+    opcoes_nome = sorted(list(set(item['nome'] for item in farmacia_itens if item['nome'])))
+    opcoes_quantidade = sorted(list(set(item['quantidade'] for item in farmacia_itens if item['quantidade'])))
+    opcoes_localizacao = sorted(list(set(item['localizacao'] for item in farmacia_itens if item['localizacao'])))
 
+    # Aplica filtros
     farmacia_filtrado = farmacia_itens
+    
     if filtro_nome:
-        farmacia_filtrado = [item for item in farmacia_filtrado if filtro_nome in item['nome'].lower()]
+        farmacia_filtrado = [
+            item for item in farmacia_filtrado 
+            if filtro_nome in item['nome'].lower()
+        ]
+    
     if filtro_quantidade_str:
         try:
             filtro_quantidade = int(filtro_quantidade_str)
-            farmacia_filtrado = [item for item in farmacia_filtrado if int(item['quantidade']) == filtro_quantidade]
+            farmacia_filtrado = [
+                item for item in farmacia_filtrado 
+                if int(item['quantidade']) == filtro_quantidade
+            ]
         except (ValueError, TypeError):
             pass
+    
     if filtro_localizacao:
-        farmacia_filtrado = [item for item in farmacia_filtrado if filtro_localizacao in item['localizacao'].lower()]
+        farmacia_filtrado = [
+            item for item in farmacia_filtrado 
+            if filtro_localizacao in item['localizacao'].lower()
+        ]
+    
     if filtro_tribo_clan:
-        farmacia_filtrado = [item for item in farmacia_filtrado if item['tribo_clan'] == filtro_tribo_clan]
+        farmacia_filtrado = [
+            item for item in farmacia_filtrado 
+            if item['tribo_clan'] == filtro_tribo_clan
+        ]
 
+    # Ordena por nome
     farmacia_filtrado = sorted(farmacia_filtrado, key=lambda x: x['nome'].lower())
-    return render_template("farmacia.html", farmacia_filtrado=farmacia_filtrado,
-                         tribos_disponiveis=tribos_disponiveis, pessoas_disponiveis=pessoas_disponiveis,
-                         filtro_nome=filtro_nome, filtro_quantidade=filtro_quantidade_str,
-                         filtro_localizacao=filtro_localizacao, filtro_tribo_clan=filtro_tribo_clan,
-                         opcoes_nome=opcoes_nome, opcoes_quantidade=opcoes_quantidade,
-                         opcoes_localizacao=opcoes_localizacao, alergias=alergias, condicoes=condicoes)
+    
+    print(f"✅ Farmácia renderizada: {len(farmacia_filtrado)} itens após filtros")
+    
+    return render_template(
+        "farmacia.html",
+        farmacia_filtrado=farmacia_filtrado,
+        tribos_disponiveis=tribos_disponiveis,
+        pessoas_disponiveis=pessoas_disponiveis,
+        filtro_nome=filtro_nome,
+        filtro_quantidade=filtro_quantidade_str,
+        filtro_localizacao=filtro_localizacao,
+        filtro_tribo_clan=filtro_tribo_clan,
+        opcoes_nome=opcoes_nome,
+        opcoes_quantidade=opcoes_quantidade,
+        opcoes_localizacao=opcoes_localizacao,
+        alergias=alergias,
+        condicoes=condicoes
+    )
 
 @app.route("/cozinha", methods=["GET", "POST"])
 def cozinha():
