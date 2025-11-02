@@ -283,6 +283,65 @@ class Documento(db.Model):
 
 # --- FUNÇÕES AUXILIARES ---
 
+def extract_storage_path(url_publica: str, bucket_name: str) -> str | None:
+    """
+    Extrai o caminho do ficheiro (path do storage) a partir do URL público.
+    Ex: '.../public/bucket_name/path/to/file.pdf' -> 'path/to/file.pdf'
+    """
+    try:
+        # Analisa o URL público
+        parsed_url = urlparse(url_publica)
+        
+        # O caminho completo deve ser algo como: /storage/v1/object/public/bucket_name/path/to/file.pdf
+        full_path = parsed_url.path
+        
+        # Regex para encontrar a parte 'public/bucket_name/' e capturar o resto
+        # O padrão é: .../public/{bucket_name}/(caminho-do-ficheiro)
+        pattern = re.compile(rf'/public/{re.escape(bucket_name)}/(.*)', re.IGNORECASE)
+        match = pattern.search(full_path)
+        
+        if match:
+            # Retorna o caminho do ficheiro dentro do bucket
+            storage_path = match.group(1)
+            return storage_path
+        
+        return None
+    except Exception as e:
+        print(f"❌ Erro ao extrair o caminho do storage do URL: {e}")
+        return None
+
+def delete_from_supabase(url_publica: str, bucket_name: str) -> bool:
+    """
+    Deleta um ficheiro do Supabase Storage.
+    Retorna True em caso de sucesso ou se o ficheiro já não existir (erro 404).
+    """
+    storage_path = extract_storage_path(url_publica, bucket_name)
+    
+    if not storage_path:
+        print("❌ Não foi possível determinar o caminho do ficheiro no Supabase.")
+        return False
+
+    try:
+        # Nota: O Supabase SDK usa o método remove para eliminar ficheiros
+        response = supabase.storage.from_(bucket_name).remove([storage_path])
+        
+        # O método remove retorna uma lista de objetos, se a chamada for bem-sucedida.
+        # Se ocorrer um erro, lança uma exceção.
+        if isinstance(response, list):
+            print(f"✅ Ficheiro {storage_path} eliminado do bucket {bucket_name}.")
+            return True
+        else:
+             print(f"❌ Erro desconhecido ao eliminar ficheiro do Supabase: {response}")
+             return False
+
+    except Exception as e:
+        # Muitas vezes, um erro aqui significa que o ficheiro já não existe (o que é aceitável)
+        # Se for um erro 404/NotFound, podemos considerar sucesso.
+        # Devido à estrutura do erro Supabase, é difícil analisar o código HTTP exato aqui,
+        # portanto, vamos registar o erro e retornar False, a menos que tenhamos a certeza.
+        print(f"❌ Erro ao comunicar com Supabase Storage para eliminar {storage_path}: {e}")
+        return False
+
 def upload_para_supabase(file, bucket_name, pasta=""):
     """
     Faz upload para Supabase usando HTTP (SEM biblioteca).
