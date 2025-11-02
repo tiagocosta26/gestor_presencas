@@ -44,17 +44,6 @@ for key in os.environ:
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-supabase = None
-try:
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        raise ValueError("Variáveis de ambiente SUPABASE_URL ou SUPABASE_KEY não definidas.")
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    print("✅ Cliente Supabase inicializado com sucesso.")
-except ValueError as e:
-    print(f"❌ Erro de configuração do Supabase: {e}")
-except Exception as e:
-    print(f"❌ Erro ao criar cliente Supabase: {e}")
-
 print(f"SUPABASE_URL final: {SUPABASE_URL}")
 print(f"SUPABASE_KEY final: {bool(SUPABASE_KEY)}")
 
