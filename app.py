@@ -560,6 +560,199 @@ def guardar_atividades_calendario(atividades): pass
 
 # --- FUNÇÕES DE PROGRESSO ---
 
+@app.route("/admin/importar_presencas_csv", methods=["GET", "POST"])
+def importar_presencas_csv():
+    """Importa atividades de presença de ficheiros CSV antigos para a BD."""
+    
+    # Verificar permissão
+    if session.get('username') != 'Chefe':
+        flash("Apenas o Chefe pode importar presenças.", "danger")
+        return redirect(url_for("index"))
+    
+    if request.method == "POST":
+        try:
+            print("\n" + "="*70)
+            print("🔄 INICIANDO IMPORTAÇÃO DE PRESENÇAS CSV")
+            print("="*70 + "\n")
+            
+            # Usa o mesmo diretório do app.py (que já está definido globalmente)
+            # Se não estiver definido, ajuste aqui para o seu caminho
+            if 'DIRETORIO_PRESENCAS' in globals():
+                DIRETORIO_PRESENCAS = globals()['DIRETORIO_PRESENCAS']
+            else:
+                # Tenta encontrar o diretório comum
+                DIRETORIO_PRESENCAS = os.path.join(os.path.dirname(__file__), "presencas")
+            
+            print(f"📁 Usando diretório: {DIRETORIO_PRESENCAS}")
+            
+            if not os.path.exists(DIRETORIO_PRESENCAS):
+                flash(f"Diretório '{DIRETORIO_PRESENCAS}' não encontrado.", "danger")
+                return redirect(url_for("importar_presencas_csv"))
+            
+            # Lista todos os ficheiros CSV
+            ficheiros_csv = [f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")]
+            
+            if not ficheiros_csv:
+                flash("Nenhum ficheiro CSV encontrado.", "info")
+                return redirect(url_for("importar_presencas_csv"))
+            
+            print(f"📁 Encontrados {len(ficheiros_csv)} ficheiros CSV\n")
+            
+            importadas = 0
+            duplicadas = 0
+            erros = 0
+            
+            for ficheiro in sorted(ficheiros_csv):
+                try:
+                    print(f"📄 Processando: {ficheiro}")
+                    caminho = os.path.join(DIRETORIO_PRESENCAS, ficheiro)
+                    
+                    # Extrai a data do nome do ficheiro
+                    # Formato esperado: "atividade_YYYY-MM-DD_..."
+                    data_atividade = None
+                    partes = ficheiro.replace(".csv", "").split('_')
+                    
+                    # Tenta encontrar a data
+                    for i in range(1, len(partes)):
+                        try:
+                            data_atividade = datetime.strptime(partes[i], "%Y-%m-%d").date()
+                            break
+                        except ValueError:
+                            continue
+                    
+                    if not data_atividade:
+                        print(f"   ⚠️  Não conseguiu extrair data do nome do ficheiro")
+                        data_atividade = datetime.now().date()
+                    
+                    # Lê o CSV
+                    with open(caminho, newline="", encoding="utf-8-sig") as f:
+                        reader = csv.DictReader(f)
+                        
+                        # Coletas os dados
+                        dados_presenca = {}
+                        nome_atividade = ficheiro.replace(".csv", "").replace("_", " ")
+                        
+                        for row in reader:
+                            tribo = row.get('Tribo', '').strip()
+                            elemento = row.get('Elemento', '').strip()
+                            presente = row.get('Presente', 'Não').strip()
+                            
+                            if not tribo or not elemento:
+                                continue
+                            
+                            if tribo not in dados_presenca:
+                                dados_presenca[tribo] = {}
+                            
+                            dados_presenca[tribo][elemento] = presente
+                        
+                        if not dados_presenca:
+                            print(f"   ⚠️  Ficheiro vazio ou mal formatado")
+                            erros += 1
+                            continue
+                        
+                        # Verifica se já existe
+                        atividade_existente = AtividadePresenca.query.filter_by(
+                            nome=nome_atividade,
+                            data_inicio=data_atividade
+                        ).first()
+                        
+                        if atividade_existente:
+                            print(f"   ℹ️  Atividade já existe na BD (duplicada)")
+                            duplicadas += 1
+                            continue
+                        
+                        # Cria nova atividade
+                        nova_atividade = AtividadePresenca(
+                            nome=nome_atividade,
+                            data_inicio=data_atividade,
+                            data_fim=data_atividade,
+                            dados=dados_presenca
+                        )
+                        
+                        db.session.add(nova_atividade)
+                        db.session.commit()
+                        
+                        # Conta o número de pessoas
+                        num_pessoas = sum(len(membros) for membros in dados_presenca.values())
+                        print(f"   ✅ Importada com sucesso ({len(dados_presenca)} tribos, {num_pessoas} pessoas)")
+                        importadas += 1
+                
+                except Exception as e:
+                    print(f"   ❌ Erro: {e}")
+                    db.session.rollback()
+                    erros += 1
+            
+            print("\n" + "="*70)
+            print(f"📊 RESULTADO DA IMPORTAÇÃO:")
+            print(f"   ✅ Importadas: {importadas}")
+            print(f"   ℹ️  Duplicadas (não importadas): {duplicadas}")
+            print(f"   ❌ Erros: {erros}")
+            print("="*70 + "\n")
+            
+            flash(f"Importação concluída! {importadas} atividades importadas, {duplicadas} duplicadas, {erros} erros.", "info")
+            return redirect(url_for("atividades"))
+        
+        except Exception as e:
+            import traceback
+            print(f"\n❌ ERRO NA IMPORTAÇÃO:")
+            print(traceback.format_exc())
+            print("="*70 + "\n")
+            flash(f"Erro na importação: {e}", "danger")
+            return redirect(url_for("importar_presencas_csv"))
+    
+    # GET request - mostra página de importação
+    # Conta ficheiros disponíveis
+    if 'DIRETORIO_PRESENCAS' in globals():
+        DIRETORIO_PRESENCAS = globals()['DIRETORIO_PRESENCAS']
+    else:
+        DIRETORIO_PRESENCAS = os.path.join(os.path.dirname(__file__), "presencas")
+    
+    num_ficheiros = 0
+    
+    if os.path.exists(DIRETORIO_PRESENCAS):
+        num_ficheiros = len([f for f in os.listdir(DIRETORIO_PRESENCAS) if f.endswith(".csv")])
+    
+    return render_template(
+        "importar_presencas.html",
+        num_ficheiros=num_ficheiros,
+        diretorio=DIRETORIO_PRESENCAS
+    )
+
+
+@app.route("/admin/status_importacao")
+def status_importacao():
+    """Mostra o status das atividades importadas."""
+    
+    if session.get('username') != 'Chefe':
+        return jsonify({"error": "Não autorizado"}), 403
+    
+    try:
+        # Conta as atividades importadas
+        total_atividades = AtividadePresenca.query.count()
+        
+        # Calcula estatísticas
+        atividades = AtividadePresenca.query.all()
+        num_tribos = set()
+        num_pessoas = set()
+        
+        for atv in atividades:
+            if atv.dados:
+                for tribo_nome, membros in atv.dados.items():
+                    num_tribos.add(tribo_nome)
+                    for pessoa_nome in membros.keys():
+                        num_pessoas.add(pessoa_nome)
+        
+        return jsonify({
+            "total_atividades": total_atividades,
+            "num_tribos": len(num_tribos),
+            "num_pessoas": len(num_pessoas),
+            "tribos": sorted(list(num_tribos)),
+            "status": "ok"
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e), "status": "error"}), 500
+
 @app.template_global()
 def calcular_progresso_bool_do_dicionario(obj):
     """
