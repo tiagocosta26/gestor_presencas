@@ -12,7 +12,6 @@ from icalendar import Calendar, Event
 from flask import make_response
 import requests
 from urllib.parse import urlparse
-from supabase import create_client, Client 
 
 
 #MEGA ALTERAÇÂOOOOO0000
