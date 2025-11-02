@@ -2786,7 +2786,7 @@ def eliminar_outro_doc():
             
             # 1. TENTA ELIMINAR O FICHEIRO DO SUPABASE
             # Se a função retornar True, significa que o ficheiro foi removido ou não existia.
-            storage_success = delete_from_supabase(url_ficheiro, "documentos") 
+            storage_success = delete_from_supabase(url_ficheiro) 
             
             # 2. ELIMINA O REGISTO DA BASE DE DADOS INDEPENDENTEMENTE DO SUCESSO DO STORAGE
             db.session.delete(doc)
@@ -2837,8 +2837,8 @@ def eliminar_ata():
             nome_original = ata.nome_original
             
             # 1. TENTA ELIMINAR O FICHEIRO DO SUPABASE
-            storage_success = delete_from_supabase(url_ficheiro, "atas") 
-            
+            storage_success = delete_from_supabase(url_ficheiro)
+
             # 2. ELIMINA O REGISTO DA BASE DE DADOS
             db.session.delete(ata)
             db.session.commit()
