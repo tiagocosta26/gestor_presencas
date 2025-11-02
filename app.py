@@ -329,8 +329,6 @@ def delete_from_supabase(url_ficheiro, bucket):
 
     try:
         # Extrai o caminho do ficheiro (tudo após o nome do bucket)
-        # Ex: https://xxx.supabase.co/storage/v1/object/public/atas/atas/2024_ata.pdf
-        #     -> atas/2024_ata.pdf
         padrao = rf"/object/public/{bucket}/(.+)"
         match = re.search(padrao, url_ficheiro)
         
@@ -344,10 +342,10 @@ def delete_from_supabase(url_ficheiro, bucket):
         # Endpoint DELETE correto
         endpoint = f"{SUPABASE_URL}/storage/v1/object/{bucket}/{caminho_ficheiro}"
         
+        # ⚠️ IMPORTANTE: NÃO incluir Content-Type para DELETE requests
         headers = {
             "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}",
-            "Content-Type": "application/json"
+            "Authorization": f"Bearer {SUPABASE_KEY}"
         }
 
         response = requests.delete(endpoint, headers=headers)
@@ -357,8 +355,7 @@ def delete_from_supabase(url_ficheiro, bucket):
             return True
         elif response.status_code == 404:
             print(f"⚠️ Ficheiro não encontrado no Supabase: {bucket}/{caminho_ficheiro}")
-            # Retorna True porque o ficheiro já não existe (objetivo alcançado)
-            return True
+            return True  # Considera sucesso se já não existe
         else:
             print(f"❌ Erro ao eliminar ficheiro ({response.status_code}): {response.text}")
             return False
