@@ -310,16 +310,11 @@ def extract_storage_path(url_publica: str, bucket_name: str) -> str | None:
         return None
 
 def delete_from_supabase(url_ficheiro, bucket):
-    """
-    Elimina um ficheiro do Supabase Storage (via API HTTP).
-    - url_ficheiro: URL completo do ficheiro no Supabase.
-    - bucket: nome do bucket (ex: "atas" ou "documentos").
-    Retorna True se o ficheiro foi eliminado (ou não existia), False se houve erro.
-    """
+    import os, requests, re
+
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-    # Extrair o caminho do ficheiro dentro do bucket
     padrao = rf"{bucket}/(.+)"
     match = re.search(padrao, url_ficheiro)
     if not match:
@@ -327,23 +322,22 @@ def delete_from_supabase(url_ficheiro, bucket):
         return False
 
     caminho_ficheiro = match.group(1)
-    endpoint = f"{SUPABASE_URL}/storage/v1/object/{bucket}/{caminho_ficheiro}"
+    endpoint = f"{SUPABASE_URL}/storage/v1/object/public/{bucket}/{caminho_ficheiro}"
 
     headers = {
         "apikey": SUPABASE_KEY,
         "Authorization": f"Bearer {SUPABASE_KEY}",
     }
 
-    # Pedido DELETE à API
     response = requests.delete(endpoint, headers=headers)
 
     if response.status_code in [200, 204, 404]:
-        # 404 também é aceitável (ficheiro já não existia)
         print(f"✅ Ficheiro eliminado (ou não encontrado): {caminho_ficheiro}")
         return True
     else:
         print(f"❌ Erro ao eliminar ficheiro ({response.status_code}): {response.text}")
         return False
+
 
 
 
