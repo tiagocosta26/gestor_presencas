@@ -405,8 +405,8 @@ def carregar_progresso():
 
 def carregar_progresso_modelo():
     """
-    Carrega o modelo de progresso da BD e normaliza as chaves Unicode escapadas.
-    Corrige o problema onde as chaves vêm como 'F\\u00edsico' em vez de 'Físico'.
+    Carrega o modelo de progresso da BD e normaliza AGRESSIVAMENTE as chaves.
+    Isto corrige o problema onde as chaves vêm como 'F\\u00edsico' em vez de 'Físico'.
     """
     modelo_obj = ProgressoModelo.query.first()
     
@@ -417,17 +417,19 @@ def carregar_progresso_modelo():
     progresso_modelo = modelo_obj.modelo
     
     try:
-        # Se já é um dicionário (como deveria ser do PostgreSQL com JSON type)
-        if isinstance(progresso_modelo, dict):
-            # Converte para string JSON e volta - isto normaliza as chaves
-            modelo_string = json.dumps(progresso_modelo, ensure_ascii=False, indent=2)
-            progresso_modelo_normalizado = json.loads(modelo_string)
-        else:
-            # Se é uma string JSON (fallback)
-            progresso_modelo_normalizado = json.loads(progresso_modelo)
+        print(f"DEBUG: Tipo do modelo na BD: {type(progresso_modelo)}")
+        print(f"DEBUG: Primeiras chaves antes normalização: {list(progresso_modelo.keys())[:3]}")
         
-        print("✅ Modelo de progresso carregado e chaves normalizadas.")
-        print(f"   Chaves normalizadas: {list(progresso_modelo_normalizado.keys())}")
+        # ✅ PASSO 1: Se é um dicionário com chaves escapadas, normaliza agressivamente
+        if isinstance(progresso_modelo, dict):
+            progresso_modelo_normalizado = normalizar_chaves_dict_recursivo(progresso_modelo)
+        else:
+            # Se é string, faz parse primeiro
+            progresso_modelo_normalizado = json.loads(progresso_modelo)
+            progresso_modelo_normalizado = normalizar_chaves_dict_recursivo(progresso_modelo_normalizado)
+        
+        print(f"DEBUG: Primeiras chaves APÓS normalização: {list(progresso_modelo_normalizado.keys())[:3]}")
+        print("✅ Modelo de progresso carregado e chaves NORMALIZADAS (aggressive).")
         
         return progresso_modelo_normalizado
         
@@ -436,6 +438,46 @@ def carregar_progresso_modelo():
         import traceback
         traceback.print_exc()
         return criar_modelo_padrao()
+
+def decodificar_unicode_escapado(texto):
+    """
+    Descodifica strings com escape Unicode literal.
+    Exemplo: 'F\\u00edsico' -> 'Físico'
+    """
+    if isinstance(texto, str):
+        try:
+            # Tenta descodificar como se fosse uma string JSON
+            return json.loads(f'"{texto}"')
+        except:
+            # Se falhar, tenta com o módulo codecs
+            try:
+                return texto.encode().decode('unicode-escape')
+            except:
+                return texto
+    return texto
+
+def normalizar_chaves_dict_recursivo(dados):
+    """
+    Normaliza recursivamente todas as chaves de um dicionário.
+    Converte 'F\\u00edsico' para 'Físico', etc.
+    """
+    if not isinstance(dados, dict):
+        return dados
+    
+    novo_dict = {}
+    for chave, valor in dados.items():
+        # Descodifica a chave
+        chave_normalizada = decodificar_unicode_escapado(chave)
+        
+        # Normaliza recursivamente se o valor for um dicionário
+        if isinstance(valor, dict):
+            valor_normalizado = normalizar_chaves_dict_recursivo(valor)
+        else:
+            valor_normalizado = valor
+        
+        novo_dict[chave_normalizada] = valor_normalizado
+    
+    return novo_dict
 
 
 def normalizar_chaves_dict(dados):
@@ -477,6 +519,9 @@ def garantir_progresso_pessoa(nome_pessoa, progresso_por_pessoa, progresso_model
     if not isinstance(dados_pessoa, dict) or not dados_pessoa:
         print(f"⚠️  Usando modelo para {nome_pessoa}")
         dados_pessoa = copy.deepcopy(progresso_modelo)
+    else:
+        # ✅ IMPORTANTE: Normaliza também os dados da pessoa se necessário
+        dados_pessoa = normalizar_chaves_dict_recursivo(dados_pessoa)
     
     return dados_pessoa
 
@@ -2093,22 +2138,22 @@ def eliminar_item_inventario():
 def progresso():
     pessoas = carregar_nomes()
     progresso_por_pessoa = carregar_progresso()
-    progresso_modelo = carregar_progresso_modelo()  # Já normalizado
+    progresso_modelo = carregar_progresso_modelo()  # Agora com normalização agressiva
     
     # Debug
     print(f"DEBUG: Nomes de Pessoas: {pessoas}")
-    print(f"DEBUG: Progresso Carregado (chaves): {list(progresso_por_pessoa.keys())}")
+    print(f"DEBUG: Progresso Carregado (chaves pessoa): {list(progresso_por_pessoa.keys())[:3]}")
     print(f"DEBUG: Modelo de Progresso (chaves): {list(progresso_modelo.keys())}")
     
     areas = []
     trilhos = {}
     
-    if progresso_modelo:
+    if progresso_modelo and isinstance(progresso_modelo, dict):
         areas = list(progresso_modelo.keys())
         print(f"DEBUG: Áreas extraídas: {areas}")
         
         for area_nome in areas:
-            trilhos_area = progresso_modelo[area_nome]
+            trilhos_area = progresso_modelo.get(area_nome, {})
             if isinstance(trilhos_area, dict):
                 trilhos[area_nome] = {}
                 for trilho_nome, objetivos_trilho in trilhos_area.items():
@@ -2119,17 +2164,21 @@ def progresso():
     
     dados_para_tabela = {}
     for nome_pessoa in pessoas:
-        # Garante que tem dados válidos
+        # Garante que tem dados válidos E normalizados
         dados_pessoa = garantir_progresso_pessoa(
             nome_pessoa, 
             progresso_por_pessoa, 
             progresso_modelo
         )
         dados_para_tabela[nome_pessoa] = dados_pessoa
-        print(f"✅ {nome_pessoa} - progresso preparado")
+        print(f"✅ {nome_pessoa} - progresso preparado (chaves: {list(dados_pessoa.keys())[:2]})")
     
     if not trilhos:
         print("ERRO: Trilhos vazios após carregamento do modelo.")
+        trilhos = {}
+    
+    print(f"DEBUG FINAL: Areas para template: {areas}")
+    print(f"DEBUG FINAL: Trilhos para template: {list(trilhos.keys())}")
     
     return render_template(
         "progresso.html", 
