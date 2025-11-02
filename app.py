@@ -12,7 +12,7 @@ from icalendar import Calendar, Event
 from flask import make_response
 import requests
 
-#MEGA ALTERAÇÂOOOOO00000
+#MEGA ALTERAÇÂOOOOO0000000
 
 # --- IMPORTAÇÕES DE BASE DE DADOS ---
 from flask_sqlalchemy import SQLAlchemy 
