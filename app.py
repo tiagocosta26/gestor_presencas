@@ -11,6 +11,7 @@ import uuid
 from icalendar import Calendar, Event
 from flask import make_response
 import requests
+from urllib.parse import urlparse
 
 #MEGA ALTERAÇÂOOOOO0000
 
