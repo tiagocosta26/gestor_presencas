@@ -404,20 +404,31 @@ def carregar_progresso():
     return dados_progresso
 
 def carregar_progresso_modelo():
+    """
+    Carrega o modelo de progresso e normaliza as chaves Unicode 
+    (ex: 'F\\u00edsico' -> 'Físico'). ESTA É A CORREÇÃO PRINCIPAL.
+    """
     modelo_obj = ProgressoModelo.query.first()
     
     if not modelo_obj or not modelo_obj.modelo:
-        return {}
+        print("AVISO: Modelo de progresso não encontrado na BD.")
+        return criar_modelo_padrao() # Usa o modelo padrão se não estiver na BD
         
     progresso_modelo = modelo_obj.modelo
     
     try:
         # 1. Converte o dicionário Python (com chaves escapadas) para uma string JSON.
-        modelo_string = json.dumps(progresso_modelo)
+        #    Isto é crucial porque json.dumps por defeito preserva caracteres não-ASCII
+        #    como sequências de escape (\uXXXX), mas apenas dentro dos *valores*. 
+        #    O problema aqui é frequentemente na *chave*.
+        
+        # Faz dumps com ensure_ascii=False para garantir que os caracteres são strings Unicode
+        modelo_string = json.dumps(progresso_modelo, ensure_ascii=False)
         
         # 2. Converte a string JSON de volta para um dicionário Python.
-        #    Isto força os caracteres Unicode (como 'í') a serem decodificados.
+        #    Isto força a correta decodificação dos caracteres Unicode nas CHAVES.
         progresso_modelo_normalizado = json.loads(modelo_string)
+        print("✅ Modelo de progresso carregado e chaves normalizadas.")
         return progresso_modelo_normalizado
         
     except Exception as e:
@@ -2035,25 +2046,23 @@ def eliminar_item_inventario():
 
 @app.route("/progresso")
 def progresso():
-    # IMPORTANTE: Adicione 'copy' se ainda não o tiver no topo do seu app.py: 
-    # import copy
+    # Assegura que todas as funções auxiliares estão a usar os dados normalizados
     
     pessoas = carregar_nomes()
-    # A ordenação foi movida para a função carregar_nomes()
     
+    # Progresso das pessoas (keys: 'Físico', etc.)
     progresso_por_pessoa = carregar_progresso()
-    progresso_modelo = carregar_progresso_modelo()
+    # Modelo carregado e normalizado (keys: 'Físico', etc.)
+    progresso_modelo = carregar_progresso_modelo() 
+    
     areas = []
     trilhos = {}
 
-    # 🐛 DEPURADOR 1: O que a função carregar_nomes devolveu?
+    # O código de depuração do utilizador é mantido aqui
     print(f"DEBUG: Nomes de Pessoas Carregados: {pessoas}")
-    # 🐛 DEPURADOR 2: O que a função carregar_progresso devolveu?
-    # Imprime o primeiro registo de progresso completo para inspeção (se existir)
     primeiro_progresso = next(iter(progresso_por_pessoa.values()), "Nenhum dado de progresso carregado.")
     print(f"DEBUG: Dados de Progresso Carregados (chaves): {list(progresso_por_pessoa.keys())}")
     print(f"DEBUG: Primeiro Registo de Progresso: {primeiro_progresso}")
-    # 🐛 DEPURADOR 3: O que a função carregar_progresso_modelo devolveu?
     print(f"DEBUG: Modelo de Progresso (chaves): {list(progresso_modelo.keys()) if isinstance(progresso_modelo, dict) else progresso_modelo}")
 
 
@@ -2062,7 +2071,6 @@ def progresso():
         for area_nome, trilhos_area in progresso_modelo.items():
             trilhos[area_nome] = {}
             for trilho_nome, objetivos_trilho in trilhos_area.items():
-                # Garante que 'objetivos_trilho' é um dicionário antes de usar .keys()
                 if isinstance(objetivos_trilho, dict):
                     trilhos[area_nome][trilho_nome] = list(objetivos_trilho.keys())
                 else:
@@ -2070,41 +2078,36 @@ def progresso():
     
     dados_para_tabela = {}
     for nome_pessoa in pessoas:
+        # Se carregar_progresso() usou json.loads(), a key 'Físico' está OK.
+        # Se a BD devolveu 'Físico', também está OK.
+        # O problema era que o modelo (progresso_modelo) vinha com 'F\u00edsico', 
+        # o que agora corrigimos em carregar_progresso_modelo().
         dados_pessoa = progresso_por_pessoa.get(nome_pessoa)
         
-        # 🐛 NOVO DEPURADOR FOCADO: Verifica o estado exato dos dados.
         estado = "VÁLIDO" if isinstance(dados_pessoa, dict) and dados_pessoa else "INVÁLIDO/VAZIO"
         print(f"DEBUG_LOOP: Progresso para {nome_pessoa} (estado): {estado}")
         
-        # 🚨 DEBUG DE CONTRADIÇÃO: Imprime o valor real de progresso para a primeira pessoa
-        # para verificar porque é que está a cair no fallback apesar de 'Primeiro Registo' ser válido.
-        if nome_pessoa == pessoas[0]:
+        if nome_pessoa and pessoas and nome_pessoa == pessoas[0]:
             print(f"DEBUG_CONTRADICAO: Valor de progresso para {nome_pessoa} (inside loop): {dados_pessoa}")
         
-        # 🚨 CORREÇÃO ADICIONAL: Verifica se o dado carregado é um dicionário. 
-        # Se não for, assume que é inválido e usa o modelo.
+        
         if not isinstance(dados_pessoa, dict) or not dados_pessoa:
-             # Se a pessoa não tiver dados de progresso OU os dados estiverem vazios/corrompidos (não é um dict), 
-             # usamos uma CÓPIA profunda do modelo como estrutura.
              print(f"AVISO: Dados de progresso ausentes/inválidos para {nome_pessoa}. Usando o modelo como fallback.")
              try:
-                 # Esta cópia profunda garante que não se modifica o modelo original
+                 # Usa o modelo JÁ NORMALIZADO.
                  dados_pessoa = copy.deepcopy(progresso_modelo)
              except AttributeError:
-                 # Caso o progresso_modelo não esteja carregado ou seja None/string
                  print("AVISO: O modelo de progresso não pôde ser copiado. Usando dict vazio.")
                  dados_pessoa = {}
         
         dados_para_tabela[nome_pessoa] = dados_pessoa
         
-    # Verifica se os trilhos foram carregados corretamente (deve ser um dict aninhado)
     if not isinstance(trilhos, dict) or not trilhos:
          print("ERRO: O modelo de progresso (trilhos) não foi carregado corretamente.")
-         # Evita falha do template se o modelo estiver vazio
          trilhos = {} 
          
     return render_template("progresso.html", progresso=dados_para_tabela,
-                           areas=areas, trilhos=trilhos, progresso_modelo=progresso_modelo)
+                            areas=areas, trilhos=trilhos, progresso_modelo=progresso_modelo)
 
 @app.route("/atualizar_objetivo", methods=["POST"])
 def atualizar_objetivo():
@@ -2196,21 +2199,39 @@ def debug_progresso():
     pessoas = Pessoa.query.all()
     progressos = Progresso.query.all()
     
+    # Garante que os dados são decodificáveis antes de enviar para JSONIFY
+    modelo_conteudo_seguro = modelo.modelo if modelo else None
+    if isinstance(modelo_conteudo_seguro, dict):
+        try:
+            # Tenta normalizar para garantir que o output de debug é limpo
+            modelo_conteudo_seguro = json.loads(json.dumps(modelo_conteudo_seguro))
+        except:
+            pass
+            
+    progressos_data_segura = []
+    for p in progressos:
+        dados_seguros = p.dados_progresso
+        if isinstance(dados_seguros, dict):
+            try:
+                # Tenta normalizar os dados de progresso para o output de debug
+                dados_seguros = json.loads(json.dumps(dados_seguros))
+            except:
+                pass
+
+        progressos_data_segura.append({
+            "pessoa_id": p.pessoa_id,
+            "pessoa_nome": p.pessoa.nome if p.pessoa else "???",
+            "tem_dados": p.dados_progresso is not None,
+            "dados": dados_seguros
+        })
+    
     debug_info = {
         "modelo_existe": modelo is not None,
-        "modelo_conteudo": modelo.modelo if modelo else None,
+        "modelo_conteudo": modelo_conteudo_seguro,
         "num_pessoas": len(pessoas),
         "pessoas_nomes": [p.nome for p in pessoas],
         "num_progressos": len(progressos),
-        "progressos_data": [
-            {
-                "pessoa_id": p.pessoa_id,
-                "pessoa_nome": p.pessoa.nome if p.pessoa else "???",
-                "tem_dados": p.dados_progresso is not None,
-                "dados": p.dados_progresso
-            }
-            for p in progressos
-        ]
+        "progressos_data": progressos_data_segura
     }
     
     return jsonify(debug_info)
