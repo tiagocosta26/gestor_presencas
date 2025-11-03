@@ -2401,21 +2401,28 @@ def cozinha():
             
             if not nome_receita:
                 print("DEBUG FLUXO: Nome da receita vazio")
+                flash("Nome da receita é obrigatório.", "danger")
                 return redirect(url_for('cozinha'))
             
             try:
                 link_ficheiro = None
                 
-                # Se há ficheiro anexado
+                # ✅ Upload para Supabase (se há ficheiro anexado)
                 if 'comprovativo_receita' in request.files:
                     file = request.files['comprovativo_receita']
                     if file.filename != '':
-                        filename = secure_filename(file.filename)
-                        filepath = os.path.join(DIRETORIO_RECEITAS, filename)
-                        os.makedirs(DIRETORIO_RECEITAS, exist_ok=True)
-                        file.save(filepath)
-                        link_ficheiro = url_for('serve_receita', filename=filename)
-                        print(f"DEBUG FLUXO: Ficheiro guardado: {filename}")
+                        try:
+                            # Upload para Supabase no bucket "receitas"
+                            link_ficheiro = upload_para_supabase(file, "receitas", "receitas")
+                            
+                            if link_ficheiro:
+                                print(f"✅ Ficheiro enviado para Supabase: {link_ficheiro}")
+                            else:
+                                print("❌ Erro no upload para Supabase")
+                                flash("Erro ao fazer upload do ficheiro.", "warning")
+                        except Exception as e:
+                            print(f"❌ Erro no upload: {e}")
+                            flash(f"Erro ao fazer upload: {e}", "danger")
                 
                 # Se há ficheiro, guarda com link
                 if link_ficheiro:
@@ -2433,6 +2440,7 @@ def cozinha():
                     
                     if not (ingredientes_processados and instrucoes):
                         print("DEBUG FLUXO: Ingredientes ou instruções em falta")
+                        flash("Ingredientes e instruções são obrigatórios.", "danger")
                         return redirect(url_for('cozinha'))
                     
                     nova_receita = Receita(
@@ -2447,7 +2455,8 @@ def cozinha():
                 
                 db.session.add(nova_receita)
                 db.session.commit()
-                print(f"SUCESSO: Receita '{nome_receita}' guardada na BD")
+                print(f"✅ Receita '{nome_receita}' guardada na BD")
+                flash(f"Receita '{nome_receita}' adicionada com sucesso!", "success")
             
             except Exception as e:
                 db.session.rollback()
@@ -2456,6 +2465,7 @@ def cozinha():
                 print("❌ ERRO AO GUARDAR RECEITA")
                 print(traceback.format_exc())
                 print("="*70 + "\n")
+                flash(f"Erro ao guardar receita: {e}", "danger")
             
             return redirect(url_for('cozinha'))
         
@@ -2487,9 +2497,26 @@ def cozinha():
 def serve_upload_cozinha(filename):
     return send_from_directory(DIRETORIO_UPLOADS_COZINHA, filename)
 
-@app.route('/receitas/<path:filename>')
-def serve_receita(filename):
-    return send_from_directory(DIRETORIO_RECEITAS, filename)
+@app.route('/receitas/<int:receita_id>')
+def serve_receita(receita_id):
+    """Redireciona para o ficheiro da receita no Supabase."""
+    try:
+        receita = Receita.query.get(receita_id)
+        if receita and receita.link_ficheiro:
+            # Se for URL do Supabase (começa com https://), redireciona
+            if receita.link_ficheiro.startswith('https://'):
+                return redirect(receita.link_ficheiro)
+            # Se for ficheiro antigo (path local), tenta servir localmente
+            else:
+                filename = os.path.basename(receita.link_ficheiro)
+                return send_from_directory(DIRETORIO_RECEITAS, filename)
+        else:
+            flash("Ficheiro da receita não encontrado.", "danger")
+            return redirect(url_for('cozinha'))
+    except Exception as e:
+        print(f"❌ Erro ao servir receita: {e}")
+        flash("Erro ao carregar ficheiro da receita.", "danger")
+        return redirect(url_for('cozinha'))
 
 @app.route("/cozinha/receita/<string:nome_receita>", methods=["GET"])
 def ver_receita(nome_receita):
@@ -2502,23 +2529,45 @@ def ver_receita(nome_receita):
 
 @app.route("/eliminar_receita", methods=["POST"])
 def eliminar_receita():
+    """Elimina receita e ficheiro do Supabase."""
     nome_receita = request.form.get("nome_receita")
-    link_ficheiro = request.form.get("link_ficheiro")
+    
     if not nome_receita:
-        #flash("Nome da receita não fornecido.", "danger")
+        flash("Nome da receita não fornecido.", "danger")
         return redirect(url_for('cozinha'))
-    receita = Receita.query.filter_by(nome=nome_receita).first()
-    if receita:
-        if receita.link_ficheiro:
-            caminho_ficheiro = os.path.join(DIRETORIO_RECEITAS, os.path.basename(receita.link_ficheiro))
-            if os.path.exists(caminho_ficheiro):
-                try:
-                    os.remove(caminho_ficheiro)
-                except OSError as e:
-                    flash(f"Erro ao eliminar o ficheiro: {e}", "warning")
-        db.session.delete(receita)
-        db.session.commit()
-        #flash(f"Receita '{nome_receita}' eliminada com sucesso.", "success")
+    
+    try:
+        receita = Receita.query.filter_by(nome=nome_receita).first()
+        
+        if receita:
+            # ✅ Elimina ficheiro do Supabase (se existir)
+            if receita.link_ficheiro:
+                if receita.link_ficheiro.startswith('https://'):
+                    # Ficheiro no Supabase
+                    delete_from_supabase(receita.link_ficheiro, "receitas")
+                else:
+                    # Ficheiro local antigo
+                    caminho_ficheiro = os.path.join(DIRETORIO_RECEITAS, os.path.basename(receita.link_ficheiro))
+                    if os.path.exists(caminho_ficheiro):
+                        try:
+                            os.remove(caminho_ficheiro)
+                            print(f"✅ Ficheiro local eliminado: {caminho_ficheiro}")
+                        except OSError as e:
+                            print(f"⚠️ Erro ao eliminar ficheiro local: {e}")
+            
+            # Elimina da BD
+            db.session.delete(receita)
+            db.session.commit()
+            flash(f"Receita '{nome_receita}' eliminada com sucesso.", "success")
+            print(f"✅ Receita '{nome_receita}' eliminada")
+        else:
+            flash("Receita não encontrada.", "danger")
+    
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Erro ao eliminar receita: {e}")
+        flash(f"Erro ao eliminar receita: {e}", "danger")
+    
     return redirect(url_for('cozinha'))
 
 @app.route("/eliminar_item_inventario", methods=["POST"])
