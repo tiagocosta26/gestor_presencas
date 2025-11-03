@@ -246,17 +246,17 @@
                     <ul class="mobile-details-list">
                         <li><strong>Descrição:</strong> <span>{{ t.descricao }}</span></li>
 
-                        <!-- Linha alterada: antes do comprovativo -->
                         <li><strong>Valor:</strong> 
                             <span class="{% if t.tipo == 'Entrada' %}text-success{% else %}text-danger{% endif %}">
                                 {{ '%.2f'|format(t.valor) }}€
                             </span>
                         </li>
 
+                        <!-- ✅ CORRIGIDO: Link do comprovativo (MOBILE) -->
                         <li><strong>Comprovativo:</strong> 
                             <span>
-                                {% if t.comprovativo %}
-                                <a href="{{ comprovativo }}" target="_blank">Ver Comprovativo</a>
+                                {% if t.comprovativo_url %}
+                                <a href="{{ url_for('serve_comprovativo', transacao_id=t.id) }}" target="_blank">Ver Comprovativo</a>
                                 {% else %}
                                 -
                                 {% endif %}
@@ -279,13 +279,16 @@
             </td>
             
             <td data-label="Descrição">{{ t.descricao }}</td>
+            
+            <!-- ✅ CORRIGIDO: Link do comprovativo (DESKTOP) -->
             <td data-label="Comprovativo">
-                {% if t.comprovativo %}
-                <a href="{{ url_for('uploaded_file', filename=t.comprovativo) }}" target="_blank" rel="noopener noreferrer">Ver Ficheiro</a>
+                {% if t.comprovativo_url %}
+                <a href="{{ url_for('serve_comprovativo', transacao_id=t.id) }}" target="_blank" rel="noopener noreferrer">Ver Ficheiro</a>
                 {% else %}
                 -
                 {% endif %}
             </td>
+            
             <td data-label="Saldo">
                 <span class="{% if saldo >= 0 %}text-success{% else %}text-danger{% endif %}">
                     {{ '%.2f'|format(saldo) }}€

@@ -1813,6 +1813,8 @@ def tesouraria():
     tribos_disponiveis = [t.nome for t in Tribo.query.with_entities(Tribo.nome).all()]
     entidades_permitidas = ["Clan"] + tribos_disponiveis
     username = session.get('username')
+    
+    # Permissões por utilizador
     if username == "Peter Benenson":
         entidades_permitidas = ["Peter Benenson"]
     elif username == "Henri Dunant":
@@ -1820,67 +1822,120 @@ def tesouraria():
     elif username == "Rainha D. Leonor":
         entidades_permitidas = ["Rainha D. Leonor"]
     elif username in tribos_disponiveis:
-         entidades_permitidas = [username]
+        entidades_permitidas = [username]
+    
     tribos_permitidas = [e for e in entidades_permitidas if e != "Clan"]
     if "Clan" in entidades_permitidas and "Clan" not in tribos_permitidas:
         tribos_permitidas.insert(0, "Clan")
+    
     entidade_ativa = request.args.get('entidade_ativa')
     if entidade_ativa not in tribos_permitidas:
-         entidade_ativa = tribos_permitidas[0] if tribos_permitidas else "Clan"
+        entidade_ativa = tribos_permitidas[0] if tribos_permitidas else "Clan"
 
     if request.method == "POST":
         acao = request.form.get('acao')
         entidade = request.form.get('entidade')
+        
+        # Verifica permissões
         if entidade not in entidades_permitidas:
-            #flash("Não tem permissão para alterar esta folha de caixa.", "danger")
+            flash("Não tem permissão para alterar esta folha de caixa.", "danger")
             return redirect(url_for('tesouraria'))
+        
         if acao == 'adicionar':
             data_str = request.form.get('data')
             descricao = request.form.get('descricao')
             tipo = request.form.get('tipo')
             valor = float(request.form.get('valor'))
             comprovativo_url = None
+            
+            # ✅ Upload para Supabase (se houver comprovativo)
             if 'comprovativo' in request.files:
                 file = request.files['comprovativo']
                 if file.filename != '':
-                    ext = file.filename.rsplit('.', 1)[1].lower()
-                    unique_filename = f"{limpar_nome(entidade)}_{data_str}_{str(uuid.uuid4())[:8]}.{ext}"
-                    caminho_ficheiro = os.path.join(DIRETORIO_UPLOADS, unique_filename)
-                    file.save(caminho_ficheiro)  # ❌ Guarda localmente (apaga no Render)
-                    comprovativo_url = unique_filename
-            nova_transacao = FolhaCaixa(
-                entidade_nome=entidade,
-                data=datetime.strptime(data_str, '%Y-%m-%d').date(),
-                descricao=descricao,
-                tipo=tipo,
-                valor=valor,
-                comprovativo_url=comprovativo_url
-            )
-            db.session.add(nova_transacao)
-            db.session.commit()
-            #flash("Transação adicionada com sucesso!", "success")
+                    try:
+                        # Cria pasta organizada: tesouraria/entidade/ano-mes
+                        data_obj = datetime.strptime(data_str, '%Y-%m-%d')
+                        pasta = f"tesouraria/{limpar_nome(entidade)}/{data_obj.strftime('%Y-%m')}"
+                        
+                        # Upload para Supabase
+                        comprovativo_url = upload_para_supabase(file, "tesouraria", pasta)
+                        
+                        if not comprovativo_url:
+                            flash("Erro ao fazer upload do comprovativo.", "warning")
+                    except Exception as e:
+                        print(f"❌ Erro no upload: {e}")
+                        flash(f"Erro ao fazer upload: {e}", "danger")
+            
+            # Guarda na BD
+            try:
+                nova_transacao = FolhaCaixa(
+                    entidade_nome=entidade,
+                    data=datetime.strptime(data_str, '%Y-%m-%d').date(),
+                    descricao=descricao,
+                    tipo=tipo,
+                    valor=valor,
+                    comprovativo_url=comprovativo_url
+                )
+                db.session.add(nova_transacao)
+                db.session.commit()
+                flash("Transação adicionada com sucesso!", "success")
+            except Exception as e:
+                db.session.rollback()
+                print(f"❌ Erro ao guardar transação: {e}")
+                flash(f"Erro ao guardar transação: {e}", "danger")
+        
         elif acao == 'remover':
             transacao_id = request.form.get('id_transacao')
             transacao = FolhaCaixa.query.get(transacao_id)
+            
             if transacao and transacao.entidade_nome == entidade:
-                if transacao.comprovativo_url:
-                    caminho_ficheiro = os.path.join(DIRETORIO_UPLOADS, transacao.comprovativo_url)
-                    try:
-                        os.remove(caminho_ficheiro)
-                    except OSError as e:
-                        print(f"Erro ao tentar remover o ficheiro: {e}")
-                db.session.delete(transacao)
-                db.session.commit()
-                #flash("Transação removida com sucesso!", "warning")
+                try:
+                    # ✅ Elimina ficheiro do Supabase (se existir)
+                    if transacao.comprovativo_url:
+                        delete_from_supabase(transacao.comprovativo_url, "tesouraria")
+                    
+                    # Elimina da BD
+                    db.session.delete(transacao)
+                    db.session.commit()
+                    flash("Transação removida com sucesso!", "success")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"❌ Erro ao eliminar transação: {e}")
+                    flash(f"Erro ao eliminar: {e}", "danger")
             else:
                 flash("Transação não encontrada ou sem permissão.", "danger")
+        
         return redirect(url_for('tesouraria', entidade_ativa=entidade))
 
+    # GET - Carrega folhas de caixa
     folhas_caixa = {}
     for entidade in tribos_permitidas:
         folhas_caixa[entidade] = carregar_folha_caixa(entidade)
-    return render_template("tesouraria.html", tribos=tribos_permitidas, 
-                         folhas_caixa=folhas_caixa, entidade_ativa=entidade_ativa)
+    
+    return render_template("tesouraria.html", 
+                         tribos=tribos_permitidas, 
+                         folhas_caixa=folhas_caixa, 
+                         entidade_ativa=entidade_ativa)
+
+@app.route('/comprovativo/<int:transacao_id>')
+def serve_comprovativo(transacao_id):
+    """Redireciona para o comprovativo no Supabase."""
+    try:
+        transacao = FolhaCaixa.query.get(transacao_id)
+        if transacao and transacao.comprovativo_url:
+            # Se for URL do Supabase (começa com https://), redireciona
+            if transacao.comprovativo_url.startswith('https://'):
+                return redirect(transacao.comprovativo_url)
+            # Se for ficheiro antigo (só nome), tenta servir localmente
+            else:
+                return send_from_directory(DIRETORIO_UPLOADS, transacao.comprovativo_url)
+        else:
+            flash("Comprovativo não encontrado.", "danger")
+            return redirect(url_for('tesouraria'))
+    except Exception as e:
+        print(f"❌ Erro ao servir comprovativo: {e}")
+        flash("Erro ao carregar comprovativo.", "danger")
+        return redirect(url_for('tesouraria'))
 
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
