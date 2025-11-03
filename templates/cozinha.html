@@ -83,21 +83,21 @@
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <div>
                                 {% if receita.link_ficheiro and receita.link_ficheiro.startswith('https://') %}
-                                <a href="{{ receita.link_ficheiro }}" target="_blank" class="text-decoration-none text-dark fw-bold">
-                                    <i class="bi bi-file-earmark-image me-2 text-primary"></i> {{ receita.nome }}
-                                </a>
-                                <span class="badge bg-primary ms-2">Ficheiro</span>
+                                    <a href="{{ receita.link_ficheiro }}" target="_blank" class="text-decoration-none text-dark fw-bold">
+                                        <i class="bi bi-file-earmark-image me-2 text-primary"></i> {{ receita.nome }}
+                                    </a>
+                                    <span class="badge bg-primary ms-2">Ficheiro</span>
                                 {% else %}
-                                <a href="{{ url_for('serve_receita', receita_id=receita.id) }}" class="text-decoration-none text-dark fw-bold">
-                                    <i class="bi bi-journal-text me-2 text-secondary"></i> {{ receita.nome }}
-                                </a>
-                                <span class="badge bg-secondary ms-2">Manual</span>
+                                    <a href="{{ url_for('ver_receita', nome_receita=receita.nome) }}" class="text-decoration-none text-dark fw-bold">
+                                        <i class="bi bi-journal-text me-2 text-secondary"></i> {{ receita.nome }}
+                                    </a>
+                                    <span class="badge bg-secondary ms-2">Manual</span>
                                 {% endif %}
                             </div>
                             <div>
                                 <form method="POST" action="{{ url_for('eliminar_receita') }}" style="display:inline;">
                                     <input type="hidden" name="nome_receita" value="{{ receita.nome }}">
-                                    <!--<input type="hidden" name="link_ficheiro" value="{{ receita.link_ficheiro if receita.link_ficheiro else '' }}">-->
+                                    <input type="hidden" name="link_ficheiro" value="{{ receita.link_ficheiro if receita.link_ficheiro else '' }}">
                                     <button type="submit" class="btn btn-sm btn-danger">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -197,7 +197,8 @@
                             </div>
                             
                             <form method="POST" action="{{ url_for('eliminar_item_inventario') }}" style="display:inline;">
-                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                <input type="hidden" name="nome_item" value="{{ item.nome | e }}">
+                                <input type="hidden" name="unidade_item" value="{{ item.unidade | e }}">
                                 <button type="submit" class="btn btn-sm btn-danger">
                                     <i class="bi bi-trash"></i>
                                 </button>
