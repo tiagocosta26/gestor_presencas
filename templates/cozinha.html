@@ -82,7 +82,7 @@
                         {% for receita in receitas %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <div>
-                                {% if receita.link_ficheiro.startswith('https://') %}
+                                {% if receita.link_ficheiro and receita.link_ficheiro.startswith('https://') %}
                                 <a href="{{ receita.link_ficheiro }}" target="_blank" class="text-decoration-none text-dark fw-bold">
                                     <i class="bi bi-file-earmark-image me-2 text-primary"></i> {{ receita.nome }}
                                 </a>
