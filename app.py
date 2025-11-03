@@ -3068,6 +3068,77 @@ def api_atividades():
             eventos.append(evento)
         return jsonify(eventos)
 
+@app.route("/api/atividades/<id>", methods=["PUT"])
+def api_editar_atividade(id):
+    """Edita uma atividade existente."""
+    if session.get('username') not in ['Chefe', 'Clan']:
+        return jsonify({"error": "Não tem permissão para realizar esta ação."}), 403
+    
+    try:
+        atividade = Atividade.query.get(id)
+        if not atividade:
+            return jsonify({"error": "Atividade não encontrada."}), 404
+        
+        data = request.get_json()
+        cores_por_tipo = {
+            'Clan': '#ff0000', 'Agrupamento': '#0000ff', 'Núcleo': '#f8da45', 
+            'Cenáculo': "#97612B", 'Região': '#800080', 'Nacional': '#008000', 
+            'Internacional': '#ffc0cb'
+        }
+        
+        # Atualiza os campos
+        if 'title' in data:
+            atividade.titulo = data['title']
+        
+        if 'start' in data:
+            try:
+                atividade.data_inicio = datetime.fromisoformat(data['start'].replace('Z', '+00:00'))
+            except ValueError as e:
+                return jsonify({"error": f"Formato de 'start' inválido: {e}"}), 400
+        
+        if 'end' in data:
+            try:
+                atividade.data_fim = datetime.fromisoformat(data['end'].replace('Z', '+00:00'))
+            except ValueError as e:
+                return jsonify({"error": f"Formato de 'end' inválido: {e}"}), 400
+        
+        if 'type' in data:
+            atividade.tipo = data['type']
+        
+        if 'details' in data:
+            atividade.descricao = data['details']
+        
+        if 'allDay' in data:
+            atividade.all_day = data['allDay']
+        
+        db.session.commit()
+        
+        # Formata a resposta
+        def format_date_for_fc(dt, is_all_day):
+            if is_all_day and isinstance(dt, datetime):
+                return dt.isoformat().split('T')[0]
+            if isinstance(dt, datetime):
+                return dt.isoformat()
+            return dt
+        
+        return jsonify({
+            'id': atividade.id,
+            'title': atividade.titulo,
+            'start': format_date_for_fc(atividade.data_inicio, atividade.all_day),
+            'end': format_date_for_fc(atividade.data_fim, atividade.all_day),
+            'color': cores_por_tipo.get(atividade.tipo, '#000000'),
+            'type': atividade.tipo,
+            'details': atividade.descricao,
+            'allDay': atividade.all_day
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao editar atividade: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Erro interno do servidor: {e}"}), 500
+
 @app.route("/api/atividades/<id>", methods=["DELETE"])
 def api_eliminar_atividade(id):
     if session.get('username') not in ['Chefe', 'Clan']:
