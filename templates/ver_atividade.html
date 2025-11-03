@@ -37,7 +37,7 @@
     <a href="{{ url_for('atividades') }}" class="btn btn-secondary">← Voltar</a>
     
     {% if session.get('username') in ['Clan', 'Chefe'] %}
-    <form action="{{ url_for('eliminar_atividade', nome_ficheiro=ficheiro) }}" method="post" style="display:inline;">
+    <form action="{{ url_for('eliminar_atividade', nome_ficheiro=atividade_id) }}" method="post" style="display:inline;">
         <button type="submit" class="btn btn-danger">Eliminar Atividade</button>
     </form>
     {% endif %}

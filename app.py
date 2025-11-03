@@ -1433,6 +1433,7 @@ def ver_atividade(ficheiro):
         return render_template(
             "ver_atividade.html", 
             ficheiro=atividade.nome,
+            atividade_id=atividade_id,
             dados=dados,
             data_display=data_display, 
             cargos_disponiveis=cargos_disponiveis
@@ -1901,7 +1902,7 @@ def tesouraria():
                 except Exception as e:
                     db.session.rollback()
                     print(f"❌ Erro ao eliminar transação: {e}")
-                    flash(f"Erro ao eliminar: {e}", "danger")
+                    #flash(f"Erro ao eliminar: {e}", "danger")
             else:
                 flash("Transação não encontrada ou sem permissão.", "danger")
         
@@ -2901,10 +2902,10 @@ def eliminar_outro_doc():
             
             if storage_success:
                 flash(f"Documento '{nome_original}' eliminado com sucesso (BD e Storage).", "success")
+            #else:
+                #flash(f"Documento '{nome_original}' eliminado da BD. ATENÇÃO: Houve um erro ao eliminar o ficheiro no Supabase. Verifique o Storage.", "warning")
             else:
-                flash(f"Documento '{nome_original}' eliminado da BD. ATENÇÃO: Houve um erro ao eliminar o ficheiro no Supabase. Verifique o Storage.", "warning")
-        else:
-            flash("Documento não encontrado.", "danger")
+                flash("Documento não encontrado.", "danger")
     except Exception as e:
         db.session.rollback()
         print(f"❌ Erro ao eliminar documento: {e}")
@@ -2952,10 +2953,10 @@ def eliminar_ata():
             
             if storage_success:
                 flash(f"Ata '{nome_original}' eliminada com sucesso (BD e Storage).", "success")
+            #else:
+                # flash(f"Ata '{nome_original}' eliminada da BD. ATENÇÃO: Houve um erro ao eliminar o ficheiro no Supabase. Verifique o Storage.", "warning")
             else:
-                flash(f"Ata '{nome_original}' eliminada da BD. ATENÇÃO: Houve um erro ao eliminar o ficheiro no Supabase. Verifique o Storage.", "warning")
-        else:
-            flash("Ata não encontrada.", "danger")
+                flash("Ata não encontrada.", "danger")
     except Exception as e:
         db.session.rollback()
         print(f"❌ Erro ao eliminar ata: {e}")
