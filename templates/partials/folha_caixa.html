@@ -246,7 +246,6 @@
                     <ul class="mobile-details-list">
                         <li><strong>Descrição:</strong> <span>{{ t.descricao }}</span></li>
 
-                        <!-- Linha alterada: antes do comprovativo -->
                         <li><strong>Valor:</strong> 
                             <span class="{% if t.tipo == 'Entrada' %}text-success{% else %}text-danger{% endif %}">
                                 {{ '%.2f'|format(t.valor) }}€

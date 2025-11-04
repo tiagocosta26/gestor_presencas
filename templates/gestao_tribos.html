@@ -19,7 +19,6 @@
         {% endif %}
     </div>
     <div class="card-body p-2 p-lg-4 shadow-lg">
-        <!-- CRÍTICO: Removida a ordenação por 'Pessoa.id' no modelo, agora usa o campo 'ordem' -->
         <ul id="lista-{{ tribo|replace(' ', '_') }}" class="list-group {% if session.get('username') in ['Clan', 'Chefe'] %}sortable{% endif %}" data-tribo="{{ tribo }}">
             {% for pessoa in membros %}
             <li class="list-group-item d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center {% if session.get('username') in ['Clan', 'Chefe'] %}sortable-handle{% endif %} mb-2 mb-lg-0" data-nome-pessoa="{{ pessoa.nome }}" data-pessoa-id="{{ pessoa.id }}">
@@ -48,7 +47,6 @@
                                         <input type="hidden" name="acao" value="adicionar_cargo">
                                         <input type="hidden" name="tribo" value="{{ tribo }}">
                                         <input type="hidden" name="nome_pessoa" value="{{ pessoa.nome }}">
-                                        <!-- CORREÇÃO 1: Adicionar o ID da Pessoa, que o backend espera -->
                                         <input type="hidden" name="pessoa_id" value="{{ pessoa.id }}"> 
                                         <input type="hidden" name="cargo" value="{{ cargo }}">
                                         <button class="dropdown-item" type="submit">
@@ -125,7 +123,6 @@
                     const novaTribo = evt.to.dataset.tribo;
                     const nomePessoa = evt.item.dataset.nomePessoa;
                     
-                    // CORREÇÃO: Usamos a nova ordem (lista de nomes) da tribo de destino
                     const ordem = Array.from(evt.to.children).map(item => item.dataset.nomePessoa);
                     
                     const formData = new FormData();
@@ -134,7 +131,7 @@
                     formData.append('nova_tribo', novaTribo);
                     formData.append('nome_pessoa', nomePessoa);
                     
-                    // O backend vai usar esta lista de nomes para atualizar o campo 'ordem'
+                    // Atualizar o campo 'ordem'
                     formData.append('nova_ordem', JSON.stringify(ordem)); 
                     
                     fetch('{{ url_for('gestao_tribos') }}', {
@@ -144,12 +141,10 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'ok') {
-                            // Se a operação for bem-sucedida, não precisamos de fazer nada, 
-                            // pois o DOM já foi atualizado pelo Sortable.
                             console.log('Ordem e tribo atualizadas com sucesso.');
                         } else {
                             console.error('Erro ao atualizar a ordem:', data.message);
-                            // Reverter a mudança no DOM em caso de erro (mantido do seu código)
+                            // Reverter a mudança no DOM em caso de erro
                             Sortable.create(evt.to, { disabled: true });
                             Sortable.create(evt.from, { disabled: true });
                             evt.to.insertBefore(evt.item, evt.from.children[evt.oldIndex]);

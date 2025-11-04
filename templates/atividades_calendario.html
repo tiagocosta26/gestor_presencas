@@ -123,8 +123,10 @@
                     <p><strong>Detalhes:</strong> <span id="detalhesDescricao"></span></p>
                 </div>
                 <div class="modal-footer">
+                    {% if session.get('username') in ['Clan', 'Chefe'] %}
                     <button type="button" class="btn btn-secondary" id="editarAtividadeBtn">Editar Atividade</button>
                     <button type="button" class="btn btn-danger" id="eliminarAtividadeBtn">Eliminar Atividade</button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -182,7 +184,7 @@
             campoDataFim.style.display = 'block';
         }
         
-        // Função CRUCIAL: Esconde "Dia Inteiro" se as datas forem diferentes
+        // Esconde "Dia Inteiro" se as datas forem diferentes
         function toggleAllDayCheckbox() {
             const dataInicio = atividadeDataInicio.value;
             const dataFim = atividadeDataFim.value;
@@ -228,8 +230,6 @@
             eventDurationEditable: podeEditar,
             selectable: true, 
             selectMirror: true, 
-            
-            // CORREÇÃO: Mudar para true para que o FullCalendar crie o elemento da hora
             displayEventTime: true, 
 
             eventTimeFormat: { 
@@ -238,7 +238,7 @@
                 hour12: false 
             },
 
-            // NOVA FUNÇÃO: Esconder a hora em eventos multi-dia com hora definida
+            // Esconder a hora em eventos multi-dia com hora definida
             eventDidMount: function(arg) {
                 const event = arg.event;
                 
@@ -248,7 +248,7 @@
                 }
 
                 // Verificação se é um evento Multi-Dia com Hora
-                // Separamos a data da string de data/hora de início e fim
+                // Separar a data da string de data/hora de início e fim
                 const start_date_str = event.startStr.split('T')[0];
                 // Para eventos com hora (allDay: false), event.endStr é a data/hora final inclusiva.
                 const end_date_str = event.endStr.split('T')[0]; 
@@ -275,7 +275,7 @@
                 atividadeForm.reset();
                 document.getElementById('atividadeId').value = '';
 
-                // Lógica de cálculo de datas e horas (mantida)
+                // Lógica de cálculo de datas e horas
                 const diffMs = info.end.getTime() - info.start.getTime();
                 const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)); 
                 
@@ -320,7 +320,7 @@
                 atividadeModal.show();
             },
 
-            // Lógica Central: callback 'eventClick' - Exibe Detalhes
+            // Lógica Central: callback 'eventClick'
             eventClick: function(info) {
                 const event = info.event;
                 
@@ -372,7 +372,6 @@
                 eliminarAtividadeBtn.setAttribute('data-id', event.id);
                 editarAtividadeBtn.setAttribute('data-id', event.id);
                 
-                // 2. CORREÇÃO: Esconder o modal de Criação e Mostrar o modal de Detalhes
                 atividadeModal.hide(); 
                 detalhesAtividadeModal.show();
             },
@@ -456,7 +455,6 @@
             const eventDetails = event.extendedProps.details || event.details;
             document.getElementById('atividadeDetalhes').value = eventDetails || '';
             
-            // CORREÇÃO: Esconde Detalhes antes de abrir a Edição
             detalhesAtividadeModal.hide();
             atividadeModal.show();
             
@@ -549,7 +547,7 @@
             });
         });
 
-        // Handler para eliminar atividade (mantido)
+        // Handler para eliminar atividade
         eliminarAtividadeBtn.addEventListener('click', function() {
              const eventoId = this.getAttribute('data-id');
              fetch(`/api/atividades/${eventoId}`, {

@@ -67,11 +67,11 @@ print("URI da base de dados a ser usada:", app.config['SQLALCHEMY_DATABASE_URI']
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 3,          # ✅ Reduzido para 3 (era 5 por padrão)
-    'max_overflow': 1,       # ✅ Apenas 1 conexão extra (era 10)
-    'pool_recycle': 300,     # Recicla a cada 5 min
-    'pool_pre_ping': True,   # Testa conexão antes de usar
-    'pool_timeout': 30       # Timeout de 30s
+    'pool_size': 3,
+    'max_overflow': 1,
+    'pool_recycle': 300,
+    'pool_pre_ping': True,
+    'pool_timeout': 30
 }
 db = SQLAlchemy(app)
 
@@ -116,7 +116,7 @@ class Tribo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), unique=True, nullable=False)
     membros = db.relationship('Pessoa', backref='tribo', lazy=True, 
-                             order_by='Pessoa.ordem', cascade="all, delete-orphan")  # ✅ MUDADO
+                             order_by='Pessoa.ordem', cascade="all, delete-orphan")
 
 
 class Pessoa(db.Model):
@@ -124,7 +124,7 @@ class Pessoa(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), unique=True, nullable=False)
     tribo_id = db.Column(db.Integer, db.ForeignKey('tribos.id'), nullable=False)
-    ordem = db.Column(db.Integer, default=0)  # ✅ NOVO CAMPO
+    ordem = db.Column(db.Integer, default=0)
     cargos = db.relationship('PessoaCargo', back_populates='pessoa', 
                             cascade="all, delete-orphan")
 
@@ -208,7 +208,7 @@ class Conta(db.Model):
 
 class Progresso(db.Model):
     __tablename__ = 'progresso'
-    id = db.Column(db.Integer, primary_key=True)  # ← NOVO: ID independente
+    id = db.Column(db.Integer, primary_key=True)
     pessoa_id = db.Column(db.Integer, db.ForeignKey('pessoas.id', ondelete='CASCADE'), nullable=False)
     pessoa = db.relationship('Pessoa', backref='progresso_rel')
     dados_progresso = db.Column(JSON)
@@ -459,7 +459,6 @@ def carregar_tribos():
 
 def carregar_nomes():
     # Carrega nomes da base de dados, ordenados pelo ID para manter a ordem de inserção (não alfabética).
-    # 💥 CORREÇÃO DE ORDENAÇÃO: Ordena explicitamente por ID para evitar a ordenação alfabética padrão da BD.
     pessoas = Pessoa.query.with_entities(Pessoa.nome).order_by(Pessoa.tribo_id, Pessoa.ordem).all()
     return [nome[0] for nome in pessoas]
 
@@ -575,7 +574,6 @@ def carregar_progresso():
         # Limpa o nome da pessoa
         nome_pessoa_limpo = p.pessoa.nome.strip()
         
-        # ✅ CORREÇÃO: O PostgreSQL já devolve JSON como dict, não precisa json.loads()
         if p.dados_progresso:
             # Se já é um dicionário, usa diretamente
             if isinstance(p.dados_progresso, dict):
@@ -613,7 +611,6 @@ def carregar_progresso_modelo():
         print(f"DEBUG: Tipo do modelo na BD: {type(progresso_modelo)}")
         print(f"DEBUG: Primeiras chaves antes normalização: {list(progresso_modelo.keys())[:3]}")
         
-        # ✅ PASSO 1: Se é um dicionário com chaves escapadas, normaliza agressivamente
         if isinstance(progresso_modelo, dict):
             progresso_modelo_normalizado = normalizar_chaves_dict_recursivo(progresso_modelo)
         else:
@@ -713,7 +710,6 @@ def garantir_progresso_pessoa(nome_pessoa, progresso_por_pessoa, progresso_model
         print(f"⚠️  Usando modelo para {nome_pessoa}")
         dados_pessoa = copy.deepcopy(progresso_modelo)
     else:
-        # ✅ IMPORTANTE: Normaliza também os dados da pessoa se necessário
         dados_pessoa = normalizar_chaves_dict_recursivo(dados_pessoa)
     
     return dados_pessoa
@@ -759,17 +755,16 @@ def calcular_progresso_bool_do_dicionario(obj):
         # Percorre o dicionário recursivamente
         return {k: calcular_progresso_bool_do_dicionario(v) for k, v in obj.items()}
     elif isinstance(obj, str):
-        # 🌟 CORREÇÃO DE LÓGICA: Reconhece 'concluído' E 'feito' como sucesso (True)
+        # Reconhece 'concluído' E 'feito' como sucesso (True)
         return obj in ["concluído", "feito"]
     else:
-        # CORREÇÃO: Devolve um dicionário vazio em vez de False para evitar o AttributeError no nível superior 
+        # Devolve um dicionário vazio em vez de False para evitar o AttributeError no nível superior 
         # (se a função for chamada com None, por exemplo).
         return {} 
         
 @app.template_global()
 def calcular_nivel(dados_pessoa_bool, trilhos_por_area):
 
-    # 🚨 CORREÇÃO CRÍTICA (Linha 346): Evita 'bool' object has no attribute 'get'
     if not isinstance(dados_pessoa_bool, dict):
         # Se os dados não forem um dicionário (ex: False ou None), assume-se o nível base para evitar o crash.
         return "Comunidade"
@@ -1005,10 +1000,8 @@ def init_db():
     """Cria todas as tabelas e inicializa dados padrão, se necessário."""
     db.create_all()
 
-    # ✅ NOVO: Inicializar dados padrão (tribos, cargos)
     init_default_data()
 
-    # ✅ NOVO: Verificar e criar modelo de progresso
     try:
         print("🔄 Verificando modelo de progresso...")
         
@@ -1262,7 +1255,7 @@ def presencas():
                     presente = "Sim" if request.form.get(f"presenca_{nome}") == "Sim" else "Não"
                     dados_presenca[tribo_nome][nome] = presente
             
-            # ✅ GUARDAR NA BD
+            # GUARDAR NA BD
             nova_atividade = AtividadePresenca(
                 nome=atividade,
                 data_inicio=dt_inicio,
@@ -1475,7 +1468,6 @@ def assiduidade():
         )
         atividades_do_ano = 0
         
-        # ✅ CARREGA ATIVIDADES DA BD EM VEZ DE FICHEIROS CSV
         print("\n1️⃣ Carregando atividades da BD...")
         atividades = AtividadePresenca.query.filter(
             AtividadePresenca.data_inicio >= data_inicio,
@@ -1573,7 +1565,6 @@ def gestao_tribos():
         acao = request.form.get("acao")
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-        # ✅ AÇÃO 1: CRIAR TRIBO
         if acao == "criar_tribo":
             nome_tribo = request.form.get("nome_tribo").strip()
             if nome_tribo:
@@ -1587,7 +1578,6 @@ def gestao_tribos():
                 return redirect(url_for("gestao_tribos"))
             return jsonify({"status": "ok", "nome_tribo": nome_tribo})
 
-        # ✅ AÇÃO 2: REMOVER TRIBO
         elif acao == "remover_tribo":
             nome_tribo = request.form.get("nome_tribo")
             tribo = Tribo.query.filter_by(nome=nome_tribo).first()
@@ -1599,7 +1589,6 @@ def gestao_tribos():
                 return redirect(url_for("gestao_tribos"))
             return jsonify({"status": "ok"})
 
-        # ✅ AÇÃO 3: ADICIONAR PESSOA
         elif acao == "adicionar_pessoa":
             tribo_nome = request.form.get("tribo")
             nome_pessoa = request.form.get("nome_pessoa").strip()
@@ -1640,7 +1629,6 @@ def gestao_tribos():
                         return jsonify({"status": "error", "message": str(e)}), 500
             return jsonify({"status": "error", "message": "Tribo ou nome inválidos."}), 400
 
-        # ✅ AÇÃO 4: REMOVER PESSOA (CORRIGIDA)
         elif acao == "remover_pessoa":
             tribo_nome = request.form.get("tribo")
             nome_pessoa = request.form.get("nome_pessoa")
@@ -1648,7 +1636,7 @@ def gestao_tribos():
             try:
                 pessoa = Pessoa.query.filter_by(nome=nome_pessoa).first()
                 if pessoa:
-                    # 🔴 IMPORTANTE: Ordem de eliminação para evitar cascade errors
+                    # IMPORTANTE: Ordem de eliminação para evitar cascade errors
                     
                     # 1. Elimina o registo de Progresso PRIMEIRO (evita cascade conflict)
                     Progresso.query.filter_by(pessoa_id=pessoa.id).delete()
@@ -1682,7 +1670,6 @@ def gestao_tribos():
                 return redirect(url_for("gestao_tribos"))
             return jsonify({"status": "ok", "nome_pessoa": nome_pessoa})
         
-        # ✅ AÇÃO 5: ADICIONAR CARGO A PESSOA
         elif acao == "adicionar_cargo":
             pessoa_id = request.form.get("pessoa_id") 
             cargo_nome = request.form.get("cargo")
@@ -1731,7 +1718,6 @@ def gestao_tribos():
                 return redirect(url_for("gestao_tribos"))
             return jsonify({"status": "error", "message": "Pessoa ou Cargo inválidos."}), 400
 
-        # ✅ AÇÃO 6: REORDENAR PESSOAS (CORRIGIDA)
         elif acao == 'ordenar':
             original_tribo_nome = request.form.get('original_tribo')
             nova_tribo_nome = request.form.get('nova_tribo')
@@ -1794,7 +1780,6 @@ def gestao_tribos():
             return redirect(url_for("gestao_tribos"))
         return jsonify({"status": "ok"})
 
-    # ✅ LÓGICA DE GET: Carregar dados para renderizar
     tribos_dict = carregar_tribos() 
     return render_template(
         "gestao_tribos.html", 
@@ -1849,7 +1834,6 @@ def tesouraria():
             valor = float(request.form.get('valor'))
             comprovativo_url = None
             
-            # ✅ Upload para Supabase (se houver comprovativo)
             if 'comprovativo' in request.files:
                 file = request.files['comprovativo']
                 if file.filename != '':
@@ -1891,7 +1875,7 @@ def tesouraria():
             
             if transacao and transacao.entidade_nome == entidade:
                 try:
-                    # ✅ Elimina ficheiro do Supabase (se existir)
+                    #Elimina ficheiro do Supabase (se existir)
                     if transacao.comprovativo_url:
                         delete_from_supabase(transacao.comprovativo_url, "tesouraria")
                     
@@ -2324,8 +2308,8 @@ def cozinha():
     inventario = carregar_inventario_cozinha()
     receitas = carregar_receitas()
     tribos_disponiveis = list(carregar_tribos().keys())
-    opcoes_unidade = ["unidades", "kg", "g", "l", "ml", "pacote", "rolo", "a gosto"]
-    opcoes_categoria = ["Cereais", "Laticínios", "Carne", "Peixe", "Frutas", "Vegetais", "Especiarias", "Bebidas", "Outros"]
+    opcoes_unidade = ["unidades", "kg", "g", "l", "ml", "pacote"]
+    opcoes_categoria = ["Material", "Cereais", "Laticínios", "Carne", "Peixe", "Frutas", "Vegetais", "Especiarias", "Bebidas", "Outros"]
     opcoes_dificuldade = ["Fácil", "Médio", "Difícil"]
 
     if request.method == "POST":
@@ -2408,7 +2392,7 @@ def cozinha():
             try:
                 link_ficheiro = None
                 
-                # ✅ Upload para Supabase (se há ficheiro anexado)
+                #Upload para Supabase (se há ficheiro anexado)
                 if 'comprovativo_receita' in request.files:
                     file = request.files['comprovativo_receita']
                     if file.filename != '':
@@ -2541,7 +2525,7 @@ def eliminar_receita():
         receita = Receita.query.filter_by(nome=nome_receita).first()
         
         if receita:
-            # ✅ Elimina ficheiro do Supabase (se existir)
+            #Elimina ficheiro do Supabase (se existir)
             if receita.link_ficheiro:
                 if receita.link_ficheiro.startswith('https://'):
                     # Ficheiro no Supabase
@@ -2698,7 +2682,6 @@ def atualizar_objetivo():
         # Atualiza o objetivo
         progresso.dados_progresso[area][trilho][objetivo] = novo_estado
         
-        # ✅ CRÍTICO: Marca a coluna JSON como modificada para o SQLAlchemy
         from sqlalchemy.orm import attributes
         attributes.flag_modified(progresso, "dados_progresso")
         
@@ -2886,7 +2869,6 @@ def eliminar_outro_doc():
     documento_id = request.form.get("documento_id") 
     
     try:
-        # Supondo que Documento e Ata têm um atributo 'url_supabase'
         doc = Documento.query.get(int(documento_id))
         if doc:
             url_ficheiro = doc.url_supabase
@@ -3018,7 +3000,6 @@ def api_atividades():
             id=str(uuid.uuid4()),
             titulo=data['title'],
             data_inicio=data_inicio_obj,
-            # Se o seu campo na DB não suporta o objeto datetime, ajuste conforme necessário
             data_fim=data_fim_obj, 
             tipo=data['type'],
             descricao=data.get('details', ''),
@@ -3048,13 +3029,10 @@ def api_atividades():
             'allDay': nova_atividade.all_day
         }), 201
     
-    # Rota GET - (Mantida a lógica original, só com pequenos ajustes)
     elif request.method == "GET":
         atividades = carregar_atividades_calendario()
         eventos = []
         for atv in atividades:
-            # Garante que 'end' é incluído e que o formato está correto 
-            # (depende de como carregar_atividades_calendario retorna os dados)
             evento = {
                 'id': atv['id'],
                 'title': atv['title'],

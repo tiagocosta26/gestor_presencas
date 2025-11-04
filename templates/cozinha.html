@@ -95,6 +95,7 @@
                                 {% endif %}
                             </div>
                             <div>
+                                {% if session.get('username') in ['Clan', 'Chefe'] %}
                                 <form method="POST" action="{{ url_for('eliminar_receita') }}" style="display:inline;">
                                     <input type="hidden" name="nome_receita" value="{{ receita.nome }}">
                                     <input type="hidden" name="link_ficheiro" value="{{ receita.link_ficheiro if receita.link_ficheiro else '' }}">
@@ -102,6 +103,7 @@
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
+                                {% endif %}
                             </div>
                         </li>
                         {% endfor %}
@@ -196,13 +198,14 @@
                                 <small class="text-muted ms-2">({{ item.categoria }})</small>
                             </div>
                             
+                            {% if session.get('username') in ['Clan', 'Chefe'] %}
                             <form method="POST" action="{{ url_for('eliminar_item_inventario') }}" style="display:inline;">
-                                <input type="hidden" name="nome_item" value="{{ item.nome | e }}">
-                                <input type="hidden" name="unidade_item" value="{{ item.unidade | e }}">
+                                <input type="hidden" name="item_id" value="{{ item.id }}">
                                 <button type="submit" class="btn btn-sm btn-danger">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </form>
+                            {% endif %}
                             
                         </li>
                         {% endfor %}

@@ -297,10 +297,12 @@
                             <td>{{ item.localizacao }}</td>
                             <td>{{ item.tribo_clan }}</td>
                             <td>{{ item.observacoes }}</td>
+                            {% if session.get('username') in ['Clan', 'Chefe'] %}
                             <td>
                                 <button type="button" class="btn btn-sm btn-danger"
                                     onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>
                             </td>
+                            {% endif %}
                         </tr>
                         {% else %}
                         <tr>
@@ -327,8 +329,11 @@
                                 <p class="mb-1"><strong>Localização:</strong> {{ item.localizacao }}</p>
                                 <p class="mb-1"><strong>Tribo/Clan:</strong> {{ item.tribo_clan }}</p>
                                 <p class="mb-1"><strong>Observações:</strong> {{ item.observacoes }}</p>
+                                
+                                {% if session.get('username') in ['Clan', 'Chefe'] %}
                                 <button type="button" class="btn btn-sm btn-danger w-100"
                                     onclick="removerItem('{{ item.nome }}', '{{ item.tribo_clan }}')">Remover</button>
+                                    {% endif %}
                             </div>
                         </div>
                     </div>
