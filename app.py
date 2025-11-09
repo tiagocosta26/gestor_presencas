@@ -2174,12 +2174,13 @@ def farmacia():
                 return jsonify({'status': 'error', 'message': 'ID do item não fornecido'}), 400
             
             try:
-                item = ItemFarmacia.query.get(int(item_id))
+                # Usa o ID para procurar o item na base de dados
+                item = ItemFarmacia.query.get(int(item_id)) 
                 if item:
                     nome = item.nome
                     db.session.delete(item)
                     db.session.commit()
-                    print(f"✅ Item '{nome}' removido")
+                    print(f"✅ Item '{nome}' com ID {item_id} removido")
                     return jsonify({'status': 'success', 'message': f'Item {nome} removido!'})
                 else:
                     print(f"❌ Item com ID {item_id} não encontrado")
