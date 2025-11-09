@@ -268,7 +268,9 @@
                                 <input type="hidden" name="acao" value="remover">
                                 <input type="hidden" name="entidade" value="{{ entidade }}">
                                 <input type="hidden" name="id_transacao" value="{{ t.id }}">
+                                {% if session.get('username') in ['Clan', 'Chefe'] %}
                                 <button type="submit" class="btn btn-sm btn-danger w-100" style="max-width: 150px;">Remover</button>
+                                {% endif %}
                             </form>
                         </li>
                         
@@ -295,7 +297,9 @@
                     <input type="hidden" name="acao" value="remover">
                     <input type="hidden" name="entidade" value="{{ entidade }}">
                     <input type="hidden" name="id_transacao" value="{{ t.id }}">
+                    {% if session.get('username') in ['Clan', 'Chefe'] %}
                     <button type="submit" class="btn btn-sm btn-danger">Remover</button>
+                    {% endif %}
                 </form>
             </td>
         </tr>
