@@ -1518,7 +1518,7 @@ def ver_atividade(ficheiro):
         # 7. Formatar as datas para visualização
         data_display = (
             data_inicio_min.isoformat() 
-            if data_inicio_min.date() == data_fim_max.date() # Comparar apenas datas
+            if data_inicio_min.isoformat() == data_fim_max.isoformat() # Comparar apenas datas
             else f"{data_inicio_min.isoformat()} - {data_fim_max.isoformat()}"
         )
         
