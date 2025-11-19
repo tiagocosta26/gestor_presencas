@@ -13,7 +13,7 @@ from flask import make_response
 import requests
 from urllib.parse import urlparse
 
-#MEGA ALTERAÇÂOOOOO0000
+#MEGA ALTERAÇÂOOOOO00000000
 
 # --- IMPORTAÇÕES DE BASE DE DADOS ---
 from flask_sqlalchemy import SQLAlchemy 
