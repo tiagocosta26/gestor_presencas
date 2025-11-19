@@ -1328,7 +1328,7 @@ def atividades():
             
             # Adicionar (data_inicio, nome_ficheiro, titulo) para permitir ordenação
             atividades_agrupadas_raw[mes_ano].append((data_inicio, nome_ficheiro, titulo))
-            print(f"   ✅ Nome:{titulo} Mês:{mes_ano} Data:{data_inicio.date()} ID Link:{nome_ficheiro}")
+            print(f"   ✅ Nome:{titulo} Mês:{mes_ano} Data:{data_inicio} ID Link:{nome_ficheiro}")
         
         # 4. Ordenar as atividades DENTRO de cada mês pela data de início
         print("\n4️⃣ Ordenando atividades dentro de cada mês pela data (Mais Recente Primeiro)...")
