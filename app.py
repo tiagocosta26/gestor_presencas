@@ -1292,57 +1292,71 @@ def atividades():
     
     try:
         print("\n1️⃣ Carregando atividades da BD...")
+        # A ordenação inicial da BD é mantida: mais recente primeiro (DESC)
         atividades_obj = AtividadePresenca.query.order_by(
             AtividadePresenca.data_inicio.desc()
         ).all()
         print(f"   ✅ {len(atividades_obj)} atividades carregadas")
         
-        # NOVO PASSO: Agrupar todas as entradas por NOME da atividade
+        # 2. Agrupar todas as entradas por NOME da atividade (Consolidação)
+        # Armazena a data da ocorrência mais recente para ordenação posterior
         print("\n2️⃣ Agrupando por Nome da Atividade (Consolidação)...")
         atividades_consolidadas = {}
         
         for atv in atividades_obj:
             nome = atv.nome
-            # Se já existe uma atividade com este nome, ignoramos esta (mantemos a primeira/mais recente)
-            # A chave de pesquisa será o nome, o valor será o ID e a Data da primeira ocorrência
             if nome not in atividades_consolidadas:
-                # Usaremos o ID da primeira ocorrência para o link 'ver_atividade'
+                # Armazenar o objeto data_inicio para futura ordenação
                 atividades_consolidadas[nome] = {
                     'id': atv.id,
+                    'data_inicio': atv.data_inicio, # <-- Guardar a data completa
                     'mes_ano': atv.data_inicio.strftime("%Y-%m")
                 }
             print(f"   ✅ Atividade '{nome}' (ID:{atv.id}) agrupada com ID de referência: {atividades_consolidadas[nome]['id']}")
 
-        # PASSO MODIFICADO: Agrupar por mês, usando agora o nome da atividade
-        print("\n3️⃣ Agrupando por mês, usando o NOME da atividade...")
-        atividades_agrupadas = defaultdict(list)
+        # 3. Agrupar por mês e preparar para ordenação
+        print("\n3️⃣ Agrupando por mês (com data para ordenação)...")
+        atividades_agrupadas_raw = defaultdict(list)
         
         for nome_atv, dados_atv in atividades_consolidadas.items():
             mes_ano = dados_atv['mes_ano']
-            id_referencia = dados_atv['id'] # O ID a usar para o link de visualização
+            data_inicio = dados_atv['data_inicio']
+            id_referencia = dados_atv['id']
             
-            # O nome_ficheiro será o ID de REFERÊNCIA (o primeiro que encontrámos para este nome)
             nome_ficheiro = str(id_referencia) 
-            titulo = nome_atv # O título será o nome da atividade
+            titulo = nome_atv
             
-            # Adicionamos o tuplo (ID_referencia, Nome_Atividade) ao mês
-            atividades_agrupadas[mes_ano].append((nome_ficheiro, titulo))
-            print(f"   ✅ Nome:{titulo} Mês:{mes_ano} ID Link:{nome_ficheiro}")
+            # Adicionar (data_inicio, nome_ficheiro, titulo) para permitir ordenação
+            atividades_agrupadas_raw[mes_ano].append((data_inicio, nome_ficheiro, titulo))
+            print(f"   ✅ Nome:{titulo} Mês:{mes_ano} Data:{data_inicio.date()} ID Link:{nome_ficheiro}")
         
-        # Garantir que não há duplicados (embora o dicionário 'atividades_consolidadas' já previna isso)
-        for mes_ano, lista_atividades in atividades_agrupadas.items():
-            # A função set() remove duplicados de tuplos, se houver
-            atividades_agrupadas[mes_ano] = list(set(lista_atividades))
+        # 4. Ordenar as atividades DENTRO de cada mês pela data de início
+        print("\n4️⃣ Ordenando atividades dentro de cada mês pela data (Mais Recente Primeiro)...")
+        atividades_agrupadas = {}
         
+        for mes_ano, lista_atividades_raw in atividades_agrupadas_raw.items():
+            # Ordenar pelo primeiro elemento do tuplo (data_inicio).
+            # reverse=True garante que o mais recente vem primeiro
+            lista_ordenada_por_data = sorted(
+                lista_atividades_raw, 
+                key=lambda x: x[0], 
+                reverse=True
+            )
+            
+            # Remover a data e deixar apenas (nome_ficheiro, titulo) para o template
+            atividades_agrupadas[mes_ano] = [(item[1], item[2]) for item in lista_ordenada_por_data]
+            print(f"   ✅ Mês {mes_ano} ordenado.")
+        
+        # 5. Ordenar os meses (que já estava correto)
         meses_ordenados = sorted(atividades_agrupadas.keys(), reverse=True)
-        print(f"\n4️⃣ Meses ordenados: {meses_ordenados}")
+        print(f"\n5️⃣ Meses ordenados: {meses_ordenados}")
         
-        print("\n5️⃣ Renderizando template...")
+        print("\n6️⃣ Renderizando template...")
         print(f"   atividades_agrupadas (por mês): {dict(atividades_agrupadas)}")
         
         resultado = render_template(
             "atividades.html", 
-            atividades_agrupadas=atividades_agrupadas, 
+            atividades_agrupadas=atividades_agrupadas, # <-- Usar o dicionário ordenado
             meses_ordenados=meses_ordenados
         )
         
