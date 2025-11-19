@@ -1297,22 +1297,48 @@ def atividades():
         ).all()
         print(f"   ✅ {len(atividades_obj)} atividades carregadas")
         
-        print("\n2️⃣ Agrupando por mês...")
-        atividades_agrupadas = defaultdict(list)
+        # NOVO PASSO: Agrupar todas as entradas por NOME da atividade
+        print("\n2️⃣ Agrupando por Nome da Atividade (Consolidação)...")
+        atividades_consolidadas = {}
         
         for atv in atividades_obj:
-            mes_ano = atv.data_inicio.strftime("%Y-%m")
-            nome_ficheiro = str(atv.id)
-            titulo = atv.nome
+            nome = atv.nome
+            # Se já existe uma atividade com este nome, ignoramos esta (mantemos a primeira/mais recente)
+            # A chave de pesquisa será o nome, o valor será o ID e a Data da primeira ocorrência
+            if nome not in atividades_consolidadas:
+                # Usaremos o ID da primeira ocorrência para o link 'ver_atividade'
+                atividades_consolidadas[nome] = {
+                    'id': atv.id,
+                    'mes_ano': atv.data_inicio.strftime("%Y-%m")
+                }
+            print(f"   ✅ Atividade '{nome}' (ID:{atv.id}) agrupada com ID de referência: {atividades_consolidadas[nome]['id']}")
+
+        # PASSO MODIFICADO: Agrupar por mês, usando agora o nome da atividade
+        print("\n3️⃣ Agrupando por mês, usando o NOME da atividade...")
+        atividades_agrupadas = defaultdict(list)
+        
+        for nome_atv, dados_atv in atividades_consolidadas.items():
+            mes_ano = dados_atv['mes_ano']
+            id_referencia = dados_atv['id'] # O ID a usar para o link de visualização
+            
+            # O nome_ficheiro será o ID de REFERÊNCIA (o primeiro que encontrámos para este nome)
+            nome_ficheiro = str(id_referencia) 
+            titulo = nome_atv # O título será o nome da atividade
+            
+            # Adicionamos o tuplo (ID_referencia, Nome_Atividade) ao mês
             atividades_agrupadas[mes_ano].append((nome_ficheiro, titulo))
-            print(f"   ✅ ID:{atv.id} Nome:{atv.nome} Mês:{mes_ano}")
+            print(f"   ✅ Nome:{titulo} Mês:{mes_ano} ID Link:{nome_ficheiro}")
+        
+        # Garantir que não há duplicados (embora o dicionário 'atividades_consolidadas' já previna isso)
+        for mes_ano, lista_atividades in atividades_agrupadas.items():
+            # A função set() remove duplicados de tuplos, se houver
+            atividades_agrupadas[mes_ano] = list(set(lista_atividades))
         
         meses_ordenados = sorted(atividades_agrupadas.keys(), reverse=True)
-        print(f"\n3️⃣ Meses ordenados: {meses_ordenados}")
+        print(f"\n4️⃣ Meses ordenados: {meses_ordenados}")
         
-        print("\n4️⃣ Renderizando template...")
-        print(f"   atividades_agrupadas: {dict(atividades_agrupadas)}")
-        print(f"   meses_ordenados: {meses_ordenados}")
+        print("\n5️⃣ Renderizando template...")
+        print(f"   atividades_agrupadas (por mês): {dict(atividades_agrupadas)}")
         
         resultado = render_template(
             "atividades.html", 
@@ -1339,31 +1365,46 @@ def atividades():
 
 @app.route('/eliminar_atividade/<nome_ficheiro>', methods=['POST'])
 def eliminar_atividade(nome_ficheiro):
-    """Elimina uma atividade de presença."""
+    """Elimina TODAS as atividades de presença com o mesmo nome (agrupamento)."""
     if session.get('username') not in ['Chefe', 'Clan']:
         flash("Não tem permissão para eliminar atividades.", "danger")
         return redirect(url_for('atividades'))
     
     try:
-        print(f"\n🗑️ Tentando eliminar atividade: {nome_ficheiro}")
+        print(f"\n🗑️ Tentando eliminar atividade (ID de referência): {nome_ficheiro}")
         
         try:
-            atividade_id = int(nome_ficheiro)
+            atividade_id_ref = int(nome_ficheiro)
         except (ValueError, TypeError):
             print(f"❌ ID inválido: {nome_ficheiro}")
             flash("ID de atividade inválido.", "danger")
             return redirect(url_for('atividades'))
         
-        atividade = AtividadePresenca.query.get(atividade_id)
-        if atividade:
-            nome = atividade.nome
-            db.session.delete(atividade)
-            db.session.commit()
-            print(f"✅ Atividade '{nome}' (ID: {atividade_id}) eliminada")
-            flash(f"Atividade '{nome}' eliminada com sucesso.", "success")
-        else:
-            print(f"❌ Atividade não encontrada com ID: {atividade_id}")
+        # 1. Obter o NOME da atividade a partir do ID de referência
+        atividade_ref = AtividadePresenca.query.get(atividade_id_ref)
+        if not atividade_ref:
+            print(f"❌ Atividade de referência não encontrada com ID: {atividade_id_ref}")
             flash("Atividade não encontrada.", "danger")
+            return redirect(url_for('atividades'))
+        
+        nome_a_eliminar = atividade_ref.nome
+        
+        # 2. Eliminar todas as entradas com esse NOME
+        entradas_a_eliminar = AtividadePresenca.query.filter_by(nome=nome_a_eliminar).all()
+        
+        count = 0
+        for atv in entradas_a_eliminar:
+            db.session.delete(atv)
+            count += 1
+            print(f"   ✅ Entrada ID:{atv.id} eliminada.")
+
+        if count > 0:
+            db.session.commit()
+            print(f"✅ {count} entradas da atividade '{nome_a_eliminar}' eliminadas")
+            flash(f"Atividade '{nome_a_eliminar}' ({count} entradas) eliminada com sucesso.", "success")
+        else:
+            flash("Atividade não encontrada para eliminação.", "danger")
+            
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -1376,64 +1417,93 @@ def eliminar_atividade(nome_ficheiro):
 
 @app.route("/atividade/<ficheiro>")
 def ver_atividade(ficheiro):
-    """Vê detalhes de uma atividade."""
+    """Vê detalhes de uma atividade (consolidando pelo nome)."""
     try:
-        print(f"\n👁️ Carregando atividade: {ficheiro}")
+        print(f"\n👁️ Carregando atividade (ID de referência): {ficheiro}")
         
         try:
-            atividade_id = int(ficheiro)
+            atividade_id_ref = int(ficheiro)
         except (ValueError, TypeError):
             print(f"❌ ID inválido: {ficheiro}")
             flash("ID de atividade inválido.", "danger")
             return redirect(url_for("atividades"))
         
-        atividade = AtividadePresenca.query.get(atividade_id)
-        if not atividade:
-            print(f"❌ Atividade não encontrada com ID: {atividade_id}")
+        # 1. Encontrar o nome da atividade através do ID de referência
+        atividade_ref = AtividadePresenca.query.get(atividade_id_ref)
+        if not atividade_ref:
+            print(f"❌ Atividade de referência não encontrada com ID: {atividade_id_ref}")
             flash("Atividade não encontrada.", "danger")
             return redirect(url_for("atividades"))
         
-        print(f"✅ Atividade encontrada: {atividade.nome}")
+        nome_atividade = atividade_ref.nome
+        data_inicio_ref = atividade_ref.data_inicio
+        data_fim_ref = atividade_ref.data_fim
+
+        print(f"✅ Nome da Atividade consolidada: {nome_atividade}")
+        
+        # 2. Encontrar TODAS as entradas da base de dados com este nome
+        todas_entradas = AtividadePresenca.query.filter_by(nome=nome_atividade).all()
+
+        # 3. Consolidar os dados (presenças) de todas as entradas
+        dados_consolidados = defaultdict(dict)
+        data_inicio_min = data_inicio_ref # Começa com a data da referência
+        data_fim_max = data_fim_ref # Começa com a data da referência
+
+        for atv in todas_entradas:
+            # Consolida as datas (apenas por segurança, se precisar do range real)
+            if atv.data_inicio < data_inicio_min:
+                data_inicio_min = atv.data_inicio
+            if atv.data_fim > data_fim_max:
+                data_fim_max = atv.data_fim
+
+            # Funde os dados de presença de todas as tribos/entradas
+            if atv.dados:
+                for tribo_nome, membros in atv.dados.items():
+                    # Adiciona/Substitui os dados de presença (ex: tribo 'teste' e 'teste2')
+                    dados_consolidados[tribo_nome].update(membros)
+                    print(f"   ➕ Dados da tribo '{tribo_nome}' da entrada ID:{atv.id} adicionados.")
+
         
         cargos_disponiveis = carregar_cargos()
         
-        # Reformatar dados para o template
-        dados = defaultdict(list)
-        if atividade.dados:
-            for tribo_nome, membros in atividade.dados.items():
-                for pessoa_nome, presente in membros.items():
-                    # Procura os cargos da pessoa
-                    pessoa = Pessoa.query.filter_by(nome=pessoa_nome).first()
-                    cargos_list = []
-                    if pessoa:
-                        cargos_list = [pc.cargo.nome for pc in pessoa.cargos]
-                    
-                    dados[tribo_nome].append({
-                        'nome': pessoa_nome,
-                        'presente': presente,
-                        'cargos': cargos_list
-                    })
-                    print(f"   ✅ {pessoa_nome} ({tribo_nome}): {presente}")
+        # 4. Reformatar dados para o template (como fazia antes, mas com dados_consolidados)
+        dados_para_template = defaultdict(list)
+        for tribo_nome, membros in dados_consolidados.items():
+            for pessoa_nome, presente in membros.items():
+                # Procura os cargos da pessoa
+                pessoa = Pessoa.query.filter_by(nome=pessoa_nome).first()
+                cargos_list = []
+                if pessoa:
+                    cargos_list = [pc.cargo.nome for pc in pessoa.cargos]
+                
+                dados_para_template[tribo_nome].append({
+                    'nome': pessoa_nome,
+                    'presente': presente,
+                    'cargos': cargos_list
+                })
+                # print(f"   ✅ {pessoa_nome} ({tribo_nome}): {presente}") # Descomentar se quiser ver no log
         
+        # 5. Formatar as datas para visualização
         data_display = (
-            atividade.data_inicio.isoformat() 
-            if atividade.data_inicio == atividade.data_fim 
-            else f"{atividade.data_inicio.isoformat()} - {atividade.data_fim.isoformat()}"
+            data_inicio_min.isoformat() 
+            if data_inicio_min == data_fim_max
+            else f"{data_inicio_min.isoformat()} - {data_fim_max.isoformat()}"
         )
         
-        print(f"✅ Renderizando template com {len(dados)} tribos\n")
+        print(f"✅ Renderizando template com {len(dados_para_template)} tribos consolidadas\n")
         
         return render_template(
             "ver_atividade.html", 
-            ficheiro=atividade.nome,
-            atividade_id=atividade_id,
-            dados=dados,
+            ficheiro=nome_atividade, # Passa o nome da atividade para o título
+            atividade_id=atividade_id_ref,
+            dados=dados_para_template,
             data_display=data_display, 
             cargos_disponiveis=cargos_disponiveis
         )
     except Exception as e:
+        # ... (tratamento de erro)
         import traceback
-        print(f"❌ Erro ao carregar atividade: {e}")
+        print(f"❌ Erro ao carregar atividade consolidada: {e}")
         traceback.print_exc()
         flash("Erro ao carregar atividade.", "danger")
         return redirect(url_for("atividades"))
