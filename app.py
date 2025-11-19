@@ -12,6 +12,7 @@ from icalendar import Calendar, Event
 from flask import make_response
 import requests
 from urllib.parse import urlparse
+from sqlalchemy.orm import selectinload
 
 #MEGA ALTERAÇÂOOOOO00000000
 
@@ -1431,7 +1432,7 @@ def eliminar_atividade(nome_ficheiro):
 
 @app.route("/atividade/<ficheiro>")
 def ver_atividade(ficheiro):
-    """Vê detalhes de uma atividade (consolidando pelo nome)."""
+    """Vê detalhes de uma atividade (consolidando pelo nome) - OTIMIZADO."""
     try:
         print(f"\n👁️ Carregando atividade (ID de referência): {ficheiro}")
         
@@ -1443,6 +1444,7 @@ def ver_atividade(ficheiro):
             return redirect(url_for("atividades"))
         
         # 1. Encontrar o nome da atividade através do ID de referência
+        # Otimização não é necessária aqui, é uma consulta por PK.
         atividade_ref = AtividadePresenca.query.get(atividade_id_ref)
         if not atividade_ref:
             print(f"❌ Atividade de referência não encontrada com ID: {atividade_id_ref}")
@@ -1460,11 +1462,13 @@ def ver_atividade(ficheiro):
 
         # 3. Consolidar os dados (presenças) de todas as entradas
         dados_consolidados = defaultdict(dict)
-        data_inicio_min = data_inicio_ref # Começa com a data da referência
-        data_fim_max = data_fim_ref # Começa com a data da referência
+        data_inicio_min = data_inicio_ref
+        data_fim_max = data_fim_ref
+
+        nomes_participantes_unicos = set() # Novo: Coletar todos os nomes únicos
 
         for atv in todas_entradas:
-            # Consolida as datas (apenas por segurança, se precisar do range real)
+            # Consolida as datas
             if atv.data_inicio < data_inicio_min:
                 data_inicio_min = atv.data_inicio
             if atv.data_fim > data_fim_max:
@@ -1473,34 +1477,48 @@ def ver_atividade(ficheiro):
             # Funde os dados de presença de todas as tribos/entradas
             if atv.dados:
                 for tribo_nome, membros in atv.dados.items():
-                    # Adiciona/Substitui os dados de presença (ex: tribo 'teste' e 'teste2')
                     dados_consolidados[tribo_nome].update(membros)
-                    print(f"   ➕ Dados da tribo '{tribo_nome}' da entrada ID:{atv.id} adicionados.")
+                    nomes_participantes_unicos.update(membros.keys()) # Adiciona nomes ao set de únicos
+                    print(f"   ➕ Dados da tribo '{tribo_nome}' da entrada ID:{atv.id} adicionados.")
 
         
+        print("\n4️⃣ Otimização: Pré-carregando dados de Pessoa e Cargos...")
+        
+        pessoas_com_cargos_obj = Pessoa.query.options(
+            selectinload(Pessoa.cargos).selectinload(PessoaCargo.cargo)
+        ).filter(Pessoa.nome.in_(nomes_participantes_unicos)).all()
+        
+        print(f"   ✅ {len(pessoas_com_cargos_obj)} pessoas e respetivos cargos carregados numa única consulta.")
+
+        # 5. Criar um mapa (Dicionário) de acesso rápido (O(1)) para os dados
+        mapa_pessoas_cargos = {}
+        for pessoa in pessoas_com_cargos_obj:
+            cargos_list = [pc.cargo.nome for pc in pessoa.cargos if pc.cargo]
+            mapa_pessoas_cargos[pessoa.nome] = cargos_list
+            
+        print("   ✅ Mapa de cargos criado na memória.")
+
         cargos_disponiveis = carregar_cargos()
         
-        # 4. Reformatar dados para o template (como fazia antes, mas com dados_consolidados)
+        # 6. Reformatar dados para o template usando o mapa em memória (AGORA RÁPIDO!)
+        print("\n6️⃣ Reformatando dados (processamento em memória)...")
         dados_para_template = defaultdict(list)
         for tribo_nome, membros in dados_consolidados.items():
             for pessoa_nome, presente in membros.items():
-                # Procura os cargos da pessoa
-                pessoa = Pessoa.query.filter_by(nome=pessoa_nome).first()
-                cargos_list = []
-                if pessoa:
-                    cargos_list = [pc.cargo.nome for pc in pessoa.cargos]
+                
+                # Acesso O(1) instantâneo ao mapa, sem consultar a BD!
+                cargos_list = mapa_pessoas_cargos.get(pessoa_nome, [])
                 
                 dados_para_template[tribo_nome].append({
                     'nome': pessoa_nome,
                     'presente': presente,
                     'cargos': cargos_list
                 })
-                # print(f"   ✅ {pessoa_nome} ({tribo_nome}): {presente}") # Descomentar se quiser ver no log
         
-        # 5. Formatar as datas para visualização
+        # 7. Formatar as datas para visualização
         data_display = (
             data_inicio_min.isoformat() 
-            if data_inicio_min == data_fim_max
+            if data_inicio_min.date() == data_fim_max.date() # Comparar apenas datas
             else f"{data_inicio_min.isoformat()} - {data_fim_max.isoformat()}"
         )
         
@@ -1508,14 +1526,14 @@ def ver_atividade(ficheiro):
         
         return render_template(
             "ver_atividade.html", 
-            ficheiro=nome_atividade, # Passa o nome da atividade para o título
+            ficheiro=nome_atividade,
             atividade_id=atividade_id_ref,
             dados=dados_para_template,
             data_display=data_display, 
             cargos_disponiveis=cargos_disponiveis
         )
     except Exception as e:
-        # ... (tratamento de erro)
+        db.session.rollback()
         import traceback
         print(f"❌ Erro ao carregar atividade consolidada: {e}")
         traceback.print_exc()
