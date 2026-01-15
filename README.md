@@ -64,7 +64,8 @@ SITE_CLAN5/
 | **Sistema de Progresso** | **Tesouraria** | **Assiduidade** |
 | ![Progresso](static/progresso.png) | ![Tesouraria](static/tesouraria.png) | ![Assiduidade](static/assiduidade.png) |
 
-> **Nota:** As capturas de ecrã acima utilizam dados fictícios ou ocultos para garantir a privacidade dos membros do Clã.
+> **Nota:** As capturas de ecrã acima utilizam dados fictícios ou ocultos para garantir a privacidade dos membros do grupo.
+
 ---
 <p align="center">
   <b>Servir!</b> ⚜️🔴
