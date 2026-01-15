@@ -1,0 +1,20 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ambiente Virtual
+venv/
+env/
+.venv/
+
+# Variáveis Sensíveis (Segurança!)
+.env
+
+# Base de Dados Local e Instância
+instance/
+*.db
+
+# Sistema
+.DS_Store
+Thumbs.db
