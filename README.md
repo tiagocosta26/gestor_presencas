@@ -38,5 +38,33 @@ Para manter a integridade dos dados, o sistema possui regras de edição:
 2. **Utilizador "Clan":** Gestão de tribos e permissão para apagar ficheiros/registos.
 3. **Utilizador "Chefe":** Permissões totais, incluindo gestão de contas individuais, sistema de progresso e criação de novos utilizadores.
 
+## 📂 Estrutura do Projeto
+
+```text
+SITE_CLAN5/
+├── app.py                # Servidor Flask e lógica principal
+├── .env                  # Variáveis de ambiente (Privado)
+├── requirements.txt      # Dependências do projeto
+├── registros/            # Base de dados histórica em CSV (Assiduidade)
+├── static/               # Assets: Imagens (.png, .jpg) e Logos
+├── templates/            # Páginas HTML (Jinja2)
+│   └── partials/         # Componentes reutilizáveis (ex: folha_caixa)
+├── tesouraria/           # Ficheiros JSON de contas individuais
+├── uploads/              # Documentos, atas, receitas e manuais (PDF/Docx)
+├── instance/             # Bases de dados SQLite locais (.db)
+├── debug/                # Scripts auxiliares de migração e verificação
+└── *.json                # Configurações de progresso, tribos e inventários
+```
+## 📸 Demonstração do Sistema
+
+| **Home** | **Secretaria** | **Calendário** |
+| :---: | :---: | :---: |
+| ![Home](static/foto1.png) | ![Presencas](static/foto2.png) | ![Calendario](static/foto3.png) |
+| **Sistema de Progresso** | **Tesouraria** | **Assiduidade** |
+| ![Progresso](static/foto4.png) | ![Tesouraria](static/foto5.png) | ![Tribos](static/foto6.png) |
+
+> **Nota:** As capturas de ecrã acima utilizam dados fictícios ou ocultos para garantir a privacidade dos membros do Clã.
 ---
-**Servir!** ⚜️
+<p align="center">
+  <b>Servir!</b> ⚜️🔴
+</p>
