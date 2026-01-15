@@ -1,6 +1,7 @@
 # ⚜️ Plataforma de Gestão - Clã 5 (CNE)
 
-Uma solução centralizada para a gestão de reuniões, atividades e cargos do Clã 5 do Agrupamento 42 Penha de França do CNE.
+[PT] Uma solução centralizada para a gestão de reuniões, atividades e cargos do Clã 5 do Agrupamento 42 Penha de França do CNE.\
+[EN] A centralized management platform for scouts' meetings, activities, and roles.
 
 > **Nota:** Esta plataforma é de uso interno. Para fins de demonstração, o deploy pode ser consultado em: [clan5.onrender.com](https://clan5.onrender.com/) 🚀
 
@@ -63,7 +64,12 @@ SITE_CLAN5/
 | **Sistema de Progresso** | **Tesouraria** | **Assiduidade** |
 | ![Progresso](static/progresso.png) | ![Tesouraria](static/tesouraria.png) | ![Assiduidade](static/assiduidade.png) |
 
-> **Nota:** As capturas de ecrã acima utilizam dados fictícios ou ocultos para garantir a privacidade dos membros do Clã.
+> **Nota:** As capturas de ecrã acima utilizam dados fictícios ou ocultos para garantir a privacidade dos membros do grupo.
+
+## License
+
+<p>This project is licensed under the MIT License. See <a href="LICENSE">LICENSE</a> for details.</p>
+
 ---
 <p align="center">
   <b>Servir!</b> ⚜️🔴
