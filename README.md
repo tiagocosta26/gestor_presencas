@@ -32,6 +32,26 @@ O projeto utiliza uma arquitetura moderna para garantir disponibilidade online:
     * **CSV:** Para arquivos estáticos e históricos de atividades.
 * **Deployment:** Alojado no **Render**.
 
+## 🚀 Como Executar Localmente
+
+1. **Clonar o repositório:**
+   ```bash
+   git clone [https://github.com/tiagocosta26/Site_Clan5.git](https://github.com/tiagocosta26/Site_Clan5.git)
+   cd Site_Clan5
+2. **Criar e ativar um Ambiente Virtual:**
+   ```bash
+   python -m venv venv
+   # No Windows:
+   venv\Scripts\activate
+   # No macOS/Linux:
+   source venv/bin/activate
+3. **Instalar as dependências:**
+   ```bash
+   pip install -r requirements.txt
+4. **Iniciar o Servidor**
+   ```bash
+   python app.py
+
 ## 🔐 Acesso e Segurança
 Para manter a integridade dos dados, o sistema possui regras de edição:
 
