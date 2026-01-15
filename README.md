@@ -66,6 +66,10 @@ SITE_CLAN5/
 
 > **Nota:** As capturas de ecrã acima utilizam dados fictícios ou ocultos para garantir a privacidade dos membros do grupo.
 
+## License
+
+<p>This project is licensed under the MIT License. See <a href="LICENSE">LICENSE</a> for details.</p>
+
 ---
 <p align="center">
   <b>Servir!</b> ⚜️🔴
