@@ -70,7 +70,7 @@ SITE_CLAN5/
 ├── static/               # Assets: Imagens (.png, .jpg) e Logos
 ├── templates/            # Páginas HTML (Jinja2)
 │   └── partials/         # Componentes reutilizáveis (ex: folha_caixa)
-├── tesouraria/           # Ficheiros JSON de contas individuais
+├── tesouraria/           # Ficheiros JSON de contas do grupo
 ├── uploads/              # Documentos, atas, receitas e manuais (PDF/Docx)
 ├── instance/             # Bases de dados SQLite locais (.db)
 ├── debug/                # Scripts auxiliares de migração e verificação
