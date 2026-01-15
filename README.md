@@ -59,9 +59,9 @@ SITE_CLAN5/
 
 | **Home** | **Secretaria** | **Calendário** |
 | :---: | :---: | :---: |
-| ![Home](static/foto1.png) | ![Presencas](static/foto2.png) | ![Calendario](static/foto3.png) |
+| ![Home](static/home.png) | ![Secretaria](static/secretaria.png) | ![Calendario](static/foto_calendario.png) |
 | **Sistema de Progresso** | **Tesouraria** | **Assiduidade** |
-| ![Progresso](static/foto4.png) | ![Tesouraria](static/foto5.png) | ![Tribos](static/foto6.png) |
+| ![Progresso](static/progresso.png) | ![Tesouraria](static/tesouraria.png) | ![Assiduidade](static/assiduidade.png) |
 
 > **Nota:** As capturas de ecrã acima utilizam dados fictícios ou ocultos para garantir a privacidade dos membros do Clã.
 ---
