@@ -14,8 +14,6 @@ import requests
 from urllib.parse import urlparse
 from sqlalchemy.orm import selectinload
 
-#MEGA ALTERAÇÂOOOOO00000000
-
 # --- IMPORTAÇÕES DE BASE DE DADOS ---
 from flask_sqlalchemy import SQLAlchemy 
 from sqlalchemy import JSON 
